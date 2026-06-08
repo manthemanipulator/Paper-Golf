@@ -24,9 +24,10 @@
             max-width: 350px;
             margin-bottom: 10px;
             font-weight: bold;
-            font-size: 15px;
+            font-size: 14px; /* Slightly smaller to fit 4 items */
             color: #2c3e50;
         }
+        .rules-link { color: #007aff; cursor: pointer; text-decoration: underline; }
 
         .dice-container {
             display: flex;
@@ -39,6 +40,7 @@
             margin-bottom: 15px;
             width: 100%;
             max-width: 350px;
+            box-sizing: border-box;
         }
         #diceResult {
             font-size: 48px;
@@ -104,19 +106,24 @@
             width: fit-content;
         }
 
-        .victory-screen {
+        /* Overlays (Rules & Victory) */
+        .overlay {
             display: none; 
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(255, 255, 255, 0.9);
+            background: rgba(255, 255, 255, 0.95);
             flex-direction: column;
             align-items: center;
             justify-content: center;
             border-radius: 8px;
             z-index: 10;
+            padding: 15px;
+            box-sizing: border-box;
+            overflow-y: auto;
+            text-align: center;
         }
-        .victory-screen h2 { color: #2c3e50; font-size: 28px; margin-bottom: 5px; }
-        .victory-screen p { color: #666; font-size: 18px; font-weight: bold; }
+        .overlay h2 { color: #2c3e50; font-size: 24px; margin-top: 0; margin-bottom: 10px; }
+        .overlay p { color: #444; font-size: 14px; margin-bottom: 8px; text-align: left; width: 100%; line-height: 1.4; }
 
         canvas {
             background-color: #fcfcfc;
@@ -143,8 +150,9 @@
     
     <div class="header-bar">
         <span id="holeDisplay">Hole: 1</span>
-        <span id="mulliganDisplay">Mulligans: 6</span>
         <span id="strokeDisplay">Strokes: 0</span>
+        <span id="mulliganDisplay">Mulls: 6</span>
+        <span class="rules-link" onclick="toggleRules(true)">Rules</span>
     </div>
 
     <div class="dice-container">
@@ -158,10 +166,25 @@
 
     <div class="map-container">
         <div class="canvas-wrapper">
-            <div id="victoryOverlay" class="victory-screen">
-                <h2>IN THE HOLE!</h2>
-                <p id="finalScoreText">Score: 3 (Par 6)</p>
+            <!-- Rules Overlay -->
+            <div id="rulesOverlay" class="overlay">
+                <h2>Game Rules</h2>
+                <p><strong>Dice GOLF:</strong> Roll the d6 to determine your distance. Move in any of the 8 orthogonal or diagonal directions.</p>
+                <p><strong>Putting:</strong> You may always choose to putt to move exactly 1 space, regardless of terrain.</p>
+                <p><strong>Terrain Rules:</strong><br>
+                • <strong>Fairway:</strong> +1 to your roll. Allows shooting over trees.<br>
+                • <strong>Sand Trap:</strong> -1 to your roll.<br>
+                • <strong>Water & Trees:</strong> You cannot land in water or directly on a tree. You cannot shoot through trees unless starting from the Fairway.</p>
+                <p><strong>Mulligans:</strong> 6 per course. Your first tee-off re-roll is free. You must use the second roll.</p>
+                <button onclick="toggleRules(false)" style="margin-top: 10px;">Close Rules</button>
             </div>
+            
+            <!-- Victory Overlay -->
+            <div id="victoryOverlay" class="overlay" style="display: none; justify-content: center;">
+                <h2 style="font-size: 28px; margin-bottom: 5px;">IN THE HOLE!</h2>
+                <p id="finalScoreText" style="text-align: center; font-size: 18px; font-weight: bold;"></p>
+            </div>
+            
             <canvas id="courseMap" width="300" height="400"></canvas>
         </div>
         
@@ -222,6 +245,11 @@
             dot: 'rgba(0, 0, 0, 0.15)' 
         };
 
+        // --- UI TOGGLES ---
+        function toggleRules(show) {
+            document.getElementById('rulesOverlay').style.display = show ? 'flex' : 'none';
+        }
+
         // --- ACTION BUTTON LOGIC ---
         function animateDice(text) {
             diceResult.innerText = text;
@@ -249,8 +277,8 @@
         }
 
         function calculateMaxDistance() {
-            let cGridX = currentBallPos.x / TILE_SIZE;
-            let cGridY = currentBallPos.y / TILE_SIZE;
+            let cGridX = Math.floor(currentBallPos.x / TILE_SIZE);
+            let cGridY = Math.floor(currentBallPos.y / TILE_SIZE);
             let currentTerrain = gridData[cGridY][cGridX];
             
             let effectiveRoll = currentRoll;
@@ -302,7 +330,7 @@
                 usedTeeOffReroll = true;
             } else {
                 mulligans--;
-                mulliganDisplay.innerText = `Mulligans: ${mulligans}`;
+                mulliganDisplay.innerText = `Mulls: ${mulligans}`;
             }
             
             currentRoll = Math.floor(Math.random() * 6) + 1;
@@ -317,9 +345,9 @@
             victoryOverlay.style.display = 'none';
 
             gridData = [];
-            for(let y = 0; y <= ROWS; y++) {
+            for(let y = 0; y < ROWS; y++) {
                 gridData[y] = [];
-                for(let x = 0; x <= COLS; x++) {
+                for(let x = 0; x < COLS; x++) {
                     gridData[y][x] = TERRAIN.ROUGH;
                 }
             }
@@ -343,7 +371,8 @@
                 else if (move < 0.75 && currentX > 2) currentX -= 1;
                 else if (currentX < COLS - 3) currentX += 1;
             }
-            holePos = { x: currentX * TILE_SIZE, y: currentY * TILE_SIZE };
+            // Hole is drawn in the precise center of its tile
+            holePos = { x: currentX * TILE_SIZE + (TILE_SIZE/2), y: currentY * TILE_SIZE + (TILE_SIZE/2) };
 
             for(let i = 0; i < 5; i++) {
                 let isWater = Math.random() > 0.5;
@@ -363,13 +392,23 @@
             for(let i = 0; i < 15; i++) {
                 let tx = Math.floor(Math.random() * COLS);
                 let ty = Math.floor(Math.random() * ROWS);
-                if ((tx !== startX || ty !== startY) && (tx !== holePos.x/TILE_SIZE || ty !== holePos.y/TILE_SIZE)) {
+                if ((tx !== startX || ty !== startY) && (tx !== Math.floor(holePos.x/TILE_SIZE) || ty !== Math.floor(holePos.y/TILE_SIZE))) {
                     if(gridData[ty] && gridData[ty][tx] !== undefined) {
                         gridData[ty][tx] = TERRAIN.TREE;
                     }
                 }
             }
 
+            drawBoard();
+
+            // Set Ball Position to exactly the center of the start tile
+            currentBallPos = { x: startX * TILE_SIZE + (TILE_SIZE/2), y: startY * TILE_SIZE + (TILE_SIZE/2) };
+            drawBall(currentBallPos.x, currentBallPos.y, true);
+            
+            resetTurn(true);
+        }
+
+        function drawBoard() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             
             for(let y = 0; y < ROWS; y++) {
@@ -381,9 +420,9 @@
                         
                         ctx.fillStyle = COLORS[TERRAIN.TREE];
                         ctx.beginPath();
-                        ctx.moveTo(x * TILE_SIZE + (TILE_SIZE/2), y * TILE_SIZE);
-                        ctx.lineTo(x * TILE_SIZE + TILE_SIZE, y * TILE_SIZE + TILE_SIZE);
-                        ctx.lineTo(x * TILE_SIZE, y * TILE_SIZE + TILE_SIZE);
+                        ctx.moveTo(x * TILE_SIZE + (TILE_SIZE/2), y * TILE_SIZE + 4);
+                        ctx.lineTo(x * TILE_SIZE + TILE_SIZE - 4, y * TILE_SIZE + TILE_SIZE - 4);
+                        ctx.lineTo(x * TILE_SIZE + 4, y * TILE_SIZE + TILE_SIZE - 4);
                         ctx.fill();
                     } else {
                         ctx.fillStyle = COLORS[tile];
@@ -393,10 +432,10 @@
             }
 
             ctx.fillStyle = COLORS.dot;
-            for(let y = 0; y <= ROWS; y++) {
-                for(let x = 0; x <= COLS; x++) {
+            for(let y = 0; y < ROWS; y++) {
+                for(let x = 0; x < COLS; x++) {
                     ctx.beginPath();
-                    ctx.arc(x * TILE_SIZE, y * TILE_SIZE, 1.5, 0, Math.PI * 2);
+                    ctx.arc(x * TILE_SIZE + (TILE_SIZE/2), y * TILE_SIZE + (TILE_SIZE/2), 1.5, 0, Math.PI * 2);
                     ctx.fill();
                 }
             }
@@ -405,11 +444,6 @@
             ctx.beginPath();
             ctx.arc(holePos.x, holePos.y, 7, 0, Math.PI * 2);
             ctx.fill();
-
-            currentBallPos = { x: startX * TILE_SIZE, y: startY * TILE_SIZE };
-            drawBall(currentBallPos.x, currentBallPos.y, true);
-            
-            resetTurn(true);
         }
 
         function drawBall(x, y, isStart = false) {
@@ -468,15 +502,21 @@
             const tapX = e.clientX - rect.left;
             const tapY = e.clientY - rect.top;
 
-            const gridX = Math.round(tapX / TILE_SIZE) * TILE_SIZE;
-            const gridY = Math.round(tapY / TILE_SIZE) * TILE_SIZE;
+            const tileX = Math.floor(tapX / TILE_SIZE);
+            const tileY = Math.floor(tapY / TILE_SIZE);
+            const gridX = tileX * TILE_SIZE + (TILE_SIZE/2);
+            const gridY = tileY * TILE_SIZE + (TILE_SIZE/2);
 
-            const dxSpaces = (gridX - currentBallPos.x) / TILE_SIZE;
-            const dySpaces = (gridY - currentBallPos.y) / TILE_SIZE;
+            const startGridX = Math.floor(currentBallPos.x / TILE_SIZE);
+            const startGridY = Math.floor(currentBallPos.y / TILE_SIZE);
+            
+            const dxSpaces = tileX - startGridX;
+            const dySpaces = tileY - startGridY;
             
             const absDx = Math.abs(dxSpaces);
             const absDy = Math.abs(dySpaces);
 
+            // 1. Must be straight line
             if (absDx !== 0 && absDy !== 0 && absDx !== absDy) {
                 alert("Invalid hit! Must move in a straight orthogonal or diagonal direction.");
                 return;
@@ -485,8 +525,6 @@
             const distanceMoved = Math.max(absDx, absDy);
             if (distanceMoved === 0) return; 
 
-            const startGridX = currentBallPos.x / TILE_SIZE;
-            const startGridY = currentBallPos.y / TILE_SIZE;
             const startingTerrain = gridData[startGridY][startGridX];
 
             let effectiveRoll = currentRoll;
@@ -496,6 +534,7 @@
                 effectiveRoll = Math.max(1, currentRoll - 1);
             }
 
+            // 2. Distance Validation
             if (isPutting && distanceMoved > 1) {
                 alert("Putting only allows you to move exactly 1 space!");
                 return;
@@ -508,10 +547,11 @@
             const stepX = dxSpaces / distanceMoved;
             const stepY = dySpaces / distanceMoved;
             
+            // 3. Terrain Crossing Rules (Trees)
             for(let i = 1; i < distanceMoved; i++) {
-                let pathX = startGridX + (stepX * i);
-                let pathY = startGridY + (stepY * i);
-                let pathTerrain = gridData[pathY][pathX];
+                let pathGridX = startGridX + (stepX * i);
+                let pathGridY = startGridY + (stepY * i);
+                let pathTerrain = gridData[pathGridY][pathGridX];
 
                 if (pathTerrain === TERRAIN.TREE && startingTerrain !== TERRAIN.FAIRWAY) {
                     alert("You cannot shoot through trees unless you are hitting from the Fairway.");
@@ -522,20 +562,23 @@
             const endGridX = startGridX + dxSpaces;
             const endGridY = startGridY + dySpaces;
             
-            if (endGridY >= 0 && endGridY <= ROWS && endGridX >= 0 && endGridX <= COLS) {
-                 if (endGridY < ROWS && endGridX < COLS) {
-                     let landingTerrain = gridData[endGridY][endGridX];
-                     if (landingTerrain === TERRAIN.WATER) {
-                         alert("Splash! You cannot land your shot in a Water hazard.");
-                         return;
-                     }
-                     if (landingTerrain === TERRAIN.TREE) {
-                         alert("Thwack! You cannot land directly on a Tree.");
-                         return;
-                     }
+            // 4. Landing Spot Rules (Water & Trees)
+            if (endGridY >= 0 && endGridY < ROWS && endGridX >= 0 && endGridX < COLS) {
+                 let landingTerrain = gridData[endGridY][endGridX];
+                 if (landingTerrain === TERRAIN.WATER) {
+                     alert("Splash! You cannot land your shot in a Water hazard.");
+                     return;
                  }
+                 if (landingTerrain === TERRAIN.TREE) {
+                     alert("Thwack! You cannot land directly on a Tree.");
+                     return;
+                 }
+            } else {
+                 alert("Out of bounds!");
+                 return;
             }
 
+            // === SHOT APPROVED ===
             strokes++;
             strokeDisplay.innerText = `Strokes: ${strokes}`;
 
@@ -550,10 +593,12 @@
 
             let sankIt = false;
             for(let i = 1; i <= distanceMoved; i++) {
-                let checkX = currentBallPos.x + (stepX * i * TILE_SIZE);
-                let checkY = currentBallPos.y + (stepY * i * TILE_SIZE);
+                let checkGridX = startGridX + (stepX * i);
+                let checkGridY = startGridY + (stepY * i);
+                let checkWorldX = checkGridX * TILE_SIZE + (TILE_SIZE/2);
+                let checkWorldY = checkGridY * TILE_SIZE + (TILE_SIZE/2);
                 
-                if (Math.abs(checkX - holePos.x) < 1 && Math.abs(checkY - holePos.y) < 1) {
+                if (Math.abs(checkWorldX - holePos.x) < 1 && Math.abs(checkWorldY - holePos.y) < 1) {
                     let overshoot = distanceMoved - i;
                     if (overshoot === 0 || overshoot === 1) {
                         sankIt = true;
@@ -578,7 +623,11 @@
             generateCourse();
         });
         
-        generateCourse();
+        // --- START GAME ---
+        window.onload = () => {
+            generateCourse();
+            toggleRules(true);
+        };
     </script>
 </body>
 </html>
