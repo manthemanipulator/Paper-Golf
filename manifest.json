@@ -1,0 +1,8 @@
+{
+  "name": "GOLF Companion",
+  "short_name": "GOLF",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f4f4f9",
+  "theme_color": "#2c3e50"
+}
