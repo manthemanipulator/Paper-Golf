@@ -7,6 +7,8 @@
     
     <link rel="manifest" href="./manifest.json">
     <link rel="apple-touch-icon" href="./icon.png?v=2">
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
     
     <style>
         /* Mode Toggle Button */
@@ -300,6 +302,27 @@ function recordStroke() {
 // ==========================================
 // 4. LEADERBOARD & LOCAL STORAGE LOGIC
 // ==========================================
+// ==========================================
+// 4. CLOUD LEADERBOARD (FIREBASE)
+// ==========================================
+
+// --> PASTE YOUR ENTIRE FIREBASE CONFIG BLOCK RIGHT HERE <--
+const firebaseConfig = {
+  apiKey: "AIzaSyCpYT1A8wLcdpwxaThbVr3k-IdPvnPnHzw",
+  authDomain: "paper-golf-e8364.firebaseapp.com",
+  projectId: "paper-golf-e8364",
+  storageBucket: "paper-golf-e8364.firebasestorage.app",
+  messagingSenderId: "601427965342",
+  appId: "1:601427965342:web:e2d36957d6dcf2ebf3d28f",
+  measurementId: "G-DZT902BEM3"
+};
+
+// Wake up the database connection
+if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+}
+const db = firebase.firestore();
+
 function triggerVictorySequence() {
     finalScoreDisplay.textContent = `Final Score: ${totalCampaignScore}`;
     inputSection.classList.remove('hidden');
@@ -315,32 +338,50 @@ document.getElementById('submitScoreBtn')?.addEventListener('click', () => {
         return;
     }
 
-    saveScore(initials, totalCampaignScore);
-    showLeaderboard();
+    // Hide input and show a quick loading message
+    inputSection.classList.add('hidden');
+    leaderboardSection.classList.remove('hidden');
+    leaderboardList.innerHTML = '<li>Uploading score...</li>';
+
+    saveScoreToCloud(initials, totalCampaignScore);
 });
 
-function saveScore(initials, score) {
-    let scores = JSON.parse(localStorage.getItem('golfHighScores')) || [];
-    scores.push({ initials: initials, score: score });
-    scores.sort((a, b) => a.score - b.score);
-    scores = scores.slice(0, 10);
-    localStorage.setItem('golfHighScores', JSON.stringify(scores));
+function saveScoreToCloud(initials, score) {
+    // Send the score to the cloud
+    db.collection("globalLeaderboard").add({
+        initials: initials,
+        score: score,
+        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+    }).then(() => {
+        // Once successful, pull down the updated board
+        showLeaderboard();
+    }).catch((error) => {
+        console.error("Error writing to database: ", error);
+        leaderboardList.innerHTML = '<li>Error saving score.</li>';
+    });
 }
 
 function showLeaderboard() {
     inputSection.classList.add('hidden');
     leaderboardSection.classList.remove('hidden');
     
-    const scores = JSON.parse(localStorage.getItem('golfHighScores')) || [];
-    leaderboardList.innerHTML = '';
-    
-    scores.forEach(entry => {
-        const li = document.createElement('li');
-        li.textContent = `${entry.initials} ..... ${entry.score}`;
-        leaderboardList.appendChild(li);
-    });
+    // Ask Firebase for the lowest 10 scores
+    db.collection("globalLeaderboard")
+      .orderBy("score", "asc")
+      .limit(10)
+      .onSnapshot((querySnapshot) => {
+          leaderboardList.innerHTML = ''; // Clear the board
+          
+          querySnapshot.forEach((doc) => {
+              const entry = doc.data();
+              const li = document.createElement('li');
+              li.textContent = `${entry.initials} ..... ${entry.score}`;
+              leaderboardList.appendChild(li);
+          });
+      });
 }
 
+// Modal Buttons
 document.getElementById('playAgainBtn')?.addEventListener('click', resetGame);
 document.getElementById('backToCasualBtn')?.addEventListener('click', () => {
     isCasualMode = true;
@@ -348,7 +389,6 @@ document.getElementById('backToCasualBtn')?.addEventListener('click', () => {
     modeToggleBtn.classList.remove('active');
     resetGame();
 });
-
 // ==========================================
 // 5. CORE GAME ENGINE
 // ==========================================
