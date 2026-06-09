@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Paper Apps Golf Companion</title>
     
+    <!-- PWA Links -->
     <link rel="manifest" href="./manifest.json">
     <link rel="apple-touch-icon" href="icon.png">
     
@@ -43,6 +44,7 @@
 </head>
 <body>
 
+    <!-- Full Screen Rules Menu -->
     <div id="rulesOverlay" class="full-screen-overlay">
         <h2>Game Rules</h2>
         <p><strong>Dice GOLF:</strong> Roll the d6 to determine your distance. You must move <strong>exactly</strong> that distance in a straight line (up, down, left, right, or diagonal).</p>
@@ -64,6 +66,7 @@
         <span class="rules-link" onclick="toggleRules(true)">Rules</span>
     </div>
 
+    <!-- Map Section -->
     <div class="map-container">
         <div class="canvas-wrapper">
             <div id="victoryOverlay" class="overlay">
@@ -74,6 +77,7 @@
         </div>
     </div>
 
+    <!-- Controls Section -->
     <div class="controls-container">
         <p id="statusText" class="instructions">Choose your shot type to start!</p>
         <button id="generateBtn" class="btn-secondary">Generate Next Hole</button>
@@ -178,4 +182,227 @@
                     }
                 }
                 
-                if (!path
+                if (!pathBlocked) {
+                    validTargets.push({x: sx + dir.dx * eff, y: sy + dir.dy * eff});
+                }
+            }
+        }
+
+        function renderScene() {
+            drawBoard();
+            drawTargets();
+            drawBall(currentBallPos.x, currentBallPos.y, strokes === 0);
+        }
+
+        rollBtn.addEventListener('click', () => {
+            if (isHoleComplete) return;
+            currentRoll = Math.floor(Math.random() * 6) + 1;
+            animateDice(currentRoll);
+            canShoot = true; isPutting = false; rollBtn.disabled = true; puttBtn.disabled = true;
+            calculateMaxDistance(); updateRerollButton();
+            calculateValidTargets(); renderScene();
+        });
+
+        puttBtn.addEventListener('click', () => {
+            if (isHoleComplete) return;
+            currentRoll = 1; animateDice('P'); canShoot = true; isPutting = true; rollBtn.disabled = true; puttBtn.disabled = true;
+            statusText.style.color = '#ff9500'; statusText.innerText = "Tap a glowing dot to putt."; updateRerollButton();
+            calculateValidTargets(); renderScene();
+        });
+
+        rerollBtn.addEventListener('click', () => {
+            if (strokes === 0 && !usedTeeOffReroll) usedTeeOffReroll = true; else { mulligans--; mulliganDisplay.innerText = `Mulls: ${mulligans}`; }
+            currentRoll = Math.floor(Math.random() * 6) + 1;
+            animateDice(currentRoll); rerollBtn.disabled = true; calculateMaxDistance();
+            calculateValidTargets(); renderScene();
+        });
+
+        function generateCourse() {
+            victoryOverlay.style.display = 'none';
+            gridData = Array.from({length: ROWS}, () => Array(COLS).fill(TERRAIN.ROUGH));
+            
+            let startGridX = Math.floor(COLS / 2) + Math.floor(Math.random() * 5 - 2); 
+            let startGridY = ROWS - 3;
+            let holeGridX = Math.floor(COLS / 2) + Math.floor(Math.random() * 9 - 4); 
+            let holeGridY = 2;
+
+            function drawFairwayBlob(cx, cy) {
+                let blobs = Math.floor(Math.random() * 2) + 1; 
+                for(let b=0; b<blobs; b++) {
+                    let bx = cx + Math.floor(Math.random() * 3 - 1);
+                    let by = cy + Math.floor(Math.random() * 3 - 1);
+                    let bw = Math.floor(Math.random() * 2) + 2; 
+                    let bh = Math.floor(Math.random() * 2) + 2; 
+                    for(let y=by; y<by+bh; y++) {
+                        for(let x=bx; x<bx+bw; x++) {
+                            if(y>=0 && y<ROWS && x>=0 && x<COLS) gridData[y][x] = TERRAIN.FAIRWAY;
+                        }
+                    }
+                }
+            }
+
+            drawFairwayBlob(startGridX - 1, startGridY - 1);
+            drawFairwayBlob(holeGridX - 1, holeGridY - 1);
+
+            let numIslands = Math.floor(Math.random() * 3) + 2; 
+            for(let i = 1; i <= numIslands; i++) {
+                let lerpY = startGridY - i * ((startGridY - holeGridY) / (numIslands + 1));
+                let lerpX = startGridX + i * ((holeGridX - startGridX) / (numIslands + 1)) + (Math.random() * 6 - 3);
+                drawFairwayBlob(Math.floor(lerpX), Math.floor(lerpY));
+            }
+
+            for(let i = 0; i < 12; i++) {
+                let type = Math.random() > 0.5 ? TERRAIN.WATER : TERRAIN.SAND;
+                let hx = Math.floor(Math.random() * (COLS - 2));
+                let hy = Math.floor(Math.random() * (ROWS - 3));
+                
+                let distToHole = Math.max(Math.abs(hx - holeGridX), Math.abs(hy - holeGridY));
+                let distToStart = Math.max(Math.abs(hx - startGridX), Math.abs(hy - startGridY));
+                
+                if (distToHole > 2 && distToStart > 2) {
+                    for(let fy=hy; fy<hy+2; fy++) {
+                        for(let fx=hx; fx<hx+2; fx++) {
+                            if(gridData[fy] && gridData[fy][fx] !== undefined) gridData[fy][fx] = type;
+                        }
+                    }
+                }
+            }
+
+            for(let i = 0; i < 35; i++) {
+                let tx = Math.floor(Math.random() * COLS);
+                let ty = Math.floor(Math.random() * ROWS);
+                
+                if (Math.abs(tx - startGridX) > 1 && Math.abs(ty - startGridY) > 1 &&
+                    Math.abs(tx - holeGridX) > 1 && Math.abs(ty - holeGridY) > 1) {
+                    if(gridData[ty] && gridData[ty][tx] === TERRAIN.ROUGH) gridData[ty][tx] = TERRAIN.TREE;
+                }
+            }
+
+            gridData[holeGridY][holeGridX] = TERRAIN.FAIRWAY;
+            gridData[startGridY][startGridX] = TERRAIN.FAIRWAY;
+
+            holePos = { x: holeGridX * TILE_SIZE + TILE_SIZE/2, y: holeGridY * TILE_SIZE + TILE_SIZE/2 };
+            currentBallPos = { x: startGridX * TILE_SIZE + TILE_SIZE/2, y: startGridY * TILE_SIZE + TILE_SIZE/2 };
+
+            resetTurn(true);
+        }
+
+        function drawBoard() {
+            ctx.clearRect(0,0,canvas.width, canvas.height);
+            for(let y=0; y<ROWS; y++) {
+                for(let x=0; x<COLS; x++) {
+                    let tile = gridData[y][x];
+                    if(tile === TERRAIN.TREE) {
+                        ctx.fillStyle = COLORS[TERRAIN.ROUGH]; ctx.fillRect(x*TILE_SIZE, y*TILE_SIZE, TILE_SIZE, TILE_SIZE);
+                        ctx.fillStyle = COLORS[TERRAIN.TREE]; ctx.beginPath(); ctx.moveTo(x*TILE_SIZE + TILE_SIZE/2, y*TILE_SIZE + 4); ctx.lineTo(x*TILE_SIZE + TILE_SIZE - 4, y*TILE_SIZE + TILE_SIZE - 4); ctx.lineTo(x*TILE_SIZE + 4, y*TILE_SIZE + TILE_SIZE - 4); ctx.fill();
+                    } else {
+                        ctx.fillStyle = COLORS[tile]; ctx.fillRect(x*TILE_SIZE, y*TILE_SIZE, TILE_SIZE, TILE_SIZE);
+                    }
+                }
+            }
+            ctx.fillStyle = COLORS.dot;
+            for(let y=0; y<ROWS; y++) for(let x=0; x<COLS; x++) { ctx.beginPath(); ctx.arc(x*TILE_SIZE + TILE_SIZE/2, y*TILE_SIZE + TILE_SIZE/2, 1.5, 0, Math.PI*2); ctx.fill(); }
+            ctx.fillStyle = 'black'; ctx.beginPath(); ctx.arc(holePos.x, holePos.y, 7, 0, Math.PI*2); ctx.fill();
+        }
+
+        function drawTargets() {
+            if (!canShoot || validTargets.length === 0) return;
+            for (let t of validTargets) {
+                let cx = t.x * TILE_SIZE + TILE_SIZE / 2;
+                let cy = t.y * TILE_SIZE + TILE_SIZE / 2;
+                
+                ctx.beginPath();
+                ctx.arc(cx, cy, 6, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(255, 215, 0, 0.5)'; 
+                ctx.fill();
+                ctx.strokeStyle = '#f1c40f'; 
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            }
+        }
+
+        function drawBall(x,y,s) { ctx.beginPath(); ctx.arc(x,y,5,0,Math.PI*2); ctx.fillStyle='white'; ctx.fill(); ctx.strokeStyle=s?'black':'red'; ctx.lineWidth=2; ctx.stroke(); }
+        
+        function resetTurn(newHole=false) {
+            canShoot=false; isPutting=false; rollBtn.disabled=false; puttBtn.disabled=false; currentRoll=0; diceResult.innerText='-';
+            validTargets = []; 
+            statusText.style.color = '#d9534f'; statusText.innerText = "Choose your shot type to continue.";
+            if(newHole) { strokes=0; usedTeeOffReroll=false; isHoleComplete=false; 
+                if (strokeDisplay) strokeDisplay.innerText=`Strokes: ${strokes}`; 
+                holeDisplay.innerText=`Hole: ${currentHole}`; statusText.innerText="Choose your shot type to start!"; }
+            updateRerollButton();
+            renderScene();
+        }
+
+        function triggerVictory() {
+            isHoleComplete=true; canShoot=false; rollBtn.disabled=true; puttBtn.disabled=true; rerollBtn.disabled=true;
+            validTargets = []; renderScene(); 
+            statusText.style.color = '#5cb85c'; statusText.innerText = "Hole completed!";
+            victoryOverlay.style.display='flex'; finalScoreText.innerText=`Score: ${strokes} (Par 6)`;
+        }
+
+        canvas.addEventListener('pointerdown', (e) => {
+            if(!canShoot || isHoleComplete) { statusText.style.transform='scale(1.1)'; setTimeout(()=>statusText.style.transform='scale(1)', 150); return; }
+            const r = canvas.getBoundingClientRect(), tx = Math.floor((e.clientX-r.left)/TILE_SIZE), ty = Math.floor((e.clientY-r.top)/TILE_SIZE);
+            const gx = tx*TILE_SIZE + TILE_SIZE/2, gy = ty*TILE_SIZE + TILE_SIZE/2;
+            const sx = Math.floor(currentBallPos.x/TILE_SIZE), sy = Math.floor(currentBallPos.y/TILE_SIZE);
+            const dxSpaces = tx - sx, dySpaces = ty - sy, absDx = Math.abs(dxSpaces), absDy = Math.abs(dySpaces);
+
+            if(absDx !== 0 && absDy !== 0 && absDx !== absDy) { alert("Invalid hit! You must move in a straight line (up, down, left, right, or diagonal)."); return; }
+            const dist = Math.max(absDx, absDy); if(dist === 0) return;
+
+            let startingTerrain = gridData[sy][sx], eff = currentRoll;
+            if(startingTerrain === TERRAIN.FAIRWAY) eff += 1; else if(startingTerrain === TERRAIN.SAND) eff = Math.max(1, currentRoll - 1);
+
+            if(isPutting && dist !== 1) { alert("Putting requires you to move exactly 1 space!"); return; }
+            if(!isPutting && dist !== eff) { alert(`Invalid distance! You must move exactly your effective roll distance (${eff} spaces).`); return; }
+
+            const stepX = dxSpaces / dist, stepY = dySpaces / dist;
+            for(let i=1; i<dist; i++) {
+                let pathGridX = sx + (stepX * i), pathGridY = sy + (stepY * i);
+                let pathTerrain = gridData[pathGridY][pathGridX];
+                if(pathTerrain === TERRAIN.TREE && startingTerrain !== TERRAIN.FAIRWAY) { alert("You cannot shoot through trees unless you are hitting from the Fairway."); return; }
+            }
+
+            const endGridX = sx + dxSpaces, endGridY = sy + dySpaces;
+            if(endGridY >= 0 && endGridY < ROWS && endGridX >= 0 && endGridX < COLS) {
+                 let landingTerrain = gridData[endGridY][endGridX];
+                 if(landingTerrain === TERRAIN.WATER) { alert("Splash! You cannot land your shot in a Water hazard."); return; }
+                 if(landingTerrain === TERRAIN.TREE) { alert("Thwack! You cannot land directly on a Tree."); return; }
+            } else { alert("Out of bounds!"); return; }
+
+            strokes++; 
+            if (strokeDisplay) strokeDisplay.innerText = `Strokes: ${strokes}`;
+            validTargets = []; 
+            renderScene();
+            
+            ctx.beginPath(); ctx.moveTo(currentBallPos.x, currentBallPos.y); ctx.lineTo(gx, gy); ctx.strokeStyle='#ff3b30'; ctx.lineWidth=2; ctx.stroke(); drawBall(gx, gy);
+
+            let sankIt = false;
+            for(let i=1; i<=dist; i++) {
+                let checkGridX = sx + (stepX * i), checkGridY = sy + (stepY * i);
+                let checkWorldX = checkGridX * TILE_SIZE + (TILE_SIZE/2), checkWorldY = checkGridY * TILE_SIZE + (TILE_SIZE/2);
+                if(Math.abs(checkWorldX - holePos.x) < 1 && Math.abs(checkWorldY - holePos.y) < 1) {
+                    let overshoot = dist - i; if(overshoot === 0 || overshoot === 1) sankIt = true; break; 
+                }
+            }
+            currentBallPos = { x: gx, y: gy };
+            if(sankIt) triggerVictory(); else resetTurn();
+        });
+
+        // Forced clean: allowed re-generation directly on click
+        generateBtn.addEventListener('click', () => { if(isHoleComplete) currentHole++; generateCourse(); });
+        
+        // Register Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(registration => { console.log('Service Worker registered successfully'); })
+                    .catch(error => { console.log('Service Worker registration failed:', error); });
+            });
+        }
+        
+        window.onload = () => { generateCourse(); toggleRules(false); };
+    </script>
+</body>
+</html>
