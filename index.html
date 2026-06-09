@@ -322,6 +322,11 @@ if (!firebase.apps.length) {
     firebase.initializeApp(firebaseConfig);
 }
 const db = firebase.firestore();
+        // ---> TURN ON OFFLINE CACHING <---
+db.enablePersistence()
+  .catch((err) => {
+      console.log("Offline mode failed to enable: ", err.code);
+  });
 
 function triggerVictorySequence() {
     finalScoreDisplay.textContent = `Final Score: ${totalCampaignScore}`;
