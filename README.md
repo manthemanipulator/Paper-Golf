@@ -23,7 +23,7 @@ This Progressive Web App (PWA) replaces the need to carry physical dice or draw 
 This app is built to be run as a standalone web application on your mobile device. There is no App Store download required. 
 
 1. Open **Safari** on your iPhone.
-2. Navigate to the GitHub Pages URL for this repository (e.g., `https://[your-username].github.io/golf-companion/`).
+2. Navigate to the GitHub Pages URL for this repository (e.g., `https://manthemanipulator.github.io/Paper-Golf/`).
 3. Tap the **Share** icon at the bottom of the screen (the square with the upward arrow).
 4. Scroll down and tap **Add to Home Screen**.
 5. Tap **Add** in the top right corner. 
