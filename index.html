@@ -26,6 +26,24 @@
   color: white;
   border-color: #27ae60;
 }
+        <div id="scoreboard" class="hidden">
+  <span id="holeDisplay">Hole: 1/18</span> | 
+  <span id="strokeDisplay">Strokes: 0</span> | 
+  <span id="totalDisplay">Total: 0</span>
+</div>
+        #scoreboard {
+  text-align: center;
+  font-family: monospace;
+  font-weight: bold;
+  font-size: 16px;
+  margin: 10px 0;
+  background-color: #e8f4f8;
+  padding: 8px;
+  border-radius: 5px;
+}
+#scoreboard.hidden {
+  display: none;
+}
 
 /* Leaderboard Modal System */
 .modal {
@@ -173,9 +191,15 @@
 // 1. STATE VARIABLES
 // ==========================================
 let isCasualMode = true; 
-let currentHole = 1;
 let totalCampaignScore = 0;
 let strokesThisHole = 0;
+
+// Old Game Variables (Removed the duplicate currentHole)
+let currentHole = 1, strokes = 0, mulligans = 6, currentRoll = 0, canShoot = false, isPutting = false, isHoleComplete = false, usedTeeOffReroll = false;
+let currentBallPos = { x: 0, y: 0 }, holePos = { x: 0, y: 0 }, gridData = [], validTargets = [];
+const TILE_SIZE = 20, COLS = 15, ROWS = 20;
+const TERRAIN = { ROUGH: 0, FAIRWAY: 1, SAND: 2, WATER: 3, TREE: 4 };
+const COLORS = { [TERRAIN.ROUGH]: '#e9f5e9', [TERRAIN.FAIRWAY]: '#90ee90', [TERRAIN.SAND]: '#f5deb3', [TERRAIN.WATER]: '#4682b4', [TERRAIN.TREE]: '#228b22', dot: 'rgba(0, 0, 0, 0.15)' };
 
 // DOM Elements
 const modeToggleBtn = document.getElementById('modeToggleBtn');
@@ -185,10 +209,37 @@ const leaderboardSection = document.getElementById('leaderboardSection');
 const finalScoreDisplay = document.getElementById('finalScoreDisplay');
 const initialsInput = document.getElementById('initialsInput');
 const leaderboardList = document.getElementById('leaderboardList');
+const rollBtn = document.getElementById('rollBtn');
+const puttBtn = document.getElementById('puttBtn');
+const rerollBtn = document.getElementById('rerollBtn');
+const diceResult = document.getElementById('diceResult');
+const statusText = document.getElementById('statusText');
+const strokeDisplay = document.getElementById('strokeDisplay');
+const holeDisplay = document.getElementById('holeDisplay');
+const mulliganDisplay = document.getElementById('mulliganDisplay');
+const generateBtn = document.getElementById('generateBtn');
+const victoryOverlay = document.getElementById('victoryOverlay');
+const finalScoreText = document.getElementById('finalScoreText');
+const canvas = document.getElementById('courseMap');
+const ctx = canvas.getContext('2d');
 
 // ==========================================
-// 2. TOGGLE LOGIC
+// 2. TOGGLE & HUD LOGIC
 // ==========================================
+function updateHUD() {
+    const scoreboard = document.getElementById('scoreboard');
+    if (!scoreboard) return; // Safety check in case HTML isn't added yet
+    
+    if (isCasualMode) {
+        scoreboard.classList.add('hidden');
+    } else {
+        scoreboard.classList.remove('hidden');
+        document.getElementById('holeDisplay').textContent = `Hole: ${currentHole}/18`;
+        document.getElementById('strokeDisplay').textContent = `Strokes: ${strokesThisHole}`;
+        document.getElementById('totalDisplay').textContent = `Total: ${totalCampaignScore}`;
+    }
+}
+
 modeToggleBtn.addEventListener('click', () => {
     isCasualMode = !isCasualMode;
     
@@ -209,18 +260,17 @@ function resetGame() {
     strokesThisHole = 0;
     leaderboardModal.classList.add('hidden');
     
-    // --> TRIGGER YOUR EXISTING HOLE GENERATION FUNCTION HERE <--
-    // e.g., generateMap();
+    generateCourse(); // Wired to your existing generator!
+    updateHUD();
 }
 
 // ==========================================
 // 3. HOLE COMPLETION LOGIC
 // ==========================================
-// Call this function inside your collision detection when the ball enters the cup
 function onHoleComplete() {
     if (isCasualMode) {
         strokesThisHole = 0;
-        // --> TRIGGER YOUR EXISTING HOLE GENERATION FUNCTION HERE <--
+        // Casual mode relies on your original Victory Overlay and Generate button.
     } else {
         totalCampaignScore += strokesThisHole;
         
@@ -229,12 +279,15 @@ function onHoleComplete() {
         } else {
             currentHole++;
             strokesThisHole = 0;
-            // --> TRIGGER YOUR EXISTING HOLE GENERATION FUNCTION HERE <--
+            // 1.5 second delay so you can see the ball sink before the next hole loads
+            setTimeout(() => {
+                generateCourse();
+                updateHUD();
+            }, 1500);
         }
     }
 }
 
-// Call this every time the player swings/putts
 function recordStroke() {
     strokesThisHole++;
 }
@@ -250,7 +303,7 @@ function triggerVictorySequence() {
     leaderboardModal.classList.remove('hidden');
 }
 
-document.getElementById('submitScoreBtn').addEventListener('click', () => {
+document.getElementById('submitScoreBtn')?.addEventListener('click', () => {
     const initials = initialsInput.value.trim();
     if (initials.length !== 3) {
         alert("Please enter exactly 3 initials.");
@@ -262,19 +315,10 @@ document.getElementById('submitScoreBtn').addEventListener('click', () => {
 });
 
 function saveScore(initials, score) {
-    // Pull existing scores from the browser's memory, or start an empty array
     let scores = JSON.parse(localStorage.getItem('golfHighScores')) || [];
-    
-    // Add the new score
     scores.push({ initials: initials, score: score });
-    
-    // Sort lowest to highest (since in Golf, lower is better!)
     scores.sort((a, b) => a.score - b.score);
-    
-    // Keep only the top 10
     scores = scores.slice(0, 10);
-    
-    // Save it back to the browser's memory
     localStorage.setItem('golfHighScores', JSON.stringify(scores));
 }
 
@@ -292,327 +336,320 @@ function showLeaderboard() {
     });
 }
 
-// Modal Buttons
-document.getElementById('playAgainBtn').addEventListener('click', resetGame);
-
-document.getElementById('backToCasualBtn').addEventListener('click', () => {
+document.getElementById('playAgainBtn')?.addEventListener('click', resetGame);
+document.getElementById('backToCasualBtn')?.addEventListener('click', () => {
     isCasualMode = true;
     modeToggleBtn.textContent = "Mode: Casual";
     modeToggleBtn.classList.remove('active');
     resetGame();
 });
-        let currentHole = 1, strokes = 0, mulligans = 6, currentRoll = 0, canShoot = false, isPutting = false, isHoleComplete = false, usedTeeOffReroll = false;
-        let currentBallPos = { x: 0, y: 0 }, holePos = { x: 0, y: 0 }, gridData = [], validTargets = [];
-        const TILE_SIZE = 20, COLS = 15, ROWS = 20;
-        const TERRAIN = { ROUGH: 0, FAIRWAY: 1, SAND: 2, WATER: 3, TREE: 4 };
-        const COLORS = { [TERRAIN.ROUGH]: '#e9f5e9', [TERRAIN.FAIRWAY]: '#90ee90', [TERRAIN.SAND]: '#f5deb3', [TERRAIN.WATER]: '#4682b4', [TERRAIN.TREE]: '#228b22', dot: 'rgba(0, 0, 0, 0.15)' };
 
-        const rollBtn = document.getElementById('rollBtn');
-        const puttBtn = document.getElementById('puttBtn');
-        const rerollBtn = document.getElementById('rerollBtn');
-        const diceResult = document.getElementById('diceResult');
-        const statusText = document.getElementById('statusText');
-        const strokeDisplay = document.getElementById('strokeDisplay');
-        const holeDisplay = document.getElementById('holeDisplay');
-        const mulliganDisplay = document.getElementById('mulliganDisplay');
-        const generateBtn = document.getElementById('generateBtn');
-        const victoryOverlay = document.getElementById('victoryOverlay');
-        const finalScoreText = document.getElementById('finalScoreText');
-        const canvas = document.getElementById('courseMap');
-        const ctx = canvas.getContext('2d');
+// ==========================================
+// 5. CORE GAME ENGINE
+// ==========================================
+function toggleRules(forceState) { 
+    const overlay = document.getElementById('rulesOverlay');
+    if (typeof forceState === 'boolean') {
+        overlay.style.display = forceState ? 'flex' : 'none';
+    } else {
+        overlay.style.display = overlay.style.display === 'flex' ? 'none' : 'flex';
+    }
+}
 
-        function toggleRules(forceState) { 
-            const overlay = document.getElementById('rulesOverlay');
-            if (typeof forceState === 'boolean') {
-                overlay.style.display = forceState ? 'flex' : 'none';
+function animateDice(text) { diceResult.innerText = text; diceResult.style.transform = 'scale(1.3)'; setTimeout(() => diceResult.style.transform = 'scale(1)', 150); }
+
+function updateRerollButton() {
+    if (!canShoot || isPutting || isHoleComplete) { rerollBtn.disabled = true; rerollBtn.innerText = "Re-roll"; return; }
+    if (strokes === 0 && !usedTeeOffReroll) { rerollBtn.disabled = false; rerollBtn.innerText = "Free Re-roll"; }
+    else if (mulligans > 0) { rerollBtn.disabled = false; rerollBtn.innerText = `Mulligan (${mulligans})`; }
+    else { rerollBtn.disabled = true; rerollBtn.innerText = "0 Mulligans"; }
+}
+
+function calculateMaxDistance() {
+    let terrain = gridData[Math.floor(currentBallPos.y / TILE_SIZE)][Math.floor(currentBallPos.x / TILE_SIZE)];
+    let eff = currentRoll;
+    let modText = "";
+    if (terrain === TERRAIN.FAIRWAY) { 
+        eff += 1; 
+        modText = ` (${currentRoll} + 1 Fairway Bonus)`; 
+    } else if (terrain === TERRAIN.SAND) { 
+        eff = Math.max(1, currentRoll - 1); 
+        modText = ` (${currentRoll} - 1 Sand Penalty)`; 
+    }
+    statusText.style.color = '#5cb85c';
+    statusText.innerText = `Required distance: ${eff}${modText}`;
+}
+
+function calculateValidTargets() {
+    validTargets = [];
+    if (!canShoot || isHoleComplete) return;
+
+    let sx = Math.floor(currentBallPos.x / TILE_SIZE);
+    let sy = Math.floor(currentBallPos.y / TILE_SIZE);
+    let startingTerrain = gridData[sy][sx];
+
+    let eff = currentRoll;
+    if (startingTerrain === TERRAIN.FAIRWAY) eff += 1;
+    else if (startingTerrain === TERRAIN.SAND) eff = Math.max(1, currentRoll - 1);
+    if (isPutting) eff = 1;
+
+    const directions = [
+        {dx: 1, dy: 0}, {dx: -1, dy: 0}, {dx: 0, dy: 1}, {dx: 0, dy: -1},
+        {dx: 1, dy: 1}, {dx: -1, dy: -1}, {dx: 1, dy: -1}, {dx: -1, dy: 1}
+    ];
+
+    for (let dir of directions) {
+        let pathBlocked = false;
+        for (let i = 1; i <= eff; i++) {
+            let tx = sx + dir.dx * i;
+            let ty = sy + dir.dy * i;
+
+            if (tx < 0 || tx >= COLS || ty < 0 || ty >= ROWS) {
+                pathBlocked = true; break; 
+            }
+
+            let terrain = gridData[ty][tx];
+
+            if (i < eff && terrain === TERRAIN.TREE && startingTerrain !== TERRAIN.FAIRWAY) {
+                pathBlocked = true; break;
+            }
+            if (i === eff && (terrain === TERRAIN.WATER || terrain === TERRAIN.TREE)) {
+                pathBlocked = true; break;
+            }
+        }
+        
+        if (!pathBlocked) {
+            validTargets.push({x: sx + dir.dx * eff, y: sy + dir.dy * eff});
+        }
+    }
+}
+
+function renderScene() {
+    drawBoard();
+    drawTargets();
+    drawBall(currentBallPos.x, currentBallPos.y, strokes === 0);
+}
+
+rollBtn.addEventListener('click', () => {
+    if (isHoleComplete) return;
+    currentRoll = Math.floor(Math.random() * 6) + 1;
+    animateDice(currentRoll);
+    canShoot = true; isPutting = false; rollBtn.disabled = true; puttBtn.disabled = true;
+    calculateMaxDistance(); updateRerollButton();
+    calculateValidTargets(); renderScene();
+});
+
+puttBtn.addEventListener('click', () => {
+    if (isHoleComplete) return;
+    currentRoll = 1; animateDice('P'); canShoot = true; isPutting = true; rollBtn.disabled = true; puttBtn.disabled = true;
+    statusText.style.color = '#ff9500'; statusText.innerText = "Tap a glowing dot to putt."; updateRerollButton();
+    calculateValidTargets(); renderScene();
+});
+
+rerollBtn.addEventListener('click', () => {
+    if (strokes === 0 && !usedTeeOffReroll) usedTeeOffReroll = true; else { mulligans--; mulliganDisplay.innerText = `Mulls: ${mulligans}`; }
+    currentRoll = Math.floor(Math.random() * 6) + 1;
+    animateDice(currentRoll); rerollBtn.disabled = true; calculateMaxDistance();
+    calculateValidTargets(); renderScene();
+});
+
+function generateCourse() {
+    victoryOverlay.style.display = 'none';
+    gridData = Array.from({length: ROWS}, () => Array(COLS).fill(TERRAIN.ROUGH));
+    
+    let startGridX = Math.floor(COLS / 2) + Math.floor(Math.random() * 5 - 2); 
+    let startGridY = ROWS - 3;
+    let holeGridX = Math.floor(COLS / 2) + Math.floor(Math.random() * 9 - 4); 
+    let holeGridY = 2;
+
+    function drawFairwayBlob(cx, cy) {
+        let blobs = Math.floor(Math.random() * 2) + 1; 
+        for(let b=0; b<blobs; b++) {
+            let bx = cx + Math.floor(Math.random() * 3 - 1);
+            let by = cy + Math.floor(Math.random() * 3 - 1);
+            let bw = Math.floor(Math.random() * 2) + 2; 
+            let bh = Math.floor(Math.random() * 2) + 2; 
+            for(let y=by; y<by+bh; y++) {
+                for(let x=bx; x<bx+bw; x++) {
+                    if(y>=0 && y<ROWS && x>=0 && x<COLS) gridData[y][x] = TERRAIN.FAIRWAY;
+                }
+            }
+        }
+    }
+
+    drawFairwayBlob(startGridX - 1, startGridY - 1);
+    drawFairwayBlob(holeGridX - 1, holeGridY - 1);
+
+    let numIslands = Math.floor(Math.random() * 3) + 2; 
+    for(let i = 1; i <= numIslands; i++) {
+        let lerpY = startGridY - i * ((startGridY - holeGridY) / (numIslands + 1));
+        let lerpX = startGridX + i * ((holeGridX - startGridX) / (numIslands + 1)) + (Math.random() * 6 - 3);
+        drawFairwayBlob(Math.floor(lerpX), Math.floor(lerpY));
+    }
+
+    for(let i = 0; i < 12; i++) {
+        let type = Math.random() > 0.5 ? TERRAIN.WATER : TERRAIN.SAND;
+        let hx = Math.floor(Math.random() * (COLS - 2));
+        let hy = Math.floor(Math.random() * (ROWS - 3));
+        
+        let distToHole = Math.max(Math.abs(hx - holeGridX), Math.abs(hy - holeGridY));
+        let distToStart = Math.max(Math.abs(hx - startGridX), Math.abs(hy - startGridY));
+        
+        if (distToHole > 2 && distToStart > 2) {
+            for(let fy=hy; fy<hy+2; fy++) {
+                for(let fx=hx; fx<hx+2; fx++) {
+                    if(gridData[fy] && gridData[fy][fx] !== undefined) gridData[fy][fx] = type;
+                }
+            }
+        }
+    }
+
+    for(let i = 0; i < 35; i++) {
+        let tx = Math.floor(Math.random() * COLS);
+        let ty = Math.floor(Math.random() * ROWS);
+        
+        if (Math.abs(tx - startGridX) > 1 && Math.abs(ty - startGridY) > 1 &&
+            Math.abs(tx - holeGridX) > 1 && Math.abs(ty - holeGridY) > 1) {
+            if(gridData[ty] && gridData[ty][tx] === TERRAIN.ROUGH) gridData[ty][tx] = TERRAIN.TREE;
+        }
+    }
+
+    gridData[holeGridY][holeGridX] = TERRAIN.FAIRWAY;
+    gridData[startGridY][startGridX] = TERRAIN.FAIRWAY;
+
+    holePos = { x: holeGridX * TILE_SIZE + TILE_SIZE/2, y: holeGridY * TILE_SIZE + TILE_SIZE/2 };
+    currentBallPos = { x: startGridX * TILE_SIZE + TILE_SIZE/2, y: startGridY * TILE_SIZE + TILE_SIZE/2 };
+
+    resetTurn(true);
+}
+
+function drawBoard() {
+    ctx.clearRect(0,0,canvas.width, canvas.height);
+    for(let y=0; y<ROWS; y++) {
+        for(let x=0; x<COLS; x++) {
+            let tile = gridData[y][x];
+            if(tile === TERRAIN.TREE) {
+                ctx.fillStyle = COLORS[TERRAIN.ROUGH]; ctx.fillRect(x*TILE_SIZE, y*TILE_SIZE, TILE_SIZE, TILE_SIZE);
+                ctx.fillStyle = COLORS[TERRAIN.TREE]; ctx.beginPath(); ctx.moveTo(x*TILE_SIZE + TILE_SIZE/2, y*TILE_SIZE + 4); ctx.lineTo(x*TILE_SIZE + TILE_SIZE - 4, y*TILE_SIZE + TILE_SIZE - 4); ctx.lineTo(x*TILE_SIZE + 4, y*TILE_SIZE + TILE_SIZE - 4); ctx.fill();
             } else {
-                overlay.style.display = overlay.style.display === 'flex' ? 'none' : 'flex';
+                ctx.fillStyle = COLORS[tile]; ctx.fillRect(x*TILE_SIZE, y*TILE_SIZE, TILE_SIZE, TILE_SIZE);
             }
         }
+    }
+    ctx.fillStyle = COLORS.dot;
+    for(let y=0; y<ROWS; y++) for(let x=0; x<COLS; x++) { ctx.beginPath(); ctx.arc(x*TILE_SIZE + TILE_SIZE/2, y*TILE_SIZE + TILE_SIZE/2, 1.5, 0, Math.PI*2); ctx.fill(); }
+    ctx.fillStyle = 'black'; ctx.beginPath(); ctx.arc(holePos.x, holePos.y, 7, 0, Math.PI*2); ctx.fill();
+}
+
+function drawTargets() {
+    if (!canShoot || validTargets.length === 0) return;
+    for (let t of validTargets) {
+        let cx = t.x * TILE_SIZE + TILE_SIZE / 2;
+        let cy = t.y * TILE_SIZE + TILE_SIZE / 2;
         
-        function animateDice(text) { diceResult.innerText = text; diceResult.style.transform = 'scale(1.3)'; setTimeout(() => diceResult.style.transform = 'scale(1)', 150); }
+        ctx.beginPath();
+        ctx.arc(cx, cy, 6, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(255, 215, 0, 0.5)'; 
+        ctx.fill();
+        ctx.strokeStyle = '#f1c40f'; 
+        ctx.lineWidth = 2;
+        ctx.stroke();
+    }
+}
 
-        function updateRerollButton() {
-            if (!canShoot || isPutting || isHoleComplete) { rerollBtn.disabled = true; rerollBtn.innerText = "Re-roll"; return; }
-            if (strokes === 0 && !usedTeeOffReroll) { rerollBtn.disabled = false; rerollBtn.innerText = "Free Re-roll"; }
-            else if (mulligans > 0) { rerollBtn.disabled = false; rerollBtn.innerText = `Mulligan (${mulligans})`; }
-            else { rerollBtn.disabled = true; rerollBtn.innerText = "0 Mulligans"; }
+function drawBall(x,y,s) { ctx.beginPath(); ctx.arc(x,y,5,0,Math.PI*2); ctx.fillStyle='white'; ctx.fill(); ctx.strokeStyle=s?'black':'red'; ctx.lineWidth=2; ctx.stroke(); }
+
+function resetTurn(newHole=false) {
+    canShoot=false; isPutting=false; rollBtn.disabled=false; puttBtn.disabled=false; currentRoll=0; diceResult.innerText='-';
+    validTargets = []; 
+    statusText.style.color = '#d9534f'; statusText.innerText = "Choose your shot type to continue.";
+    if(newHole) { strokes=0; usedTeeOffReroll=false; isHoleComplete=false; 
+        if (strokeDisplay) strokeDisplay.innerText=`Strokes: ${strokes}`; 
+        if (holeDisplay) holeDisplay.innerText=`Hole: ${currentHole}`; statusText.innerText="Choose your shot type to start!"; }
+    updateRerollButton();
+    renderScene();
+    updateHUD(); // Make sure the new HUD stays synced!
+}
+
+function triggerVictory() {
+    isHoleComplete=true; canShoot=false; rollBtn.disabled=true; puttBtn.disabled=true; rerollBtn.disabled=true;
+    validTargets = []; renderScene(); 
+    statusText.style.color = '#5cb85c'; statusText.innerText = "Hole completed!";
+    
+    // WIRED UP STEP 4: Trigger the 18-hole tracker
+    onHoleComplete();
+    updateHUD();
+
+    // Show the old victory screen ONLY if we are in Casual Mode
+    if (isCasualMode) {
+        victoryOverlay.style.display='flex'; finalScoreText.innerText=`Score: ${strokes} (Par 6)`;
+    }
+}
+
+canvas.addEventListener('pointerdown', (e) => {
+    if(!canShoot || isHoleComplete) { statusText.style.transform='scale(1.1)'; setTimeout(()=>statusText.style.transform='scale(1)', 150); return; }
+    const r = canvas.getBoundingClientRect(), tx = Math.floor((e.clientX-r.left)/TILE_SIZE), ty = Math.floor((e.clientY-r.top)/TILE_SIZE);
+    const gx = tx*TILE_SIZE + TILE_SIZE/2, gy = ty*TILE_SIZE + TILE_SIZE/2;
+    const sx = Math.floor(currentBallPos.x/TILE_SIZE), sy = Math.floor(currentBallPos.y/TILE_SIZE);
+    const dxSpaces = tx - sx, dySpaces = ty - sy, absDx = Math.abs(dxSpaces), absDy = Math.abs(dySpaces);
+
+    if(absDx !== 0 && absDy !== 0 && absDx !== absDy) { alert("Invalid hit! You must move in a straight line (up, down, left, right, or diagonal)."); return; }
+    const dist = Math.max(absDx, absDy); if(dist === 0) return;
+
+    let startingTerrain = gridData[sy][sx], eff = currentRoll;
+    if(startingTerrain === TERRAIN.FAIRWAY) eff += 1; else if(startingTerrain === TERRAIN.SAND) eff = Math.max(1, currentRoll - 1);
+
+    if(isPutting && dist !== 1) { alert("Putting requires you to move exactly 1 space!"); return; }
+    if(!isPutting && dist !== eff) { alert(`Invalid distance! You must move exactly your effective roll distance (${eff} spaces).`); return; }
+
+    const stepX = dxSpaces / dist, stepY = dySpaces / dist;
+    for(let i=1; i<dist; i++) {
+        let pathGridX = sx + (stepX * i), pathGridY = sy + (stepY * i);
+        let pathTerrain = gridData[pathGridY][pathGridX];
+        if(pathTerrain === TERRAIN.TREE && startingTerrain !== TERRAIN.FAIRWAY) { alert("You cannot shoot through trees unless you are hitting from the Fairway."); return; }
+    }
+
+    const endGridX = sx + dxSpaces, endGridY = sy + dySpaces;
+    if(endGridY >= 0 && endGridY < ROWS && endGridX >= 0 && endGridX < COLS) {
+         let landingTerrain = gridData[endGridY][endGridX];
+         if(landingTerrain === TERRAIN.WATER) { alert("Splash! You cannot land your shot in a Water hazard."); return; }
+         if(landingTerrain === TERRAIN.TREE) { alert("Thwack! You cannot land directly on a Tree."); return; }
+    } else { alert("Out of bounds!"); return; }
+
+    strokes++; 
+    if (strokeDisplay) strokeDisplay.innerText = `Strokes: ${strokes}`;
+    validTargets = []; 
+    renderScene();
+    
+    // WIRED UP STEP 3: Register the stroke for the 18-hole campaign
+    recordStroke();
+    updateHUD();
+    
+    ctx.beginPath(); ctx.moveTo(currentBallPos.x, currentBallPos.y); ctx.lineTo(gx, gy); ctx.strokeStyle='#ff3b30'; ctx.lineWidth=2; ctx.stroke(); drawBall(gx, gy);
+
+    let sankIt = false;
+    for(let i=1; i<=dist; i++) {
+        let checkGridX = sx + (stepX * i), checkGridY = sy + (stepY * i);
+        let checkWorldX = checkGridX * TILE_SIZE + (TILE_SIZE/2), checkWorldY = checkGridY * TILE_SIZE + (TILE_SIZE/2);
+        if(Math.abs(checkWorldX - holePos.x) < 1 && Math.abs(checkWorldY - holePos.y) < 1) {
+            let overshoot = dist - i; if(overshoot === 0 || overshoot === 1) sankIt = true; break; 
         }
+    }
+    currentBallPos = { x: gx, y: gy };
+    if(sankIt) triggerVictory(); else resetTurn();
+});
 
-        function calculateMaxDistance() {
-            let terrain = gridData[Math.floor(currentBallPos.y / TILE_SIZE)][Math.floor(currentBallPos.x / TILE_SIZE)];
-            let eff = currentRoll;
-            let modText = "";
-            if (terrain === TERRAIN.FAIRWAY) { 
-                eff += 1; 
-                modText = ` (${currentRoll} + 1 Fairway Bonus)`; 
-            } else if (terrain === TERRAIN.SAND) { 
-                eff = Math.max(1, currentRoll - 1); 
-                modText = ` (${currentRoll} - 1 Sand Penalty)`; 
-            }
-            statusText.style.color = '#5cb85c';
-            statusText.innerText = `Required distance: ${eff}${modText}`;
-        }
+generateBtn.addEventListener('click', () => { if(isHoleComplete) currentHole++; generateCourse(); });
 
-        function calculateValidTargets() {
-            validTargets = [];
-            if (!canShoot || isHoleComplete) return;
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+            .then(registration => { console.log('Service Worker registered successfully'); })
+            .catch(error => { console.log('Service Worker registration failed:', error); });
+    });
+}
 
-            let sx = Math.floor(currentBallPos.x / TILE_SIZE);
-            let sy = Math.floor(currentBallPos.y / TILE_SIZE);
-            let startingTerrain = gridData[sy][sx];
-
-            let eff = currentRoll;
-            if (startingTerrain === TERRAIN.FAIRWAY) eff += 1;
-            else if (startingTerrain === TERRAIN.SAND) eff = Math.max(1, currentRoll - 1);
-            if (isPutting) eff = 1;
-
-            const directions = [
-                {dx: 1, dy: 0}, {dx: -1, dy: 0}, {dx: 0, dy: 1}, {dx: 0, dy: -1},
-                {dx: 1, dy: 1}, {dx: -1, dy: -1}, {dx: 1, dy: -1}, {dx: -1, dy: 1}
-            ];
-
-            for (let dir of directions) {
-                let pathBlocked = false;
-                for (let i = 1; i <= eff; i++) {
-                    let tx = sx + dir.dx * i;
-                    let ty = sy + dir.dy * i;
-
-                    if (tx < 0 || tx >= COLS || ty < 0 || ty >= ROWS) {
-                        pathBlocked = true; break; 
-                    }
-
-                    let terrain = gridData[ty][tx];
-
-                    if (i < eff && terrain === TERRAIN.TREE && startingTerrain !== TERRAIN.FAIRWAY) {
-                        pathBlocked = true; break;
-                    }
-                    if (i === eff && (terrain === TERRAIN.WATER || terrain === TERRAIN.TREE)) {
-                        pathBlocked = true; break;
-                    }
-                }
-                
-                if (!pathBlocked) {
-                    validTargets.push({x: sx + dir.dx * eff, y: sy + dir.dy * eff});
-                }
-            }
-        }
-
-        function renderScene() {
-            drawBoard();
-            drawTargets();
-            drawBall(currentBallPos.x, currentBallPos.y, strokes === 0);
-        }
-
-        rollBtn.addEventListener('click', () => {
-            if (isHoleComplete) return;
-            currentRoll = Math.floor(Math.random() * 6) + 1;
-            animateDice(currentRoll);
-            canShoot = true; isPutting = false; rollBtn.disabled = true; puttBtn.disabled = true;
-            calculateMaxDistance(); updateRerollButton();
-            calculateValidTargets(); renderScene();
-        });
-
-        puttBtn.addEventListener('click', () => {
-            if (isHoleComplete) return;
-            currentRoll = 1; animateDice('P'); canShoot = true; isPutting = true; rollBtn.disabled = true; puttBtn.disabled = true;
-            statusText.style.color = '#ff9500'; statusText.innerText = "Tap a glowing dot to putt."; updateRerollButton();
-            calculateValidTargets(); renderScene();
-        });
-
-        rerollBtn.addEventListener('click', () => {
-            if (strokes === 0 && !usedTeeOffReroll) usedTeeOffReroll = true; else { mulligans--; mulliganDisplay.innerText = `Mulls: ${mulligans}`; }
-            currentRoll = Math.floor(Math.random() * 6) + 1;
-            animateDice(currentRoll); rerollBtn.disabled = true; calculateMaxDistance();
-            calculateValidTargets(); renderScene();
-        });
-
-        function generateCourse() {
-            victoryOverlay.style.display = 'none';
-            gridData = Array.from({length: ROWS}, () => Array(COLS).fill(TERRAIN.ROUGH));
-            
-            let startGridX = Math.floor(COLS / 2) + Math.floor(Math.random() * 5 - 2); 
-            let startGridY = ROWS - 3;
-            let holeGridX = Math.floor(COLS / 2) + Math.floor(Math.random() * 9 - 4); 
-            let holeGridY = 2;
-
-            function drawFairwayBlob(cx, cy) {
-                let blobs = Math.floor(Math.random() * 2) + 1; 
-                for(let b=0; b<blobs; b++) {
-                    let bx = cx + Math.floor(Math.random() * 3 - 1);
-                    let by = cy + Math.floor(Math.random() * 3 - 1);
-                    let bw = Math.floor(Math.random() * 2) + 2; 
-                    let bh = Math.floor(Math.random() * 2) + 2; 
-                    for(let y=by; y<by+bh; y++) {
-                        for(let x=bx; x<bx+bw; x++) {
-                            if(y>=0 && y<ROWS && x>=0 && x<COLS) gridData[y][x] = TERRAIN.FAIRWAY;
-                        }
-                    }
-                }
-            }
-
-            drawFairwayBlob(startGridX - 1, startGridY - 1);
-            drawFairwayBlob(holeGridX - 1, holeGridY - 1);
-
-            let numIslands = Math.floor(Math.random() * 3) + 2; 
-            for(let i = 1; i <= numIslands; i++) {
-                let lerpY = startGridY - i * ((startGridY - holeGridY) / (numIslands + 1));
-                let lerpX = startGridX + i * ((holeGridX - startGridX) / (numIslands + 1)) + (Math.random() * 6 - 3);
-                drawFairwayBlob(Math.floor(lerpX), Math.floor(lerpY));
-            }
-
-            for(let i = 0; i < 12; i++) {
-                let type = Math.random() > 0.5 ? TERRAIN.WATER : TERRAIN.SAND;
-                let hx = Math.floor(Math.random() * (COLS - 2));
-                let hy = Math.floor(Math.random() * (ROWS - 3));
-                
-                let distToHole = Math.max(Math.abs(hx - holeGridX), Math.abs(hy - holeGridY));
-                let distToStart = Math.max(Math.abs(hx - startGridX), Math.abs(hy - startGridY));
-                
-                if (distToHole > 2 && distToStart > 2) {
-                    for(let fy=hy; fy<hy+2; fy++) {
-                        for(let fx=hx; fx<hx+2; fx++) {
-                            if(gridData[fy] && gridData[fy][fx] !== undefined) gridData[fy][fx] = type;
-                        }
-                    }
-                }
-            }
-
-            for(let i = 0; i < 35; i++) {
-                let tx = Math.floor(Math.random() * COLS);
-                let ty = Math.floor(Math.random() * ROWS);
-                
-                if (Math.abs(tx - startGridX) > 1 && Math.abs(ty - startGridY) > 1 &&
-                    Math.abs(tx - holeGridX) > 1 && Math.abs(ty - holeGridY) > 1) {
-                    if(gridData[ty] && gridData[ty][tx] === TERRAIN.ROUGH) gridData[ty][tx] = TERRAIN.TREE;
-                }
-            }
-
-            gridData[holeGridY][holeGridX] = TERRAIN.FAIRWAY;
-            gridData[startGridY][startGridX] = TERRAIN.FAIRWAY;
-
-            holePos = { x: holeGridX * TILE_SIZE + TILE_SIZE/2, y: holeGridY * TILE_SIZE + TILE_SIZE/2 };
-            currentBallPos = { x: startGridX * TILE_SIZE + TILE_SIZE/2, y: startGridY * TILE_SIZE + TILE_SIZE/2 };
-
-            resetTurn(true);
-        }
-
-        function drawBoard() {
-            ctx.clearRect(0,0,canvas.width, canvas.height);
-            for(let y=0; y<ROWS; y++) {
-                for(let x=0; x<COLS; x++) {
-                    let tile = gridData[y][x];
-                    if(tile === TERRAIN.TREE) {
-                        ctx.fillStyle = COLORS[TERRAIN.ROUGH]; ctx.fillRect(x*TILE_SIZE, y*TILE_SIZE, TILE_SIZE, TILE_SIZE);
-                        ctx.fillStyle = COLORS[TERRAIN.TREE]; ctx.beginPath(); ctx.moveTo(x*TILE_SIZE + TILE_SIZE/2, y*TILE_SIZE + 4); ctx.lineTo(x*TILE_SIZE + TILE_SIZE - 4, y*TILE_SIZE + TILE_SIZE - 4); ctx.lineTo(x*TILE_SIZE + 4, y*TILE_SIZE + TILE_SIZE - 4); ctx.fill();
-                    } else {
-                        ctx.fillStyle = COLORS[tile]; ctx.fillRect(x*TILE_SIZE, y*TILE_SIZE, TILE_SIZE, TILE_SIZE);
-                    }
-                }
-            }
-            ctx.fillStyle = COLORS.dot;
-            for(let y=0; y<ROWS; y++) for(let x=0; x<COLS; x++) { ctx.beginPath(); ctx.arc(x*TILE_SIZE + TILE_SIZE/2, y*TILE_SIZE + TILE_SIZE/2, 1.5, 0, Math.PI*2); ctx.fill(); }
-            ctx.fillStyle = 'black'; ctx.beginPath(); ctx.arc(holePos.x, holePos.y, 7, 0, Math.PI*2); ctx.fill();
-        }
-
-        function drawTargets() {
-            if (!canShoot || validTargets.length === 0) return;
-            for (let t of validTargets) {
-                let cx = t.x * TILE_SIZE + TILE_SIZE / 2;
-                let cy = t.y * TILE_SIZE + TILE_SIZE / 2;
-                
-                ctx.beginPath();
-                ctx.arc(cx, cy, 6, 0, Math.PI * 2);
-                ctx.fillStyle = 'rgba(255, 215, 0, 0.5)'; 
-                ctx.fill();
-                ctx.strokeStyle = '#f1c40f'; 
-                ctx.lineWidth = 2;
-                ctx.stroke();
-            }
-        }
-
-        function drawBall(x,y,s) { ctx.beginPath(); ctx.arc(x,y,5,0,Math.PI*2); ctx.fillStyle='white'; ctx.fill(); ctx.strokeStyle=s?'black':'red'; ctx.lineWidth=2; ctx.stroke(); }
-        
-        function resetTurn(newHole=false) {
-            canShoot=false; isPutting=false; rollBtn.disabled=false; puttBtn.disabled=false; currentRoll=0; diceResult.innerText='-';
-            validTargets = []; 
-            statusText.style.color = '#d9534f'; statusText.innerText = "Choose your shot type to continue.";
-            if(newHole) { strokes=0; usedTeeOffReroll=false; isHoleComplete=false; 
-                if (strokeDisplay) strokeDisplay.innerText=`Strokes: ${strokes}`; 
-                holeDisplay.innerText=`Hole: ${currentHole}`; statusText.innerText="Choose your shot type to start!"; }
-            updateRerollButton();
-            renderScene();
-        }
-
-        function triggerVictory() {
-            isHoleComplete=true; canShoot=false; rollBtn.disabled=true; puttBtn.disabled=true; rerollBtn.disabled=true;
-            validTargets = []; renderScene(); 
-            statusText.style.color = '#5cb85c'; statusText.innerText = "Hole completed!";
-            victoryOverlay.style.display='flex'; finalScoreText.innerText=`Score: ${strokes} (Par 6)`;
-        }
-
-        canvas.addEventListener('pointerdown', (e) => {
-            if(!canShoot || isHoleComplete) { statusText.style.transform='scale(1.1)'; setTimeout(()=>statusText.style.transform='scale(1)', 150); return; }
-            const r = canvas.getBoundingClientRect(), tx = Math.floor((e.clientX-r.left)/TILE_SIZE), ty = Math.floor((e.clientY-r.top)/TILE_SIZE);
-            const gx = tx*TILE_SIZE + TILE_SIZE/2, gy = ty*TILE_SIZE + TILE_SIZE/2;
-            const sx = Math.floor(currentBallPos.x/TILE_SIZE), sy = Math.floor(currentBallPos.y/TILE_SIZE);
-            const dxSpaces = tx - sx, dySpaces = ty - sy, absDx = Math.abs(dxSpaces), absDy = Math.abs(dySpaces);
-
-            if(absDx !== 0 && absDy !== 0 && absDx !== absDy) { alert("Invalid hit! You must move in a straight line (up, down, left, right, or diagonal)."); return; }
-            const dist = Math.max(absDx, absDy); if(dist === 0) return;
-
-            let startingTerrain = gridData[sy][sx], eff = currentRoll;
-            if(startingTerrain === TERRAIN.FAIRWAY) eff += 1; else if(startingTerrain === TERRAIN.SAND) eff = Math.max(1, currentRoll - 1);
-
-            if(isPutting && dist !== 1) { alert("Putting requires you to move exactly 1 space!"); return; }
-            if(!isPutting && dist !== eff) { alert(`Invalid distance! You must move exactly your effective roll distance (${eff} spaces).`); return; }
-
-            const stepX = dxSpaces / dist, stepY = dySpaces / dist;
-            for(let i=1; i<dist; i++) {
-                let pathGridX = sx + (stepX * i), pathGridY = sy + (stepY * i);
-                let pathTerrain = gridData[pathGridY][pathGridX];
-                if(pathTerrain === TERRAIN.TREE && startingTerrain !== TERRAIN.FAIRWAY) { alert("You cannot shoot through trees unless you are hitting from the Fairway."); return; }
-            }
-
-            const endGridX = sx + dxSpaces, endGridY = sy + dySpaces;
-            if(endGridY >= 0 && endGridY < ROWS && endGridX >= 0 && endGridX < COLS) {
-                 let landingTerrain = gridData[endGridY][endGridX];
-                 if(landingTerrain === TERRAIN.WATER) { alert("Splash! You cannot land your shot in a Water hazard."); return; }
-                 if(landingTerrain === TERRAIN.TREE) { alert("Thwack! You cannot land directly on a Tree."); return; }
-            } else { alert("Out of bounds!"); return; }
-
-            strokes++; 
-            if (strokeDisplay) strokeDisplay.innerText = `Strokes: ${strokes}`;
-            validTargets = []; 
-            renderScene();
-            
-            ctx.beginPath(); ctx.moveTo(currentBallPos.x, currentBallPos.y); ctx.lineTo(gx, gy); ctx.strokeStyle='#ff3b30'; ctx.lineWidth=2; ctx.stroke(); drawBall(gx, gy);
-
-            let sankIt = false;
-            for(let i=1; i<=dist; i++) {
-                let checkGridX = sx + (stepX * i), checkGridY = sy + (stepY * i);
-                let checkWorldX = checkGridX * TILE_SIZE + (TILE_SIZE/2), checkWorldY = checkGridY * TILE_SIZE + (TILE_SIZE/2);
-                if(Math.abs(checkWorldX - holePos.x) < 1 && Math.abs(checkWorldY - holePos.y) < 1) {
-                    let overshoot = dist - i; if(overshoot === 0 || overshoot === 1) sankIt = true; break; 
-                }
-            }
-            currentBallPos = { x: gx, y: gy };
-            if(sankIt) triggerVictory(); else resetTurn();
-        });
-
-        // Forced clean: allowed re-generation directly on click
-        generateBtn.addEventListener('click', () => { if(isHoleComplete) currentHole++; generateCourse(); });
-        
-        // Register Service Worker
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js')
-                    .then(registration => { console.log('Service Worker registered successfully'); })
-                    .catch(error => { console.log('Service Worker registration failed:', error); });
-            });
-        }
-        
-        window.onload = () => { generateCourse(); toggleRules(false); };
+window.onload = () => { generateCourse(); toggleRules(false); };
     </script>
 </body>
 </html>
