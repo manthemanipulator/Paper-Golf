@@ -3,195 +3,69 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Paper Golf</title>
-    
+    <title>Paper Apps Golf Companion</title>
     <link rel="manifest" href="./manifest.json">
-    <link rel="apple-touch-icon" href="./icon.png?v=2">
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <link rel="apple-touch-icon" href="./icon.png">
     
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
     <style>
-        #updateToast {
-    position: fixed;
-    bottom: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    background-color: #34495e;
-    color: white;
-    padding: 12px 20px;
-    border-radius: 30px;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-    font-weight: bold;
-    font-size: 14px;
-    display: flex;
-    gap: 15px;
-    align-items: center;
-    z-index: 9999;
-    transition: opacity 0.3s;
-}
-#updateToast button {
-    background-color: #2ecc71;
-    padding: 5px 15px;
-    margin: 0;
-    width: auto;
-    font-size: 14px;
-}
-      /* Mode Dropdown Menu */
-        .mode-dropdown {
-            background-color: #f0f0f0;
-            color: #2c3e50; 
-            border: 2px solid #bdc3c7; 
-            border-radius: 20px;
-            padding: 8px 35px 8px 15px; /* Extra padding on the right for the arrow */
-            font-family: monospace;
-            font-size: 16px;
-            font-weight: bold;
-            cursor: pointer;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-            appearance: none; /* Removes the ugly default browser styling */
-            -webkit-appearance: none;
-            /* Draws a clean custom dropdown arrow */
-            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232c3e50' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
-            background-repeat: no-repeat;
-            background-position: right 12px center;
-            background-size: 16px;
-            transition: all 0.2s ease;
-        }
-
-        /* Color classes that the Javascript will swap in */
-        .mode-dropdown.campaign {
-            background-color: #2ecc71;
-            color: white;
-            border-color: #27ae60;
-            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
-        }
-        .mode-dropdown.daily {
-            background-color: #3498db;
-            color: white;
-            border-color: #2980b9;
-            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
-        }
-
-        /* Scoreboard */
-        #scoreboard {
-    text-align: center;
-    font-family: monospace;
-    font-weight: bold;
-    font-size: 14px; /* Dropped from 16px */
-    margin: 10px 0;
-    background-color: #e8f4f8;
-    padding: 10px 5px;
-    border-radius: 5px;
-    width: 100%;
-    max-width: 350px;
-    box-sizing: border-box;
-    white-space: nowrap; /* Forces it to stay on one single line */
-}
-        .hidden {
-            display: none !important;
-        }
-
-        /* Leaderboard Modal System */
-        .modal {
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.85);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-            font-family: monospace;
-        }
-        .modal-content {
-            background: white;
-            padding: 30px;
-            border-radius: 10px;
-            text-align: center;
-            width: 80%;
-            max-width: 400px;
-        }
-        #initialsInput {
-            font-size: 24px;
-            width: 80px;
-            text-align: center;
-            text-transform: uppercase;
-            margin-bottom: 15px;
-        }
-        .action-btn {
-            margin: 10px 5px;
-            padding: 10px 15px;
-            font-weight: bold;
-            cursor: pointer;
-        }
-       #leaderboardList {
-    text-align: center;
-    list-style-position: inside; /* Brings the numbers into the center with the text */
-    background: #f9f9f9;
-    padding: 15px 10px;
-    margin: 0;
-    border-radius: 5px;
-}
-
-        /* Core Layout Styles */
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f4f4f9; color: #333; margin: 0; display: flex; flex-direction: column; align-items: center; padding: 20px; }
-        h1 { margin-top: 5px; margin-bottom: 5px; font-size: 22px; }
-        .header-bar { display: flex; justify-content: space-between; width: 100%; max-width: 350px; margin-bottom: 15px; font-weight: bold; font-size: 15px; color: #2c3e50; }
-        .rules-link { color: #007aff; cursor: pointer; text-decoration: underline; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; display: flex; flex-direction: column; align-items: center; background-color: #f0f2f5; margin: 0; padding: 15px; touch-action: manipulation; -webkit-user-select: none; user-select: none; }
+        .hidden { display: none !important; }
         
-        .map-container { background: white; padding: 10px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); display: flex; flex-direction: column; align-items: center; width: 100%; max-width: 350px; box-sizing: border-box; margin-bottom: 15px; }
-        .canvas-wrapper { position: relative; width: fit-content; }
+        /* Dropdown Menu */
+        .mode-dropdown { background-color: #f0f0f0; color: #2c3e50; border: 2px solid #bdc3c7; border-radius: 20px; padding: 8px 35px 8px 15px; font-family: monospace; font-size: 16px; font-weight: bold; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.1); appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232c3e50' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e"); background-repeat: no-repeat; background-position: right 12px center; background-size: 16px; transition: all 0.2s ease; }
+        .mode-dropdown.campaign { background-color: #2ecc71; color: white; border-color: #27ae60; background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e"); }
+        .mode-dropdown.daily { background-color: #3498db; color: white; border-color: #2980b9; background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e"); }
         
-        .controls-container { display: flex; flex-direction: column; align-items: center; background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 100%; max-width: 350px; box-sizing: border-box; }
-        #diceResult { font-size: 48px; font-weight: bold; margin-bottom: 10px; color: #2c3e50; transition: transform 0.1s; }
+        .rules-link { color: #007aff; text-decoration: underline; cursor: pointer; }
         
-        .button-group { display: flex; gap: 8px; width: 100%; }
-        button { flex: 1; background-color: #007aff; color: white; border: none; padding: 12px 5px; font-size: 16px; font-weight: bold; border-radius: 8px; cursor: pointer; touch-action: manipulation; }
-        button:active { background-color: #005bb5; }
-        button:disabled { background-color: #cccccc !important; color: #666666 !important; cursor: not-allowed; }
+        .map-container { background-color: white; padding: 10px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 15px; }
+        canvas { background-color: #e9f5e9; border-radius: 5px; touch-action: none; max-width: 100%; height: auto; }
+        
+        .controls-container { background-color: white; padding: 15px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 100%; max-width: 350px; box-sizing: border-box; text-align: center; }
+        .btn-row { display: flex; justify-content: space-between; gap: 10px; margin-top: 15px; }
+        button { flex: 1; padding: 12px 0; font-size: 16px; font-weight: bold; border: none; border-radius: 8px; color: white; cursor: pointer; transition: opacity 0.2s; }
+        button:active { opacity: 0.8; }
+        button:disabled { background-color: #bdc3c7 !important; cursor: not-allowed; }
+        
+        .btn-roll { background-color: #007aff; }
         .btn-putt { background-color: #ff9500; }
-        .btn-reroll { background-color: #8e44ad; }
-        .btn-secondary { background-color: #34c759; width: 100%; padding: 12px 10px; margin-bottom: 15px; border-radius: 8px; color: white; border: none; font-size: 16px; font-weight: bold; cursor: pointer;}
+        .btn-reroll { background-color: #8e8e93; }
+        .btn-generate { background-color: #34c759; width: 100%; margin-bottom: 15px; }
         
-        /* Board Victory Overlay */
-        .overlay { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255, 255, 255, 0.95); flex-direction: column; align-items: center; justify-content: center; border-radius: 8px; z-index: 10; padding: 15px; box-sizing: border-box; text-align: center; }
+        .dice-display { font-size: 28px; font-weight: bold; font-family: monospace; background: #f0f0f0; padding: 10px 20px; border-radius: 10px; display: inline-block; margin: 10px 0; border: 2px solid #ddd; transition: transform 0.1s; }
         
-        /* Full Screen Rules Overlay */
-        .full-screen-overlay { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(244, 244, 249, 0.98); flex-direction: column; align-items: center; justify-content: center; z-index: 1000; padding: 20px; box-sizing: border-box; text-align: center; overflow-y: auto; }
-        .full-screen-overlay h2 { color: #2c3e50; font-size: 28px; margin-top: 0; margin-bottom: 15px; }
-        .full-screen-overlay p { color: #444; font-size: 16px; margin-bottom: 12px; text-align: left; width: 100%; max-width: 350px; line-height: 1.5; }
-        .full-screen-overlay button { width: 100%; max-width: 350px; margin-top: 20px; padding: 15px; font-size: 18px; border-radius: 8px; background-color: #007aff; color: white; border: none; font-weight: bold; cursor: pointer;}
-
-        canvas { background-color: #fcfcfc; border: 1px solid #ddd; border-radius: 8px; touch-action: none; cursor: crosshair; display: block; }
-        .instructions { font-size: 15px; color: #d9534f; font-weight: bold; margin-top: 0; margin-bottom: 8px; height: 18px; text-align: center; }
+        /* Modals */
+        .overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: none; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; color: white; text-align: center; padding: 20px; box-sizing: border-box; }
+        .overlay h2 { font-size: 32px; margin-bottom: 10px; color: #4cd964; }
+        .overlay p { font-size: 24px; margin-bottom: 30px; }
+        .overlay button { background-color: #007aff; padding: 15px 30px; font-size: 18px; margin-bottom: 15px; width: 80%; max-width: 300px; }
+        .overlay .btn-secondary { background-color: #8e8e93; }
+        
+        .modal-content { background: white; color: black; padding: 20px; border-radius: 10px; max-width: 90%; max-height: 80vh; overflow-y: auto; text-align: left; position: relative; }
+        .close-btn { position: absolute; top: 10px; right: 15px; font-size: 24px; font-weight: bold; cursor: pointer; color: #aaa; }
+        
+        /* Leaderboard Input */
+        input[type="text"] { font-size: 24px; text-align: center; text-transform: uppercase; width: 100px; padding: 10px; margin: 15px 0; border: 2px solid #ccc; border-radius: 8px; }
+        .leaderboard-list { list-style: none; padding: 0; margin: 20px 0; text-align: center; font-family: monospace; font-size: 18px; }
+        .leaderboard-list li { margin: 10px 0; padding: 10px; background: #f8f9fa; border-radius: 5px; border: 1px solid #ddd; }
+        
+        /* Update Toast */
+        #updateToast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background-color: #34495e; color: white; padding: 12px 20px; border-radius: 30px; box-shadow: 0 4px 10px rgba(0,0,0,0.2); font-weight: bold; font-size: 14px; display: flex; gap: 15px; align-items: center; z-index: 9999; }
+        #updateToast button { background-color: #2ecc71; padding: 5px 15px; margin: 0; width: auto; font-size: 14px; }
     </style>
 </head>
 <body>
-    <div id="updateToast" class="hidden">
-    <span>Course Update Available!</span>
-    <button onclick="window.location.reload(true)">Reload</button>
-</div>
 
-    <div id="rulesOverlay" class="full-screen-overlay">
-        <h2>Game Rules</h2>
-        <p><strong>Dice GOLF:</strong> Roll the d6 to determine your distance. You must move <strong>exactly</strong> that distance in a straight line (up, down, left, right, or diagonal).</p>
-        <p><strong>Putting:</strong> You may always choose to putt to move exactly 1 space, regardless of terrain.</p>
-        <p><strong>Terrain Rules:</strong><br>
-        • <strong>Fairway:</strong> +1 to your roll. Allows shooting over trees.<br>
-        • <strong>Sand Trap:</strong> -1 to your roll.<br>
-        • <strong>Water & Trees:</strong> You cannot land in water or directly on a tree. You cannot shoot through trees unless starting from the Fairway.</p>
-        <p><strong>Mulligans:</strong> 6 per course. Your first tee-off re-roll is free. You must use the second roll.</p>
-        <button onclick="toggleRules(false)">Close Rules</button>
-    </div>
-
-   <div style="display: flex; justify-content: space-between; width: 100%; max-width: 350px; margin-bottom: 10px; align-items: center; font-weight: bold; font-size: 15px;">
+    <div style="display: flex; justify-content: space-between; width: 100%; max-width: 350px; margin-bottom: 10px; align-items: center; font-weight: bold; font-size: 15px;">
         <span class="rules-link" id="viewScoresBtn">Scores</span>
-        
         <select id="modeSelect" class="mode-dropdown" style="flex-grow: 1; margin: 0 15px; text-align: center;">
             <option value="casual">Casual</option>
-            <option value="campaign">Random 18-Hole</option>
-            <option value="daily">Daily 18-Hole</option>
+            <option value="campaign">Random 18</option>
+            <option value="daily">Daily 18</option>
         </select>
-        
         <span class="rules-link" onclick="toggleRules(true)">Rules</span>
     </div>
 
@@ -203,53 +77,74 @@
     </div>
 
     <div class="map-container">
-        <div class="canvas-wrapper">
-            <div id="victoryOverlay" class="overlay">
-                <h2 style="font-size: 28px; margin-bottom: 5px; color: #2c3e50; margin-top: 0;">IN THE HOLE!</h2>
-                <p id="finalScoreText" style="text-align: center; font-size: 18px; font-weight: bold; color: #444; margin-bottom: 0;"></p>
-            </div>
-            <canvas id="courseMap" width="300" height="400"></canvas>
-        </div>
+        <canvas id="courseMap" width="300" height="400"></canvas>
     </div>
 
     <div class="controls-container">
-        <p id="statusText" class="instructions">Choose your shot type to start!</p>
-        <button id="generateBtn" class="btn-secondary">Generate Next Hole</button>
-        
-        <div id="diceResult">-</div>
-        <div class="button-group">
-            <button id="rollBtn">Roll</button>
-            <button id="rerollBtn" class="btn-reroll" disabled>Re-roll</button>
+        <div style="font-weight: bold; color: #d9534f; margin-bottom: 10px;" id="statusText">Choose your shot type to start!</div>
+        <button id="generateBtn" class="btn-generate">Generate Next Hole</button>
+        <div class="dice-display" id="diceResult">-</div>
+        <div class="btn-row">
+            <button id="rollBtn" class="btn-roll">Roll</button>
+            <button id="rerollBtn" class="btn-reroll">Re-roll</button>
             <button id="puttBtn" class="btn-putt">Putt</button>
         </div>
     </div>
 
-    <div id="leaderboardModal" class="modal hidden">
+    <div id="rulesOverlay" class="overlay" style="background: rgba(0,0,0,0.5);">
         <div class="modal-content">
+            <span class="close-btn" onclick="toggleRules(false)">&times;</span>
+            <h3 style="margin-top:0;">Quick Rules</h3>
+            <ul>
+                <li><b>Fairway (Light Green):</b> Grants +1 to your roll distance. Shoot through trees.</li>
+                <li><b>Sand (Tan):</b> Subtracts -1 from your roll distance (minimum 1).</li>
+                <li><b>Trees (Dark Green):</b> Blocks shots unless starting from a Fairway.</li>
+                <li><b>Water (Blue):</b> Cannot land here.</li>
+                <li><b>Putting:</b> Exactly 1 space distance. Roll defaults to 'P'.</li>
+                <li><b>Mulligans:</b> 6 total. Tee-off rerolls are free (0 strokes taken).</li>
+            </ul>
+        </div>
+    </div>
+
+    <div id="victoryOverlay" class="overlay">
+        <h2>HOLE COMPLETE!</h2>
+        <p id="finalScoreText">Score: 0</p>
+        <button id="nextHoleBtn">Play Next Hole</button>
+    </div>
+
+    <div id="leaderboardModal" class="overlay" style="background: rgba(0,0,0,0.95);">
+        <div class="modal-content" style="background: transparent; color: white; text-align: center; border: 2px solid white;">
+            <span class="close-btn" onclick="document.getElementById('leaderboardModal').classList.add('hidden')">&times;</span>
+            
             <h2 id="modalTitle">ROUND COMPLETE!</h2>
             <h3 id="finalScoreDisplay">Final Score: 0</h3>
             
             <div id="inputSection">
-                <input type="text" id="initialsInput" maxlength="3" placeholder="AAA" oninput="this.value = this.value.toUpperCase()">
-                <button id="submitScoreBtn">Submit</button>
+                <p>Enter 3 initials for the leaderboard:</p>
+                <input type="text" id="initialsInput" maxlength="3" autocomplete="off"><br>
+                <button id="submitScoreBtn">Submit Score</button>
             </div>
-
+            
             <div id="leaderboardSection" class="hidden">
-                <h3>TOP 10 SCORES</h3>
-                <ol id="leaderboardList"></ol>
-                <button id="playAgainBtn" class="action-btn">Score Again</button>
-                <button id="backToCasualBtn" class="action-btn">Back to Casual</button>
+                <h3>TOP SCORES</h3>
+                <ul class="leaderboard-list" id="leaderboardList"></ul>
+                <button id="playAgainBtn" style="margin-top: 20px;">Play Again</button>
+                <button id="backToCasualBtn" class="btn-secondary">Back to Casual</button>
             </div>
         </div>
     </div>
 
-    <script>
+    <div id="updateToast" class="hidden">
+        <span>Course Update Available!</span>
+        <button onclick="window.location.reload(true)">Reload</button>
+    </div>
+
+<script>
 // ==========================================
 // 1. STATE VARIABLES
 // ==========================================
 let currentMode = 'casual'; // 'casual', 'campaign', 'daily'
 let totalCampaignScore = 0;
-let strokesThisHole = 0;
 let dailySeed = 1;
 
 let currentHole = 1, strokes = 0, mulligans = 6, currentRoll = 0, canShoot = false, isPutting = false, isHoleComplete = false, usedTeeOffReroll = false;
@@ -259,28 +154,16 @@ const TERRAIN = { ROUGH: 0, FAIRWAY: 1, SAND: 2, WATER: 3, TREE: 4 };
 const COLORS = { [TERRAIN.ROUGH]: '#e9f5e9', [TERRAIN.FAIRWAY]: '#90ee90', [TERRAIN.SAND]: '#f5deb3', [TERRAIN.WATER]: '#4682b4', [TERRAIN.TREE]: '#228b22', dot: 'rgba(0, 0, 0, 0.15)' };
 
 const modeSelect = document.getElementById('modeSelect');
-const leaderboardModal = document.getElementById('leaderboardModal');
-const inputSection = document.getElementById('inputSection');
-const leaderboardSection = document.getElementById('leaderboardSection');
-const finalScoreDisplay = document.getElementById('finalScoreDisplay');
-const initialsInput = document.getElementById('initialsInput');
-const leaderboardList = document.getElementById('leaderboardList');
 const rollBtn = document.getElementById('rollBtn');
 const puttBtn = document.getElementById('puttBtn');
 const rerollBtn = document.getElementById('rerollBtn');
 const diceResult = document.getElementById('diceResult');
 const statusText = document.getElementById('statusText');
-const casualStrokeDisplay = document.getElementById('casualStrokeDisplay');
-const casualHoleDisplay = document.getElementById('casualHoleDisplay');
-const mulliganDisplay = document.getElementById('mulliganDisplay');
-const generateBtn = document.getElementById('generateBtn');
-const victoryOverlay = document.getElementById('victoryOverlay');
-const finalScoreText = document.getElementById('finalScoreText');
 const canvas = document.getElementById('courseMap');
 const ctx = canvas.getContext('2d');
 
 // ==========================================
-// 2. TOGGLE & HUD LOGIC
+// 2. HUD & MODE SWITCHING
 // ==========================================
 function updateHUD() {
     const uiHole = document.getElementById('uiHole');
@@ -288,42 +171,6 @@ function updateHUD() {
     const uiMulls = document.getElementById('uiMulls');
     const uiTotal = document.getElementById('uiTotal');
     
-    // We stripped out the ghost variable; it just tracks live strokes now
-    uiStrokes.textContent = `Strokes: ${strokes}`; 
-    uiMulls.textContent = `Mulls: ${mulligans}`;
-
-    if (currentMode === 'casual') {
-        uiHole.textContent = `Hole: ${currentHole}`;
-        uiTotal.classList.add('hidden');
-    } else {
-        uiHole.textContent = `Hole: ${currentHole}/18`;
-        uiTotal.textContent = ` | Total: ${totalCampaignScore}`;
-        uiTotal.classList.remove('hidden');
-    }
-}
-
-modeSelect.addEventListener('change', (e) => {
-    currentMode = e.target.value;
-    
-    // Swap the dropdown colors visually
-    if (currentMode === 'casual') {
-        modeSelect.className = "mode-dropdown";
-    } else if (currentMode === 'campaign') {
-        modeSelect.className = "mode-dropdown campaign";
-    } else if (currentMode === 'daily') {
-        modeSelect.className = "mode-dropdown daily";
-    }
-    
-    resetGame();
-});
-
-function updateHUD() {
-    const uiHole = document.getElementById('uiHole');
-    const uiStrokes = document.getElementById('uiStrokes');
-    const uiMulls = document.getElementById('uiMulls');
-    const uiTotal = document.getElementById('uiTotal');
-    
-    // Safety checks: Only update the text if the HTML elements exist
     if (uiStrokes) uiStrokes.textContent = `Strokes: ${strokes}`; 
     if (uiMulls) uiMulls.textContent = `Mulls: ${mulligans}`;
 
@@ -337,25 +184,13 @@ function updateHUD() {
     }
 }
 
-function resetGame() {
-    // 1. Wipe all variables back to default
-    currentHole = 1;
-    totalCampaignScore = 0;
-    strokes = 0;
-    mulligans = 6;
-    isHoleComplete = false;
-    
-    // 2. Hide any victory or leaderboard popups that might be open
-    const vicOverlay = document.getElementById('victoryOverlay');
-    if (vicOverlay) vicOverlay.style.display = 'none';
-    
-    const leadModal = document.getElementById('leaderboardModal');
-    if (leadModal) leadModal.classList.add('hidden');
-    
-    // 3. Generate a fresh Hole 1 and update the text bar
-    generateCourse(); 
-    updateHUD();
-}
+modeSelect.addEventListener('change', (e) => {
+    currentMode = e.target.value;
+    if (currentMode === 'casual') modeSelect.className = "mode-dropdown";
+    else if (currentMode === 'campaign') modeSelect.className = "mode-dropdown campaign";
+    else if (currentMode === 'daily') modeSelect.className = "mode-dropdown daily";
+    resetGame();
+});
 
 function resetGame() {
     currentHole = 1;
@@ -363,18 +198,19 @@ function resetGame() {
     strokes = 0;
     mulligans = 6;
     isHoleComplete = false;
+    
     document.getElementById('victoryOverlay').style.display = 'none';
-    leaderboardModal.classList.add('hidden');
+    document.getElementById('leaderboardModal').classList.add('hidden');
     
     generateCourse(); 
     updateHUD();
 }
-
 
 // ==========================================
-// 4. CLOUD LEADERBOARD (FIREBASE)
+// 3. CLOUD LEADERBOARD (FIREBASE)
 // ==========================================
 const firebaseConfig = {
+    // ---> PASTE YOUR KEYS HERE <---
     apiKey: "AIzaSyCpYT1A8wLcdpwxaThbVr3k-IdPvnPnHzw",
   authDomain: "paper-golf-e8364.firebaseapp.com",
   projectId: "paper-golf-e8364",
@@ -384,37 +220,30 @@ const firebaseConfig = {
   measurementId: "G-DZT902BEM3"
 };
 
-if (!firebase.apps.length) {
-    firebase.initializeApp(firebaseConfig);
-}
+if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
-
-db.enablePersistence().catch((err) => {
-    console.log("Offline mode failed to enable: ", err.code);
-});
+db.enablePersistence().catch((err) => console.log("Offline mode failed: ", err.code));
 
 function triggerVictorySequence() {
-    const title = currentMode === 'daily' ? "DAILY COMPLETE!" : "ROUND COMPLETE!";
-    document.getElementById('modalTitle').textContent = title;
-    finalScoreDisplay.textContent = `Final Score: ${totalCampaignScore}`;
-    inputSection.classList.remove('hidden');
-    leaderboardSection.classList.add('hidden');
-    initialsInput.value = '';
-    leaderboardModal.classList.remove('hidden');
+    document.getElementById('modalTitle').textContent = currentMode === 'daily' ? "DAILY COMPLETE!" : "ROUND COMPLETE!";
+    document.getElementById('finalScoreDisplay').textContent = `Final Score: ${totalCampaignScore}`;
+    document.getElementById('inputSection').classList.remove('hidden');
+    document.getElementById('leaderboardSection').classList.add('hidden');
+    document.getElementById('initialsInput').value = '';
+    document.getElementById('leaderboardModal').classList.remove('hidden');
 }
 
 document.getElementById('submitScoreBtn')?.addEventListener('click', () => {
-    const initials = initialsInput.value.trim();
+    const initials = document.getElementById('initialsInput').value.trim();
     if (initials.length !== 3) { alert("Please enter exactly 3 initials."); return; }
-
-    inputSection.classList.add('hidden');
-    leaderboardSection.classList.remove('hidden');
-    leaderboardList.innerHTML = '<li>Uploading score...</li>';
+    document.getElementById('inputSection').classList.add('hidden');
+    document.getElementById('leaderboardSection').classList.remove('hidden');
+    document.getElementById('leaderboardList').innerHTML = '<li>Uploading score...</li>';
     saveScoreToCloud(initials, totalCampaignScore);
 });
 
 function saveScoreToCloud(initials, score) {
-    const today = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
+    const today = new Date().toLocaleDateString('en-CA');
     const payload = {
         initials: initials,
         score: score,
@@ -425,52 +254,55 @@ function saveScoreToCloud(initials, score) {
 
     db.collection("globalLeaderboard").add(payload)
       .then(() => showLeaderboard())
-      .catch((error) => {
-          console.error("Error: ", error);
-          leaderboardList.innerHTML = '<li>Error saving score.</li>';
-      });
+      .catch((error) => document.getElementById('leaderboardList').innerHTML = '<li>Error saving score.</li>');
 }
 
 function showLeaderboard() {
-    inputSection.classList.add('hidden');
-    leaderboardSection.classList.remove('hidden');
+    document.getElementById('inputSection').classList.add('hidden');
+    document.getElementById('leaderboardSection').classList.remove('hidden');
     const today = new Date().toLocaleDateString('en-CA');
+    const list = document.getElementById('leaderboardList');
     
-    db.collection("globalLeaderboard")
-      .orderBy("score", "asc")
-      .onSnapshot((querySnapshot) => {
-          leaderboardList.innerHTML = ''; 
-          let count = 0;
-          
-          querySnapshot.forEach((doc) => {
-              const entry = doc.data();
-              // Filter out the wrong mode
-              if (currentMode === 'daily' && (entry.mode !== 'daily' || entry.date !== today)) return;
-              if (currentMode === 'campaign' && entry.mode === 'daily') return;
-              
-              if (count >= 10) return; // Only show top 10
-              count++;
-
-              const li = document.createElement('li');
-              li.textContent = `${entry.initials} ..... ${entry.score}`;
-              leaderboardList.appendChild(li);
-          });
-      });
+    db.collection("globalLeaderboard").orderBy("score", "asc").onSnapshot((querySnapshot) => {
+        list.innerHTML = ''; 
+        let count = 0;
+        querySnapshot.forEach((doc) => {
+            const entry = doc.data();
+            if (currentMode === 'daily' && (entry.mode !== 'daily' || entry.date !== today)) return;
+            if (currentMode === 'campaign' && entry.mode === 'daily') return;
+            if (count >= 10) return;
+            count++;
+            const li = document.createElement('li');
+            li.textContent = `${entry.initials} ..... ${entry.score}`;
+            list.appendChild(li);
+        });
+        if (count === 0) list.innerHTML = '<li>No scores yet!</li>';
+    });
 }
+
+document.getElementById('viewScoresBtn')?.addEventListener('click', () => {
+    if (currentMode === 'casual') {
+        currentMode = 'campaign';
+        modeSelect.value = 'campaign';
+        modeSelect.className = "mode-dropdown campaign";
+        resetGame();
+    }
+    document.getElementById('modalTitle').textContent = currentMode === 'daily' ? "TODAY'S TOP 10" : "ALL-TIME TOP 10";
+    document.getElementById('leaderboardModal').classList.remove('hidden');
+    showLeaderboard();
+});
 
 document.getElementById('playAgainBtn')?.addEventListener('click', resetGame);
 document.getElementById('backToCasualBtn')?.addEventListener('click', () => {
     currentMode = 'casual';
-    modeSelect.value = 'casual'; // Physically resets the dropdown text
-    modeSelect.className = "mode-dropdown"; // Resets the color to gray
+    modeSelect.value = 'casual';
+    modeSelect.className = "mode-dropdown";
     resetGame();
 });
 
 // ==========================================
-// 5. CORE GAME ENGINE & DAILY SEEDING
+// 4. CORE ENGINE & MAP GENERATION
 // ==========================================
-
-// The Math Magic that locks the map generation to the date
 function getRand() {
     if (currentMode === 'daily') {
         let t = dailySeed += 0x6D2B79F5;
@@ -483,27 +315,14 @@ function getRand() {
 
 function toggleRules(forceState) { 
     const overlay = document.getElementById('rulesOverlay');
-    if (typeof forceState === 'boolean') overlay.style.display = forceState ? 'flex' : 'none';
-    else overlay.style.display = overlay.style.display === 'flex' ? 'none' : 'flex';
+    overlay.style.display = (typeof forceState === 'boolean') ? (forceState ? 'flex' : 'none') : (overlay.style.display === 'flex' ? 'none' : 'flex');
 }
-
-function animateDice(text) { diceResult.innerText = text; diceResult.style.transform = 'scale(1.3)'; setTimeout(() => diceResult.style.transform = 'scale(1)', 150); }
 
 function updateRerollButton() {
     if (!canShoot || isPutting || isHoleComplete) { rerollBtn.disabled = true; rerollBtn.innerText = "Re-roll"; return; }
     if (strokes === 0 && !usedTeeOffReroll) { rerollBtn.disabled = false; rerollBtn.innerText = "Free Re-roll"; }
     else if (mulligans > 0) { rerollBtn.disabled = false; rerollBtn.innerText = `Mulligan (${mulligans})`; }
     else { rerollBtn.disabled = true; rerollBtn.innerText = "0 Mulligans"; }
-}
-
-function calculateMaxDistance() {
-    let terrain = gridData[Math.floor(currentBallPos.y / TILE_SIZE)][Math.floor(currentBallPos.x / TILE_SIZE)];
-    let eff = currentRoll;
-    let modText = "";
-    if (terrain === TERRAIN.FAIRWAY) { eff += 1; modText = ` (${currentRoll} + 1 Fairway Bonus)`; } 
-    else if (terrain === TERRAIN.SAND) { eff = Math.max(1, currentRoll - 1); modText = ` (${currentRoll} - 1 Sand Penalty)`; }
-    statusText.style.color = '#5cb85c';
-    statusText.innerText = `Required distance: ${eff}${modText}`;
 }
 
 function calculateValidTargets() {
@@ -518,11 +337,11 @@ function calculateValidTargets() {
     else if (startingTerrain === TERRAIN.SAND) eff = Math.max(1, currentRoll - 1);
     if (isPutting) eff = 1;
 
-    const directions = [
-        {dx: 1, dy: 0}, {dx: -1, dy: 0}, {dx: 0, dy: 1}, {dx: 0, dy: -1},
-        {dx: 1, dy: 1}, {dx: -1, dy: -1}, {dx: 1, dy: -1}, {dx: -1, dy: 1}
-    ];
+    statusText.style.color = isPutting ? '#ff9500' : '#5cb85c';
+    let modText = isPutting ? "" : (startingTerrain === TERRAIN.FAIRWAY ? " (+1 Fairway)" : (startingTerrain === TERRAIN.SAND ? " (-1 Sand)" : ""));
+    statusText.innerText = isPutting ? "Tap a glowing dot to putt." : `Required distance: ${eff}${modText}`;
 
+    const directions = [{dx: 1, dy: 0}, {dx: -1, dy: 0}, {dx: 0, dy: 1}, {dx: 0, dy: -1}, {dx: 1, dy: 1}, {dx: -1, dy: -1}, {dx: 1, dy: -1}, {dx: -1, dy: 1}];
     for (let dir of directions) {
         let pathBlocked = false;
         for (let i = 1; i <= eff; i++) {
@@ -536,108 +355,7 @@ function calculateValidTargets() {
     }
 }
 
-function renderScene() { drawBoard(); drawTargets(); drawBall(currentBallPos.x, currentBallPos.y, strokes === 0); }
-
-// Notice these still use Math.random() so dice rolls are ALWAYS random, even on the daily course
-rollBtn.addEventListener('click', () => {
-    if (isHoleComplete) return;
-    if (navigator.vibrate) navigator.vibrate(50);
-    currentRoll = Math.floor(Math.random() * 6) + 1;
-    animateDice(currentRoll); canShoot = true; isPutting = false; rollBtn.disabled = true; puttBtn.disabled = true;
-    calculateMaxDistance(); updateRerollButton(); calculateValidTargets(); renderScene();
-});
-
-puttBtn.addEventListener('click', () => {
-    if (isHoleComplete) return;
-    if (navigator.vibrate) navigator.vibrate(30);
-    currentRoll = 1; animateDice('P'); canShoot = true; isPutting = true; rollBtn.disabled = true; puttBtn.disabled = true;
-    statusText.style.color = '#ff9500'; statusText.innerText = "Tap a glowing dot to putt."; 
-    updateRerollButton(); calculateValidTargets(); renderScene();
-});
-
-rerollBtn.addEventListener('click', () => {
-    if (strokes === 0 && !usedTeeOffReroll) usedTeeOffReroll = true; else { mulligans--; mulliganDisplay.innerText = `Mulls: ${mulligans}`; }
-    currentRoll = Math.floor(Math.random() * 6) + 1;
-    animateDice(currentRoll); rerollBtn.disabled = true; calculateMaxDistance(); calculateValidTargets(); renderScene();
-});
-
-function generateCourse() {
-    // Generate the unique daily seed based on Date + Hole Number
-    if (currentMode === 'daily') {
-        const d = new Date();
-        dailySeed = d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate() + (currentHole * 1000000);
-        resetTurn(true);
-    renderScene(); // This is the new line that forces the screen to paint immediately!
-    }
-
-    victoryOverlay.style.display = 'none';
-    gridData = Array.from({length: ROWS}, () => Array(COLS).fill(TERRAIN.ROUGH));
-    
-    let startGridX = Math.floor(COLS / 2) + Math.floor(getRand() * 5 - 2); 
-    let startGridY = ROWS - 3;
-    let holeGridX = Math.floor(COLS / 2) + Math.floor(getRand() * 9 - 4); 
-    let holeGridY = 2;
-
-    function drawFairwayBlob(cx, cy) {
-        let blobs = Math.floor(getRand() * 2) + 1; 
-        for(let b=0; b<blobs; b++) {
-            let bx = cx + Math.floor(getRand() * 3 - 1);
-            let by = cy + Math.floor(getRand() * 3 - 1);
-            let bw = Math.floor(getRand() * 2) + 2; 
-            let bh = Math.floor(getRand() * 2) + 2; 
-            for(let y=by; y<by+bh; y++) {
-                for(let x=bx; x<bx+bw; x++) {
-                    if(y>=0 && y<ROWS && x>=0 && x<COLS) gridData[y][x] = TERRAIN.FAIRWAY;
-                }
-            }
-        }
-    }
-
-    drawFairwayBlob(startGridX - 1, startGridY - 1);
-    drawFairwayBlob(holeGridX - 1, holeGridY - 1);
-
-    let numIslands = Math.floor(getRand() * 3) + 2; 
-    for(let i = 1; i <= numIslands; i++) {
-        let lerpY = startGridY - i * ((startGridY - holeGridY) / (numIslands + 1));
-        let lerpX = startGridX + i * ((holeGridX - startGridX) / (numIslands + 1)) + (getRand() * 6 - 3);
-        drawFairwayBlob(Math.floor(lerpX), Math.floor(lerpY));
-    }
-
-    for(let i = 0; i < 12; i++) {
-        let type = getRand() > 0.5 ? TERRAIN.WATER : TERRAIN.SAND;
-        let hx = Math.floor(getRand() * (COLS - 2));
-        let hy = Math.floor(getRand() * (ROWS - 3));
-        
-        let distToHole = Math.max(Math.abs(hx - holeGridX), Math.abs(hy - holeGridY));
-        let distToStart = Math.max(Math.abs(hx - startGridX), Math.abs(hy - startGridY));
-        
-        if (distToHole > 2 && distToStart > 2) {
-            for(let fy=hy; fy<hy+2; fy++) {
-                for(let fx=hx; fx<hx+2; fx++) {
-                    if(gridData[fy] && gridData[fy][fx] !== undefined) gridData[fy][fx] = type;
-                }
-            }
-        }
-    }
-
-    for(let i = 0; i < 35; i++) {
-        let tx = Math.floor(getRand() * COLS);
-        let ty = Math.floor(getRand() * ROWS);
-        
-        if (Math.abs(tx - startGridX) > 1 && Math.abs(ty - startGridY) > 1 && Math.abs(tx - holeGridX) > 1 && Math.abs(ty - holeGridY) > 1) {
-            if(gridData[ty] && gridData[ty][tx] === TERRAIN.ROUGH) gridData[ty][tx] = TERRAIN.TREE;
-        }
-    }
-
-    gridData[holeGridY][holeGridX] = TERRAIN.FAIRWAY;
-    gridData[startGridY][startGridX] = TERRAIN.FAIRWAY;
-    holePos = { x: holeGridX * TILE_SIZE + TILE_SIZE/2, y: holeGridY * TILE_SIZE + TILE_SIZE/2 };
-    currentBallPos = { x: startGridX * TILE_SIZE + TILE_SIZE/2, y: startGridY * TILE_SIZE + TILE_SIZE/2 };
-
-    resetTurn(true);
-}
-
-function drawBoard() {
+function renderScene() { 
     ctx.clearRect(0,0,canvas.width, canvas.height);
     for(let y=0; y<ROWS; y++) {
         for(let x=0; x<COLS; x++) {
@@ -645,135 +363,164 @@ function drawBoard() {
             if(tile === TERRAIN.TREE) {
                 ctx.fillStyle = COLORS[TERRAIN.ROUGH]; ctx.fillRect(x*TILE_SIZE, y*TILE_SIZE, TILE_SIZE, TILE_SIZE);
                 ctx.fillStyle = COLORS[TERRAIN.TREE]; ctx.beginPath(); ctx.moveTo(x*TILE_SIZE + TILE_SIZE/2, y*TILE_SIZE + 4); ctx.lineTo(x*TILE_SIZE + TILE_SIZE - 4, y*TILE_SIZE + TILE_SIZE - 4); ctx.lineTo(x*TILE_SIZE + 4, y*TILE_SIZE + TILE_SIZE - 4); ctx.fill();
-            } else {
-                ctx.fillStyle = COLORS[tile]; ctx.fillRect(x*TILE_SIZE, y*TILE_SIZE, TILE_SIZE, TILE_SIZE);
-            }
+            } else { ctx.fillStyle = COLORS[tile]; ctx.fillRect(x*TILE_SIZE, y*TILE_SIZE, TILE_SIZE, TILE_SIZE); }
         }
     }
     ctx.fillStyle = COLORS.dot;
     for(let y=0; y<ROWS; y++) for(let x=0; x<COLS; x++) { ctx.beginPath(); ctx.arc(x*TILE_SIZE + TILE_SIZE/2, y*TILE_SIZE + TILE_SIZE/2, 1.5, 0, Math.PI*2); ctx.fill(); }
     ctx.fillStyle = 'black'; ctx.beginPath(); ctx.arc(holePos.x, holePos.y, 7, 0, Math.PI*2); ctx.fill();
+    
+    if (canShoot && validTargets.length > 0) {
+        for (let t of validTargets) {
+            ctx.beginPath(); ctx.arc(t.x * TILE_SIZE + TILE_SIZE / 2, t.y * TILE_SIZE + TILE_SIZE / 2, 6, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(255, 215, 0, 0.5)'; ctx.fill(); ctx.strokeStyle = '#f1c40f'; ctx.lineWidth = 2; ctx.stroke();
+        }
+    }
+    ctx.beginPath(); ctx.arc(currentBallPos.x, currentBallPos.y, 5, 0, Math.PI*2); ctx.fillStyle='white'; ctx.fill(); ctx.strokeStyle=strokes===0?'black':'red'; ctx.lineWidth=2; ctx.stroke();
 }
 
-function drawTargets() {
-    if (!canShoot || validTargets.length === 0) return;
-    for (let t of validTargets) {
-        let cx = t.x * TILE_SIZE + TILE_SIZE / 2, cy = t.y * TILE_SIZE + TILE_SIZE / 2;
-        ctx.beginPath(); ctx.arc(cx, cy, 6, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(255, 215, 0, 0.5)'; ctx.fill();
-        ctx.strokeStyle = '#f1c40f'; ctx.lineWidth = 2; ctx.stroke();
+rollBtn.addEventListener('click', () => {
+    if (isHoleComplete) return;
+    if (navigator.vibrate) navigator.vibrate(50);
+    currentRoll = Math.floor(Math.random() * 6) + 1;
+    diceResult.innerText = currentRoll; canShoot = true; isPutting = false; rollBtn.disabled = true; puttBtn.disabled = true;
+    calculateValidTargets(); updateRerollButton(); renderScene();
+});
+
+puttBtn.addEventListener('click', () => {
+    if (isHoleComplete) return;
+    if (navigator.vibrate) navigator.vibrate(30);
+    currentRoll = 1; diceResult.innerText = 'P'; canShoot = true; isPutting = true; rollBtn.disabled = true; puttBtn.disabled = true;
+    calculateValidTargets(); updateRerollButton(); renderScene();
+});
+
+rerollBtn.addEventListener('click', () => {
+    // The strict Math Lock to prevent negative mulligans
+    if (strokes !== 0 && mulligans <= 0) return; 
+    
+    if (strokes === 0 && !usedTeeOffReroll) usedTeeOffReroll = true; 
+    else { mulligans--; updateHUD(); }
+    
+    currentRoll = Math.floor(Math.random() * 6) + 1;
+    diceResult.innerText = currentRoll; rerollBtn.disabled = true; 
+    calculateValidTargets(); renderScene();
+});
+
+document.getElementById('nextHoleBtn')?.addEventListener('click', () => {
+    currentHole++; strokes = 0; isHoleComplete = false;
+    document.getElementById('victoryOverlay').style.display = 'none';
+    generateCourse(); updateHUD();
+});
+
+document.getElementById('generateBtn')?.addEventListener('click', () => {
+    if(isHoleComplete) { currentHole++; strokes = 0; generateCourse(); updateHUD(); }
+});
+
+function generateCourse() {
+    if (currentMode === 'daily') {
+        const d = new Date();
+        dailySeed = d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate() + (currentHole * 1000000);
     }
+
+    gridData = Array.from({length: ROWS}, () => Array(COLS).fill(TERRAIN.ROUGH));
+    let startGridX = Math.floor(COLS / 2) + Math.floor(getRand() * 5 - 2), startGridY = ROWS - 3;
+    let holeGridX = Math.floor(COLS / 2) + Math.floor(getRand() * 9 - 4), holeGridY = 2;
+
+    function drawFairwayBlob(cx, cy) {
+        let blobs = Math.floor(getRand() * 2) + 1; 
+        for(let b=0; b<blobs; b++) {
+            let bx = cx + Math.floor(getRand() * 3 - 1), by = cy + Math.floor(getRand() * 3 - 1);
+            let bw = Math.floor(getRand() * 2) + 2, bh = Math.floor(getRand() * 2) + 2; 
+            for(let y=by; y<by+bh; y++) for(let x=bx; x<bx+bw; x++) if(y>=0 && y<ROWS && x>=0 && x<COLS) gridData[y][x] = TERRAIN.FAIRWAY;
+        }
+    }
+    drawFairwayBlob(startGridX - 1, startGridY - 1); drawFairwayBlob(holeGridX - 1, holeGridY - 1);
+
+    let numIslands = Math.floor(getRand() * 3) + 2; 
+    for(let i = 1; i <= numIslands; i++) drawFairwayBlob(Math.floor(startGridX + i * ((holeGridX - startGridX) / (numIslands + 1)) + (getRand() * 6 - 3)), Math.floor(startGridY - i * ((startGridY - holeGridY) / (numIslands + 1))));
+
+    for(let i = 0; i < 12; i++) {
+        let type = getRand() > 0.5 ? TERRAIN.WATER : TERRAIN.SAND;
+        let hx = Math.floor(getRand() * (COLS - 2)), hy = Math.floor(getRand() * (ROWS - 3));
+        if (Math.max(Math.abs(hx - holeGridX), Math.abs(hy - holeGridY)) > 2 && Math.max(Math.abs(hx - startGridX), Math.abs(hy - startGridY)) > 2) {
+            for(let fy=hy; fy<hy+2; fy++) for(let fx=hx; fx<hx+2; fx++) if(gridData[fy] && gridData[fy][fx] !== undefined) gridData[fy][fx] = type;
+        }
+    }
+
+    for(let i = 0; i < 35; i++) {
+        let tx = Math.floor(getRand() * COLS), ty = Math.floor(getRand() * ROWS);
+        if (Math.abs(tx - startGridX) > 1 && Math.abs(ty - startGridY) > 1 && Math.abs(tx - holeGridX) > 1 && Math.abs(ty - holeGridY) > 1) {
+            if(gridData[ty] && gridData[ty][tx] === TERRAIN.ROUGH) gridData[ty][tx] = TERRAIN.TREE;
+        }
+    }
+
+    gridData[holeGridY][holeGridX] = TERRAIN.FAIRWAY; gridData[startGridY][startGridX] = TERRAIN.FAIRWAY;
+    holePos = { x: holeGridX * TILE_SIZE + TILE_SIZE/2, y: holeGridY * TILE_SIZE + TILE_SIZE/2 };
+    currentBallPos = { x: startGridX * TILE_SIZE + TILE_SIZE/2, y: startGridY * TILE_SIZE + TILE_SIZE/2 };
+
+    canShoot=false; isPutting=false; rollBtn.disabled=false; puttBtn.disabled=false; currentRoll=0; diceResult.innerText='-';
+    validTargets = []; statusText.style.color = '#d9534f'; statusText.innerText = "Choose your shot type to start!";
+    usedTeeOffReroll=false; isHoleComplete=false; 
+    
+    updateRerollButton();
+    renderScene();
 }
+
+canvas.addEventListener('pointerdown', (e) => {
+    if(!canShoot || isHoleComplete) return;
+    const r = canvas.getBoundingClientRect(), tx = Math.floor((e.clientX-r.left)/TILE_SIZE), ty = Math.floor((e.clientY-r.top)/TILE_SIZE);
+    const gx = tx*TILE_SIZE + TILE_SIZE/2, gy = ty*TILE_SIZE + TILE_SIZE/2;
+    
+    let validHit = false;
+    for (let t of validTargets) { if (tx === t.x && ty === t.y) { validHit = true; break; } }
+    if (!validHit) { alert("Invalid hit! Tap a glowing target."); return; }
+
+    strokes++; updateHUD();
+    validTargets = []; renderScene();
+    ctx.beginPath(); ctx.moveTo(currentBallPos.x, currentBallPos.y); ctx.lineTo(gx, gy); ctx.strokeStyle='#ff3b30'; ctx.lineWidth=2; ctx.stroke(); drawBall(gx, gy, false);
+
+    let sankIt = false;
+    if(Math.abs(gx - holePos.x) < 10 && Math.abs(gy - holePos.y) < 10) sankIt = true; 
+    
+    currentBallPos = { x: gx, y: gy };
+    
+    if(sankIt) {
+        isHoleComplete = true; canShoot = false; rollBtn.disabled = true; puttBtn.disabled = true; rerollBtn.disabled = true;
+        if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+        
+        if (currentMode === 'casual') {
+            statusText.style.color = '#5cb85c'; statusText.innerText = "Hole completed!";
+            document.getElementById('victoryOverlay').style.display = 'flex';
+            document.getElementById('finalScoreText').innerText = `Score: ${strokes}`;
+        } else {
+            totalCampaignScore += strokes;
+            statusText.style.color = '#5cb85c'; statusText.innerText = `Hole ${currentHole} Complete! (Score: ${strokes})`;
+            updateHUD();
+            
+            setTimeout(() => {
+                if (currentHole >= 18) triggerVictorySequence();
+                else { currentHole++; strokes = 0; generateCourse(); updateHUD(); }
+            }, 1500);
+        }
+    } else {
+        canShoot=false; isPutting=false; rollBtn.disabled=false; puttBtn.disabled=false; currentRoll=0; diceResult.innerText='-';
+        statusText.style.color = '#d9534f'; statusText.innerText = "Choose your shot type to continue.";
+        updateRerollButton(); renderScene();
+    }
+});
 
 function drawBall(x,y,s) { ctx.beginPath(); ctx.arc(x,y,5,0,Math.PI*2); ctx.fillStyle='white'; ctx.fill(); ctx.strokeStyle=s?'black':'red'; ctx.lineWidth=2; ctx.stroke(); }
 
-function resetTurn(newHole=false) {
-    canShoot=false; isPutting=false; rollBtn.disabled=false; puttBtn.disabled=false; currentRoll=0; diceResult.innerText='-';
-    validTargets = []; statusText.style.color = '#d9534f'; statusText.innerText = "Choose your shot type to continue.";
-    if(newHole) { 
-        strokes=0; usedTeeOffReroll=false; isHoleComplete=false; 
-        if (casualStrokeDisplay) casualStrokeDisplay.innerText=`Strokes: ${strokes}`; 
-        if (casualHoleDisplay) casualHoleDisplay.innerText=`Hole: ${currentHole}`; 
-        statusText.innerText="Choose your shot type to start!"; 
-    }
-    mulliganDisplay.innerText = `Mulls: ${mulligans}`;
-    updateRerollButton(); renderScene(); updateHUD();
-}
+// ==========================================
+// 5. BOOT SEQUENCE & PWA UPDATER
+// ==========================================
+document.addEventListener('DOMContentLoaded', () => { resetGame(); });
 
-function triggerVictory() {
-    isHoleComplete = true; 
-    canShoot = false; 
-    rollBtn.disabled = true; 
-    puttBtn.disabled = true; 
-    rerollBtn.disabled = true;
-    validTargets = []; 
-    renderScene(); 
-    
-    if (navigator.vibrate) navigator.vibrate([100, 50, 100]); // Victory Buzz
-
-    if (currentMode === 'casual') {
-        statusText.style.color = '#5cb85c'; 
-        statusText.innerText = "Hole completed!";
-        document.getElementById('victoryOverlay').style.display = 'flex'; 
-        document.getElementById('finalScoreText').innerText = `Score: ${strokes}`;
-        updateHUD();
-    } else {
-        // The 1.5-second auto-advance logic for Random 18 and Daily 18
-        totalCampaignScore += strokes;
-        statusText.style.color = '#5cb85c'; 
-        statusText.innerText = `Hole ${currentHole} Complete! (Score: ${strokes})`;
-        updateHUD();
-
-        setTimeout(() => {
-            if (currentHole >= 18) {
-                triggerVictorySequence();
-            } else {
-                currentHole++;
-                generateCourse();
-                updateHUD();
-            }
-        }, 1500);
-    }
-}
-
-// Dummy function to prevent errors from your old pointerdown canvas click event
-function recordStroke() { }
-
-canvas.addEventListener('pointerdown', (e) => {
-    if(!canShoot || isHoleComplete) { statusText.style.transform='scale(1.1)'; setTimeout(()=>statusText.style.transform='scale(1)', 150); return; }
-    const r = canvas.getBoundingClientRect(), tx = Math.floor((e.clientX-r.left)/TILE_SIZE), ty = Math.floor((e.clientY-r.top)/TILE_SIZE);
-    const gx = tx*TILE_SIZE + TILE_SIZE/2, gy = ty*TILE_SIZE + TILE_SIZE/2;
-    const sx = Math.floor(currentBallPos.x/TILE_SIZE), sy = Math.floor(currentBallPos.y/TILE_SIZE);
-    const dxSpaces = tx - sx, dySpaces = ty - sy, absDx = Math.abs(dxSpaces), absDy = Math.abs(dySpaces);
-
-    if(absDx !== 0 && absDy !== 0 && absDx !== absDy) { alert("Invalid hit! Move in a straight line."); return; }
-    const dist = Math.max(absDx, absDy); if(dist === 0) return;
-
-    let startingTerrain = gridData[sy][sx], eff = currentRoll;
-    if(startingTerrain === TERRAIN.FAIRWAY) eff += 1; else if(startingTerrain === TERRAIN.SAND) eff = Math.max(1, currentRoll - 1);
-
-    if(isPutting && dist !== 1) { alert("Putting requires exactly 1 space!"); return; }
-    if(!isPutting && dist !== eff) { alert(`Invalid distance! You must move exactly ${eff} spaces.`); return; }
-
-    const stepX = dxSpaces / dist, stepY = dySpaces / dist;
-    for(let i=1; i<dist; i++) {
-        let pathGridX = sx + (stepX * i), pathGridY = sy + (stepY * i);
-        if(gridData[pathGridY][pathGridX] === TERRAIN.TREE && startingTerrain !== TERRAIN.FAIRWAY) { alert("Cannot shoot through trees unless hitting from Fairway."); return; }
-    }
-
-    const endGridX = sx + dxSpaces, endGridY = sy + dySpaces;
-    if(endGridY >= 0 && endGridY < ROWS && endGridX >= 0 && endGridX < COLS) {
-         let landingTerrain = gridData[endGridY][endGridX];
-         if(landingTerrain === TERRAIN.WATER) { alert("Splash! Cannot land in Water."); return; }
-         if(landingTerrain === TERRAIN.TREE) { alert("Thwack! Cannot land directly on a Tree."); return; }
-    } else { alert("Out of bounds!"); return; }
-
-    strokes++; 
-    if (casualStrokeDisplay) casualStrokeDisplay.innerText = `Strokes: ${strokes}`;
-    validTargets = []; renderScene(); recordStroke(); updateHUD();
-    
-    ctx.beginPath(); ctx.moveTo(currentBallPos.x, currentBallPos.y); ctx.lineTo(gx, gy); ctx.strokeStyle='#ff3b30'; ctx.lineWidth=2; ctx.stroke(); drawBall(gx, gy);
-
-    let sankIt = false;
-    for(let i=1; i<=dist; i++) {
-        let checkGridX = sx + (stepX * i), checkGridY = sy + (stepY * i);
-        let checkWorldX = checkGridX * TILE_SIZE + (TILE_SIZE/2), checkWorldY = checkGridY * TILE_SIZE + (TILE_SIZE/2);
-        if(Math.abs(checkWorldX - holePos.x) < 1 && Math.abs(checkWorldY - holePos.y) < 1) {
-            let overshoot = dist - i; if(overshoot === 0 || overshoot === 1) sankIt = true; break; 
-        }
-    }
-    currentBallPos = { x: gx, y: gy };
-    if(sankIt) triggerVictory(); else resetTurn();
-});
-
-generateBtn.addEventListener('click', () => { if(isHoleComplete) currentHole++; generateCourse(); });
-
-// ---> THE UPDATE CHECKER (REPLACES YOUR OLD SERVICE WORKER CODE) <---
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js').then(registration => {
-            registration.addEventListener('updatefound', () => {
-                const newWorker = registration.installing;
+        navigator.serviceWorker.register('./sw.js').then(reg => {
+            reg.addEventListener('updatefound', () => {
+                const newWorker = reg.installing;
                 newWorker.addEventListener('statechange', () => {
                     if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
                         document.getElementById('updateToast').classList.remove('hidden');
@@ -783,13 +530,6 @@ if ('serviceWorker' in navigator) {
         });
     });
 }
-
-// Waits for the HTML to fully load before trying to build the game
-document.addEventListener('DOMContentLoaded', () => { 
-    generateCourse(); 
-    const rules = document.getElementById('rulesOverlay');
-    if (rules) rules.style.display = 'none';
-});
-    </script>
+</script>
 </body>
 </html>
