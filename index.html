@@ -92,6 +92,7 @@
         <div class="modal-content">
             <span class="close-btn" onclick="toggleRules(false)">&times;</span>
             <h3 style="margin-top:0;">Quick Rules</h3>
+            <p style="font-weight: bold; margin-top: 0; color: #2c3e50;">*All holes are Par 6.</p>
             <ul>
                 <li><b>Fairway (Light Green):</b> Grants +1 to your roll distance. Shoot through trees.</li>
                 <li><b>Sand (Tan):</b> Subtracts -1 from your roll distance (minimum 1).</li>
@@ -291,7 +292,7 @@ function showLeaderboard() {
             // If we are in Campaign, hide the daily scores
             if (currentMode === 'campaign' && entry.mode === 'daily') return;
             
-            if (count >= 10) return;
+            if (count >= 5) return;
             count++;
             
             const li = document.createElement('li');
@@ -310,7 +311,7 @@ document.getElementById('viewScoresBtn')?.addEventListener('click', () => {
     // If in Casual Mode, do absolutely nothing when clicked
     if (currentMode === 'casual') return; 
     
-    document.getElementById('modalTitle').textContent = currentMode === 'daily' ? "DAILY LEADERBOARD" : "ALL-TIME TOP 10";
+    document.getElementById('modalTitle').textContent = currentMode === 'daily' ? "DAILY LEADERBOARD" : "ALL-TIME TOP 5";
     
     const datePicker = document.getElementById('historyDate');
     if (currentMode === 'daily') {
