@@ -1,3 +1,4 @@
+// Version 2
 const CACHE_NAME = 'golf-companion-v2'; // Changed from v1 to v2 to force update
 const urlsToCache = [
     './',
