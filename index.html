@@ -33,8 +33,7 @@
         .btn-roll { background-color: #007aff; }
         .btn-putt { background-color: #ff9500; }
         .btn-reroll { background-color: #af52de; }
-        .btn-generate { background-color: #34c759; width: 100%; margin-bottom: 15px; }
-        
+            
         .dice-display { font-size: 28px; font-weight: bold; font-family: monospace; background: #f0f0f0; padding: 10px 20px; border-radius: 10px; display: inline-block; margin: 10px 0; border: 2px solid #ddd; transition: transform 0.1s; }
         
         /* Modals */
@@ -82,7 +81,6 @@
 
     <div class="controls-container">
         <div style="font-weight: bold; color: #d9534f; margin-bottom: 10px;" id="statusText">Choose your shot type to start!</div>
-        <button id="generateBtn" class="btn-generate">Generate Next Hole</button>
         <div class="dice-display" id="diceResult">-</div>
         <div class="btn-row">
             <button id="rollBtn" class="btn-roll">Roll</button>
@@ -447,10 +445,6 @@ document.getElementById('nextHoleBtn')?.addEventListener('click', () => {
     currentHole++; strokes = 0; isHoleComplete = false;
     document.getElementById('victoryOverlay').style.display = 'none';
     generateCourse(); updateHUD();
-});
-
-document.getElementById('generateBtn')?.addEventListener('click', () => {
-    if(isHoleComplete) { currentHole++; strokes = 0; generateCourse(); updateHUD(); }
 });
 
 function generateCourse() {
