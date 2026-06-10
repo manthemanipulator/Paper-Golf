@@ -187,9 +187,9 @@
         <span class="rules-link" id="viewScoresBtn">Scores</span>
         
         <select id="modeSelect" class="mode-dropdown" style="flex-grow: 1; margin: 0 15px; text-align: center;">
-            <option value="casual">Mode: Casual</option>
-            <option value="campaign">Mode: 18-Hole</option>
-            <option value="daily">Mode: Daily</option>
+            <option value="casual">Casual</option>
+            <option value="campaign">Random 18-Hole</option>
+            <option value="daily">Daily 18-Hole</option>
         </select>
         
         <span class="rules-link" onclick="toggleRules(true)">Rules</span>
@@ -288,18 +288,17 @@ function updateHUD() {
     const uiMulls = document.getElementById('uiMulls');
     const uiTotal = document.getElementById('uiTotal');
     
-    // Always update current strokes and mulligans
-    uiStrokes.textContent = `Strokes: ${strokesThisHole || strokes}`; 
+    // We stripped out the ghost variable; it just tracks live strokes now
+    uiStrokes.textContent = `Strokes: ${strokes}`; 
     uiMulls.textContent = `Mulls: ${mulligans}`;
 
-    // Change layout based on the mode
     if (currentMode === 'casual') {
         uiHole.textContent = `Hole: ${currentHole}`;
-        uiTotal.classList.add('hidden'); // Hide the total score
+        uiTotal.classList.add('hidden');
     } else {
         uiHole.textContent = `Hole: ${currentHole}/18`;
         uiTotal.textContent = ` | Total: ${totalCampaignScore}`;
-        uiTotal.classList.remove('hidden'); // Show the total score
+        uiTotal.classList.remove('hidden');
     }
 }
 
@@ -322,39 +321,16 @@ modeSelect.addEventListener('change', (e) => {
 function resetGame() {
     currentHole = 1;
     totalCampaignScore = 0;
-    strokesThisHole = 0;
+    strokes = 0;
     mulligans = 6;
+    isHoleComplete = false;
+    document.getElementById('victoryOverlay').style.display = 'none';
     leaderboardModal.classList.add('hidden');
     
     generateCourse(); 
     updateHUD();
 }
 
-// ==========================================
-// 3. HOLE COMPLETION LOGIC
-// ==========================================
-function onHoleComplete() {
-    if (currentMode === 'casual') {
-        strokesThisHole = 0;
-    } else {
-        totalCampaignScore += strokesThisHole;
-        
-        if (currentHole >= 18) {
-            triggerVictorySequence();
-        } else {
-            currentHole++;
-            strokesThisHole = 0;
-            setTimeout(() => {
-                generateCourse();
-                updateHUD();
-            }, 1500);
-        }
-    }
-}
-
-function recordStroke() {
-    strokesThisHole++;
-}
 
 // ==========================================
 // 4. CLOUD LEADERBOARD (FIREBASE)
@@ -664,17 +640,43 @@ function resetTurn(newHole=false) {
 }
 
 function triggerVictory() {
-    isHoleComplete=true; canShoot=false; rollBtn.disabled=true; puttBtn.disabled=true; rerollBtn.disabled=true;
-    validTargets = []; renderScene(); 
-    statusText.style.color = '#5cb85c'; statusText.innerText = "Hole completed!";
+    isHoleComplete = true; 
+    canShoot = false; 
+    rollBtn.disabled = true; 
+    puttBtn.disabled = true; 
+    rerollBtn.disabled = true;
+    validTargets = []; 
+    renderScene(); 
     
     if (navigator.vibrate) navigator.vibrate([100, 50, 100]); // Victory Buzz
-    onHoleComplete(); updateHUD();
 
     if (currentMode === 'casual') {
-        victoryOverlay.style.display='flex'; finalScoreText.innerText=`Score: ${strokes} (Par 6)`;
+        statusText.style.color = '#5cb85c'; 
+        statusText.innerText = "Hole completed!";
+        document.getElementById('victoryOverlay').style.display = 'flex'; 
+        document.getElementById('finalScoreText').innerText = `Score: ${strokes}`;
+        updateHUD();
+    } else {
+        // The 1.5-second auto-advance logic for Random 18 and Daily 18
+        totalCampaignScore += strokes;
+        statusText.style.color = '#5cb85c'; 
+        statusText.innerText = `Hole ${currentHole} Complete! (Score: ${strokes})`;
+        updateHUD();
+
+        setTimeout(() => {
+            if (currentHole >= 18) {
+                triggerVictorySequence();
+            } else {
+                currentHole++;
+                generateCourse();
+                updateHUD();
+            }
+        }, 1500);
     }
 }
+
+// Dummy function to prevent errors from your old pointerdown canvas click event
+function recordStroke() { }
 
 canvas.addEventListener('pointerdown', (e) => {
     if(!canShoot || isHoleComplete) { statusText.style.transform='scale(1.1)'; setTimeout(()=>statusText.style.transform='scale(1)', 150); return; }
