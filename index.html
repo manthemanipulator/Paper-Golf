@@ -183,27 +183,23 @@
         <button onclick="toggleRules(false)">Close Rules</button>
     </div>
 
-    <h1>GOLF Companion</h1>
-    
-    <div class="header-bar">
-        <span id="casualHoleDisplay">Hole: 1</span>
-        <span id="casualStrokeDisplay">Strokes: 0</span>
-        <span id="mulliganDisplay">Mulls: 6</span>
+   <div style="display: flex; justify-content: space-between; width: 100%; max-width: 350px; margin-bottom: 10px; align-items: center; font-weight: bold; font-size: 15px;">
+        <span class="rules-link" id="viewScoresBtn">Scores</span>
+        
+        <select id="modeSelect" class="mode-dropdown" style="flex-grow: 1; margin: 0 15px; text-align: center;">
+            <option value="casual">Mode: Casual</option>
+            <option value="campaign">Mode: 18-Hole</option>
+            <option value="daily">Mode: Daily</option>
+        </select>
+        
         <span class="rules-link" onclick="toggleRules(true)">Rules</span>
     </div>
 
-    <div id="header" style="text-align: center; margin-bottom: 10px; width: 100%; max-width: 350px;">
-        <select id="modeSelect" class="mode-dropdown">
-            <option value="casual">Mode: Casual</option>
-            <option value="campaign">Mode: 18-Hole Campaign</option>
-            <option value="daily">Mode: Daily Challenge</option>
-        </select>
-    </div>
-
-    <div id="scoreboard" class="hidden">
-        <span id="campaignHoleDisplay">Hole: 1/18</span> | 
-        <span id="campaignStrokeDisplay">Strokes: 0</span> | 
-        <span id="totalDisplay">Total: 0</span>
+    <div id="scoreboard" style="text-align: center; font-family: monospace; font-weight: bold; font-size: 14px; margin-bottom: 15px; background-color: #e8f4f8; padding: 10px 5px; border-radius: 5px; width: 100%; max-width: 350px; box-sizing: border-box; white-space: nowrap;">
+        <span id="uiHole">Hole: 1</span> | 
+        <span id="uiStrokes">Strokes: 0</span> | 
+        <span id="uiMulls">Mulls: 6</span>
+        <span id="uiTotal" class="hidden"> | Total: 0</span>
     </div>
 
     <div class="map-container">
@@ -287,16 +283,23 @@ const ctx = canvas.getContext('2d');
 // 2. TOGGLE & HUD LOGIC
 // ==========================================
 function updateHUD() {
-    const scoreboard = document.getElementById('scoreboard');
-    if (!scoreboard) return; 
+    const uiHole = document.getElementById('uiHole');
+    const uiStrokes = document.getElementById('uiStrokes');
+    const uiMulls = document.getElementById('uiMulls');
+    const uiTotal = document.getElementById('uiTotal');
     
+    // Always update current strokes and mulligans
+    uiStrokes.textContent = `Strokes: ${strokesThisHole || strokes}`; 
+    uiMulls.textContent = `Mulls: ${mulligans}`;
+
+    // Change layout based on the mode
     if (currentMode === 'casual') {
-        scoreboard.classList.add('hidden');
+        uiHole.textContent = `Hole: ${currentHole}`;
+        uiTotal.classList.add('hidden'); // Hide the total score
     } else {
-        scoreboard.classList.remove('hidden');
-        document.getElementById('campaignHoleDisplay').textContent = `Hole: ${currentHole}/18`;
-        document.getElementById('campaignStrokeDisplay').textContent = `Strokes: ${strokesThisHole}`;
-        document.getElementById('totalDisplay').textContent = `Total: ${totalCampaignScore}`;
+        uiHole.textContent = `Hole: ${currentHole}/18`;
+        uiTotal.textContent = ` | Total: ${totalCampaignScore}`;
+        uiTotal.classList.remove('hidden'); // Show the total score
     }
 }
 
