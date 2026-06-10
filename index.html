@@ -36,29 +36,41 @@
     width: auto;
     font-size: 14px;
 }
-        /* Mode Toggle Button */
-       .mode-toggle {
-    background-color: #f0f0f0;
-    color: #2c3e50; /* Forces the text to be dark! */
-    border: 2px solid #bdc3c7; /* Darker border for better definition */
-    border-radius: 20px;
-    padding: 8px 20px;
-    font-family: monospace;
-    font-size: 16px;
-    font-weight: bold;
-    cursor: pointer;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-}
-        .mode-toggle.active {
+      /* Mode Dropdown Menu */
+        .mode-dropdown {
+            background-color: #f0f0f0;
+            color: #2c3e50; 
+            border: 2px solid #bdc3c7; 
+            border-radius: 20px;
+            padding: 8px 35px 8px 15px; /* Extra padding on the right for the arrow */
+            font-family: monospace;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            appearance: none; /* Removes the ugly default browser styling */
+            -webkit-appearance: none;
+            /* Draws a clean custom dropdown arrow */
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232c3e50' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            background-size: 16px;
+            transition: all 0.2s ease;
+        }
+
+        /* Color classes that the Javascript will swap in */
+        .mode-dropdown.campaign {
             background-color: #2ecc71;
             color: white;
             border-color: #27ae60;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
         }
-        .mode-toggle.daily {
-    background-color: #3498db;
-    color: white;
-    border-color: #2980b9;
-}
+        .mode-dropdown.daily {
+            background-color: #3498db;
+            color: white;
+            border-color: #2980b9;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+        }
 
         /* Scoreboard */
         #scoreboard {
@@ -181,7 +193,11 @@
     </div>
 
     <div id="header" style="text-align: center; margin-bottom: 10px; width: 100%; max-width: 350px;">
-        <button id="modeToggleBtn" class="mode-toggle">Mode: Casual</button>
+        <select id="modeSelect" class="mode-dropdown">
+            <option value="casual">Mode: Casual</option>
+            <option value="campaign">Mode: 18-Hole Campaign</option>
+            <option value="daily">Mode: Daily Challenge</option>
+        </select>
     </div>
 
     <div id="scoreboard" class="hidden">
@@ -246,7 +262,7 @@ const TILE_SIZE = 20, COLS = 15, ROWS = 20;
 const TERRAIN = { ROUGH: 0, FAIRWAY: 1, SAND: 2, WATER: 3, TREE: 4 };
 const COLORS = { [TERRAIN.ROUGH]: '#e9f5e9', [TERRAIN.FAIRWAY]: '#90ee90', [TERRAIN.SAND]: '#f5deb3', [TERRAIN.WATER]: '#4682b4', [TERRAIN.TREE]: '#228b22', dot: 'rgba(0, 0, 0, 0.15)' };
 
-const modeToggleBtn = document.getElementById('modeToggleBtn');
+const modeSelect = document.getElementById('modeSelect');
 const leaderboardModal = document.getElementById('leaderboardModal');
 const inputSection = document.getElementById('inputSection');
 const leaderboardSection = document.getElementById('leaderboardSection');
@@ -284,21 +300,19 @@ function updateHUD() {
     }
 }
 
-modeToggleBtn.addEventListener('click', () => {
-    // Cycle through the 3 modes
+modeSelect.addEventListener('change', (e) => {
+    // Grab the value straight from the dropdown
+    currentMode = e.target.value;
+    
+    // Swap the colors
     if (currentMode === 'casual') {
-        currentMode = 'campaign';
-        modeToggleBtn.textContent = "Mode: 18-Hole";
-        modeToggleBtn.className = "mode-toggle active";
+        modeSelect.className = "mode-dropdown";
     } else if (currentMode === 'campaign') {
-        currentMode = 'daily';
-        modeToggleBtn.textContent = "Mode: Daily";
-        modeToggleBtn.className = "mode-toggle daily";
-    } else {
-        currentMode = 'casual';
-        modeToggleBtn.textContent = "Mode: Casual";
-        modeToggleBtn.className = "mode-toggle";
+        modeSelect.className = "mode-dropdown campaign";
+    } else if (currentMode === 'daily') {
+        modeSelect.className = "mode-dropdown daily";
     }
+    
     resetGame();
 });
 
@@ -429,8 +443,8 @@ function showLeaderboard() {
 document.getElementById('playAgainBtn')?.addEventListener('click', resetGame);
 document.getElementById('backToCasualBtn')?.addEventListener('click', () => {
     currentMode = 'casual';
-    modeToggleBtn.textContent = "Mode: Casual";
-    modeToggleBtn.className = "mode-toggle";
+    modeSelect.value = 'casual'; // Physically resets the dropdown text
+    modeSelect.className = "mode-dropdown"; // Resets the color to gray
     resetGame();
 });
 
