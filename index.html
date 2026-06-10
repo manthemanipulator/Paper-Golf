@@ -144,7 +144,7 @@
 // ==========================================
 // 1. STATE VARIABLES
 // ==========================================
-let currentMode = 'casual'; // 'casual', 'campaign', 'daily'
+let currentMode = 'casual'; 
 let totalCampaignScore = 0;
 let dailySeed = 1;
 
@@ -182,6 +182,8 @@ function updateHUD() {
         if (uiHole) uiHole.textContent = `Hole: ${currentHole}/18`;
         if (uiTotal) uiTotal.textContent = ` | Total: ${totalCampaignScore}`;
         if (uiTotal) uiTotal.classList.remove('hidden');
+    } // <--- This was the missing bracket!
+
     // Visually disable the Scores button in Casual Mode
     const scoresBtn = document.getElementById('viewScoresBtn');
     if (scoresBtn) {
@@ -195,8 +197,7 @@ function updateHUD() {
             scoresBtn.style.textDecoration = 'underline';
         }
     }
-} // <--- This is the end of the updateHUD() function    
-
+}
 
 modeSelect.addEventListener('change', (e) => {
     currentMode = e.target.value;
@@ -224,14 +225,13 @@ function resetGame() {
 // 3. CLOUD LEADERBOARD (FIREBASE)
 // ==========================================
 const firebaseConfig = {
-    // ---> PASTE YOUR KEYS HERE <---
     apiKey: "AIzaSyCpYT1A8wLcdpwxaThbVr3k-IdPvnPnHzw",
-  authDomain: "paper-golf-e8364.firebaseapp.com",
-  projectId: "paper-golf-e8364",
-  storageBucket: "paper-golf-e8364.firebasestorage.app",
-  messagingSenderId: "601427965342",
-  appId: "1:601427965342:web:e2d36957d6dcf2ebf3d28f",
-  measurementId: "G-DZT902BEM3"
+    authDomain: "paper-golf-e8364.firebaseapp.com",
+    projectId: "paper-golf-e8364",
+    storageBucket: "paper-golf-e8364.firebasestorage.app",
+    messagingSenderId: "601427965342",
+    appId: "1:601427965342:web:e2d36957d6dcf2ebf3d28f",
+    measurementId: "G-DZT902BEM3"
 };
 
 if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
@@ -327,37 +327,6 @@ document.getElementById('viewScoresBtn')?.addEventListener('click', () => {
     document.getElementById('leaderboardSection').classList.remove('hidden');
     document.getElementById('leaderboardModal').style.display = 'flex';
     
-    showLeaderboard();
-});
-    
-    document.getElementById('modalTitle').textContent = currentMode === 'daily' ? "DAILY LEADERBOARD" : "ALL-TIME TOP 10";
-    
-    // Setup the Calendar visibility
-    const datePicker = document.getElementById('historyDate');
-    if (currentMode === 'daily') {
-        datePicker.style.display = 'inline-block';
-        datePicker.value = new Date().toLocaleDateString('en-CA'); // Default to today
-    } else {
-        datePicker.style.display = 'none';
-    }
-    
-    // Physically show the modal and bypass the initial input screen
-    document.getElementById('inputSection').classList.add('hidden');
-    document.getElementById('leaderboardSection').classList.remove('hidden');
-    document.getElementById('leaderboardModal').style.display = 'flex';
-    
-    showLeaderboard();
-});
-
-document.getElementById('viewScoresBtn')?.addEventListener('click', () => {
-    if (currentMode === 'casual') {
-        currentMode = 'campaign';
-        modeSelect.value = 'campaign';
-        modeSelect.className = "mode-dropdown campaign";
-        resetGame();
-    }
-    document.getElementById('modalTitle').textContent = currentMode === 'daily' ? "TODAY'S TOP 10" : "ALL-TIME TOP 10";
-    document.getElementById('leaderboardModal').classList.remove('hidden');
     showLeaderboard();
 });
 
@@ -464,7 +433,6 @@ puttBtn.addEventListener('click', () => {
 });
 
 rerollBtn.addEventListener('click', () => {
-    // The strict Math Lock to prevent negative mulligans
     if (strokes !== 0 && mulligans <= 0) return; 
     
     if (strokes === 0 && !usedTeeOffReroll) usedTeeOffReroll = true; 
@@ -544,7 +512,6 @@ canvas.addEventListener('pointerdown', (e) => {
     for (let t of validTargets) { if (tx === t.x && ty === t.y) { validHit = true; break; } }
     if (!validHit) { alert("Invalid hit! Tap a glowing target."); return; }
 
-    // 1. Grab our starting grid coordinates before we move the ball
     const sx = Math.floor(currentBallPos.x / TILE_SIZE);
     const sy = Math.floor(currentBallPos.y / TILE_SIZE);
     const hx = Math.floor(holePos.x / TILE_SIZE);
@@ -554,7 +521,6 @@ canvas.addEventListener('pointerdown', (e) => {
     validTargets = []; renderScene();
     ctx.beginPath(); ctx.moveTo(currentBallPos.x, currentBallPos.y); ctx.lineTo(gx, gy); ctx.strokeStyle='#ff3b30'; ctx.lineWidth=2; ctx.stroke(); drawBall(gx, gy, false);
 
-    // 2. Track the flight path space by space
     const dx = tx - sx, dy = ty - sy;
     const dist = Math.max(Math.abs(dx), Math.abs(dy));
     const stepX = dist === 0 ? 0 : dx / dist;
@@ -562,10 +528,8 @@ canvas.addEventListener('pointerdown', (e) => {
 
     let sankIt = false;
     for (let i = 1; i <= dist; i++) {
-        // If the flight path crosses the exact coordinates of the hole
         if (sx + (stepX * i) === hx && sy + (stepY * i) === hy) {
             let overshoot = dist - i;
-            // Rule: Must be a direct hit (0) or overshoot by exactly 1 space
             if (overshoot === 0 || overshoot === 1) sankIt = true; 
             break; 
         }
