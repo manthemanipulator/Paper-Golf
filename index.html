@@ -11,6 +11,31 @@
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
     
     <style>
+        #updateToast {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: #34495e;
+    color: white;
+    padding: 12px 20px;
+    border-radius: 30px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    font-weight: bold;
+    font-size: 14px;
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    z-index: 9999;
+    transition: opacity 0.3s;
+}
+#updateToast button {
+    background-color: #2ecc71;
+    padding: 5px 15px;
+    margin: 0;
+    width: auto;
+    font-size: 14px;
+}
         /* Mode Toggle Button */
        .mode-toggle {
     background-color: #f0f0f0;
@@ -124,6 +149,10 @@
     </style>
 </head>
 <body>
+    <div id="updateToast" class="hidden">
+    <span>Course Update Available!</span>
+    <button onclick="window.location.reload(true)">Reload</button>
+</div>
 
     <div id="rulesOverlay" class="full-screen-overlay">
         <h2>Game Rules</h2>
@@ -481,6 +510,7 @@ function renderScene() {
 }
 
 rollBtn.addEventListener('click', () => {
+    if (navigator.vibrate) navigator.vibrate(50); // A quick, sharp tap
     if (isHoleComplete) return;
     currentRoll = Math.floor(Math.random() * 6) + 1;
     animateDice(currentRoll);
@@ -490,6 +520,7 @@ rollBtn.addEventListener('click', () => {
 });
 
 puttBtn.addEventListener('click', () => {
+    if (navigator.vibrate) navigator.vibrate(30); // A very light, soft tap
     if (isHoleComplete) return;
     currentRoll = 1; animateDice('P'); canShoot = true; isPutting = true; rollBtn.disabled = true; puttBtn.disabled = true;
     statusText.style.color = '#ff9500'; statusText.innerText = "Tap a glowing dot to putt."; updateRerollButton();
@@ -625,7 +656,8 @@ function triggerVictory() {
     isHoleComplete=true; canShoot=false; rollBtn.disabled=true; puttBtn.disabled=true; rerollBtn.disabled=true;
     validTargets = []; renderScene(); 
     statusText.style.color = '#5cb85c'; statusText.innerText = "Hole completed!";
-    
+
+    if (navigator.vibrate) navigator.vibrate([100, 50, 100]); // Buzz, pause, buzz
     onHoleComplete();
     updateHUD();
 
@@ -690,9 +722,18 @@ generateBtn.addEventListener('click', () => { if(isHoleComplete) currentHole++; 
 
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js')
-            .then(registration => { console.log('Service Worker registered successfully'); })
-            .catch(error => { console.log('Service Worker registration failed:', error); });
+        navigator.serviceWorker.register('./sw.js').then(registration => {
+            // Check for updates to the code
+            registration.addEventListener('updatefound', () => {
+                const newWorker = registration.installing;
+                newWorker.addEventListener('statechange', () => {
+                    // If there's new code AND it's not the very first time loading
+                    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                        document.getElementById('updateToast').classList.remove('hidden');
+                    }
+                });
+            });
+        });
     });
 }
 
