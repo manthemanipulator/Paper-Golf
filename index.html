@@ -303,10 +303,9 @@ function updateHUD() {
 }
 
 modeSelect.addEventListener('change', (e) => {
-    // Grab the value straight from the dropdown
     currentMode = e.target.value;
     
-    // Swap the colors
+    // Swap the dropdown colors visually
     if (currentMode === 'casual') {
         modeSelect.className = "mode-dropdown";
     } else if (currentMode === 'campaign') {
@@ -317,6 +316,46 @@ modeSelect.addEventListener('change', (e) => {
     
     resetGame();
 });
+
+function updateHUD() {
+    const uiHole = document.getElementById('uiHole');
+    const uiStrokes = document.getElementById('uiStrokes');
+    const uiMulls = document.getElementById('uiMulls');
+    const uiTotal = document.getElementById('uiTotal');
+    
+    // Safety checks: Only update the text if the HTML elements exist
+    if (uiStrokes) uiStrokes.textContent = `Strokes: ${strokes}`; 
+    if (uiMulls) uiMulls.textContent = `Mulls: ${mulligans}`;
+
+    if (currentMode === 'casual') {
+        if (uiHole) uiHole.textContent = `Hole: ${currentHole}`;
+        if (uiTotal) uiTotal.classList.add('hidden');
+    } else {
+        if (uiHole) uiHole.textContent = `Hole: ${currentHole}/18`;
+        if (uiTotal) uiTotal.textContent = ` | Total: ${totalCampaignScore}`;
+        if (uiTotal) uiTotal.classList.remove('hidden');
+    }
+}
+
+function resetGame() {
+    // 1. Wipe all variables back to default
+    currentHole = 1;
+    totalCampaignScore = 0;
+    strokes = 0;
+    mulligans = 6;
+    isHoleComplete = false;
+    
+    // 2. Hide any victory or leaderboard popups that might be open
+    const vicOverlay = document.getElementById('victoryOverlay');
+    if (vicOverlay) vicOverlay.style.display = 'none';
+    
+    const leadModal = document.getElementById('leaderboardModal');
+    if (leadModal) leadModal.classList.add('hidden');
+    
+    // 3. Generate a fresh Hole 1 and update the text bar
+    generateCourse(); 
+    updateHUD();
+}
 
 function resetGame() {
     currentHole = 1;
@@ -527,6 +566,8 @@ function generateCourse() {
     if (currentMode === 'daily') {
         const d = new Date();
         dailySeed = d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate() + (currentHole * 1000000);
+        resetTurn(true);
+    renderScene(); // This is the new line that forces the screen to paint immediately!
     }
 
     victoryOverlay.style.display = 'none';
@@ -743,7 +784,12 @@ if ('serviceWorker' in navigator) {
     });
 }
 
-window.onload = () => { generateCourse(); toggleRules(false); };
+// Waits for the HTML to fully load before trying to build the game
+document.addEventListener('DOMContentLoaded', () => { 
+    generateCourse(); 
+    const rules = document.getElementById('rulesOverlay');
+    if (rules) rules.style.display = 'none';
+});
     </script>
 </body>
 </html>
