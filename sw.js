@@ -1,4 +1,3 @@
-// Version 2
 const CACHE_NAME = 'golf-companion-v2'; // Changed from v1 to v2 to force update
 const urlsToCache = [
     './',
@@ -16,9 +15,16 @@ self.addEventListener('install', event => {
 
 self.addEventListener('fetch', event => {
     event.respondWith(
-        caches.match(event.request)
-            .then(response => {
-                return response || fetch(event.request);
-            })
+        caches.open(CACHE_NAME).then(cache => {
+            return cache.match(event.request).then(cachedResponse => {
+                const fetchedResponse = fetch(event.request).then(networkResponse => {
+                    // Update the cache with the newest version
+                    cache.put(event.request, networkResponse.clone());
+                    return networkResponse;
+                });
+                // Return cached version if it exists, otherwise use network
+                return cachedResponse || fetchedResponse;
+            });
+        })
     );
 });
