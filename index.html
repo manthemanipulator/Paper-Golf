@@ -188,6 +188,21 @@
             <a href="https://buymeacoffee.com/manthemanipulator" target="_blank" style="display: block; background-color: #ff9500; color: white; text-decoration: none; font-weight: bold; padding: 12px; border-radius: 8px; text-align: center; font-size: 16px;">🪫 Buy the dev an energy drink 🪫</a>
         </div>
     </div>
+    <div id="whatsNewOverlay" class="overlay" style="display: none; background: rgba(0,0,0,0.5); z-index: 3000;">
+        <div class="modal-content" style="text-align: center;">
+            <h2 style="margin-top: 0; color: #007aff; font-size: 28px;">App Updated!</h2>
+            <p style="font-size: 16px; color: #333; margin-bottom: 20px;">Welcome to version 2026.6.1</p>
+            
+            <ul style="text-align: left; font-size: 15px; color: #333; margin-bottom: 25px; line-height: 1.6;">
+                <li>✨ Brand new, cleaner popup menu</li>
+                <li>🏆 The #1 Leaderboard spot now gets a trophy</li>
+                <li>👾 Added a link to join the Discord community</li>
+                <li>🐛 Fixed Safari layout bugs & header overlapping</li>
+            </ul>
+            
+            <button onclick="document.getElementById('whatsNewOverlay').style.display='none'" style="width: 100%; font-size: 18px;">Awesome!</button>
+        </div>
+    </div>
 
 <script>
 // ==========================================
@@ -621,7 +636,20 @@ function drawBall(x,y,s) { ctx.beginPath(); ctx.arc(x,y,5,0,Math.PI*2); ctx.fill
 // ==========================================
 // 5. BOOT SEQUENCE & PWA UPDATER
 // ==========================================
-document.addEventListener('DOMContentLoaded', () => { resetGame(); });
+document.addEventListener('DOMContentLoaded', () => { 
+    resetGame(); 
+    
+    // --- Update Notification Logic ---
+    const CURRENT_VERSION = '2026.6.1';
+    const lastSeenVersion = localStorage.getItem('paperGolfVersion');
+    
+    if (lastSeenVersion !== CURRENT_VERSION) {
+        // Show the update modal
+        document.getElementById('whatsNewOverlay').style.display = 'flex';
+        // Save the new version to the browser so it doesn't show again
+        localStorage.setItem('paperGolfVersion', CURRENT_VERSION);
+    }
+});
 
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
