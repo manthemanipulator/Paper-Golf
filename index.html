@@ -12,6 +12,7 @@
     
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-analytics.js"></script>
 
     <style>
         html, body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; display: flex; flex-direction: column; align-items: center; background-color: #f0f2f5; margin: 0; padding: 15px; touch-action: manipulation; -webkit-user-select: none; user-select: none; }
@@ -298,6 +299,8 @@ const firebaseConfig = {
 };
 
 if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    // Wakes up Google Analytics to start tracking visitors
+const analytics = firebase.analytics();
 const db = firebase.firestore();
 db.enablePersistence().catch((err) => console.log("Offline mode failed: ", err.code));
 
