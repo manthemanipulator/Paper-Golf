@@ -13,6 +13,7 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-analytics.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
     <style>
         html, body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; display: flex; flex-direction: column; align-items: center; background-color: #f0f2f5; margin: 0; padding: 15px; touch-action: manipulation; -webkit-user-select: none; user-select: none; }
@@ -64,10 +65,13 @@
 
     <div class="top-nav" style="position: relative; display: flex; justify-content: space-between; align-items: center; width: 100%; max-width: 500px; margin: 0 auto; padding: 15px 20px; box-sizing: border-box;">
         
-        <button id="viewScoresBtn" class="nav-btn" style="background: none; border: none; color: #007aff; font-weight: bold; font-size: 16px; cursor: pointer; padding: 0; flex-shrink: 0;">Scores</button>
+        <div style="display: flex; align-items: center; gap: 15px; flex-shrink: 0;">
+            <button id="viewScoresBtn" class="nav-btn" style="background: none; border: none; color: #007aff; font-weight: bold; font-size: 16px; cursor: pointer; padding: 0;">Scores</button>
+            <span id="playerCount" style="font-size: 13px; color: #8e8e93; font-weight: bold; transition: opacity 0.3s;">👤 1</span>
+        </div>
 
         <select id="modeSelect" class="mode-dropdown" style="margin: 0 10px; border-radius: 5px; font-size: 14px; max-width: 210px; flex-grow: 1;">
-            <option value="casual">Casual (Free Play)</option>
+            <option value="casual">Casual</option>
             <option value="daily">Daily 18-Hole</option>
             <option value="random">Random 18-Hole</option>
         </select>
@@ -302,6 +306,37 @@ if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
     // Wakes up Google Analytics to start tracking visitors
 const analytics = firebase.analytics();
 const db = firebase.firestore();
+    // --- LIVE PRESENCE SYSTEM ---
+const rtdb = firebase.database();
+// Create a random temporary ID for this specific session
+const sessionId = Math.random().toString(36).substring(2, 15);
+const myUserRef = rtdb.ref('online_users/' + sessionId);
+const connectedRef = rtdb.ref('.info/connected');
+
+// Watch for connection status
+connectedRef.on('value', (snap) => {
+    if (snap.val() === true) {
+        // We connected! Add this user to the database
+        myUserRef.set(true);
+        // MAGIC TRICK: Tell Google to delete this record the exact millisecond the user closes the app
+        myUserRef.onDisconnect().remove();
+    }
+});
+
+// Watch the total number of people in the 'online_users' folder
+const allUsersRef = rtdb.ref('online_users');
+allUsersRef.on('value', (snap) => {
+    // Count how many records exist
+    const count = snap.numChildren();
+    // Update the UI
+    const countDisplay = document.getElementById('playerCount');
+    if (countDisplay) {
+        countDisplay.innerText = `👤 ${count}`;
+        // Add a tiny animation to let players know it's a live number
+        countDisplay.style.opacity = '0.5';
+        setTimeout(() => countDisplay.style.opacity = '1', 150);
+    }
+});
 db.enablePersistence().catch((err) => console.log("Offline mode failed: ", err.code));
 
 function triggerVictorySequence() {
