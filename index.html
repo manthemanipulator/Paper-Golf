@@ -653,6 +653,20 @@ document.addEventListener('click', (e) => {
         if (menu) menu.style.display = 'none';
     }
 });
+
+// --- Backdrop Dismiss (Click Outside to Close) ---
+    document.querySelectorAll('.overlay').forEach(overlay => {
+        overlay.addEventListener('click', function(event) {
+            // Check if the user clicked the dark background itself, NOT the white box inside it
+            if (event.target === this) {
+                // We exclude the victory screen so players don't accidentally 
+                // click away and break the "Next Hole" game loop!
+                if (this.id !== 'victoryOverlay') {
+                    this.style.display = 'none';
+                }
+            }
+        });
+    });
     
 </script>
 
