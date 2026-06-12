@@ -86,22 +86,22 @@
 </head>
 <body>
 
-    <div class="top-nav" style="display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; width: 100%; max-width: 500px; margin: 0 auto; padding: 15px 20px; box-sizing: border-box;">
+    <div class="top-nav" style="position: relative; display: flex; justify-content: center; align-items: center; width: 100%; max-width: 500px; margin: 0 auto; padding: 15px 0; height: 50px;">
         
-        <div style="display: flex; justify-content: flex-start;">
-            <button id="viewScoresBtn" class="nav-btn" onclick="toggleScores(true)" style="background: none; border: none; color: #007aff; font-weight: bold; font-size: 16px; cursor: pointer; padding: 0;">Scores</button>
-        </div>
+        <button id="viewScoresBtn" class="nav-btn" onclick="toggleScores(true)" style="position: absolute; left: 15px; background: none; border: none; color: #007aff; font-weight: bold; font-size: 16px; cursor: pointer; padding: 0;">Scores</button>
 
-        <div style="display: flex; justify-content: center;">
-            <select id="modeSelect" class="mode-dropdown" style="margin: 0; border-radius: 5px;">
-                <option value="casual">Casual (Free Play)</option>
-                <option value="daily">Daily 18-Hole</option>
-                <option value="random">Random 18-Hole</option>
-            </select>
-        </div>
+        <select id="modeSelect" class="mode-dropdown" style="margin: 0; border-radius: 5px; font-size: 14px; z-index: 1;">
+            <option value="casual">Casual (Free Play)</option>
+            <option value="daily">Daily 18-Hole</option>
+            <option value="random">Random 18-Hole</option>
+        </select>
 
-        <div style="display: flex; justify-content: flex-end;">
-            <button class="hamburger-btn" onclick="toggleMenu(true)" style="font-size: 32px; line-height: 1; cursor: pointer; border: none; background: none; color: #007aff; padding: 0; margin: 0;">&#9776;</button>
+        <button class="hamburger-btn" onclick="toggleMenu()" style="position: absolute; right: 15px; font-size: 32px; line-height: 1; cursor: pointer; border: none; background: none; color: #007aff; padding: 0; margin: 0;">&#9776;</button>
+
+        <div id="popupMenu" style="position: absolute; top: 50px; right: 15px; background: white; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); display: none; flex-direction: column; overflow: hidden; z-index: 2000; min-width: 170px; border: 1px solid #eee;">
+            <a href="#" onclick="toggleMenu(false); toggleRules(true)" style="padding: 12px 15px; text-decoration: none; font-size: 16px; color: #333; font-weight: bold; border-bottom: 1px solid #f0f0f0;">📜 Rules</a>
+            <a href="#" onclick="toggleMenu(false); toggleRoadmap(true)" style="padding: 12px 15px; text-decoration: none; font-size: 16px; color: #333; font-weight: bold; border-bottom: 1px solid #f0f0f0;">💡 Roadmap/Feedback</a>
+            <a href="#" onclick="toggleMenu(false); toggleAbout(true)" style="padding: 12px 15px; text-decoration: none; font-size: 16px; color: #333; font-weight: bold;">ℹ️ About</a>
         </div>
 
     </div>
@@ -660,18 +660,24 @@ if ('serviceWorker' in navigator) {
 }
 
 // Add these to your existing Javascript functions
-function toggleMenu(show) {
-    document.getElementById('sideMenu').style.right = show ? "0" : "-250px"; 
-    document.getElementById('menuBackdrop').style.display = show ? "block" : "none";
-}
+    
+function toggleMenu(forceClose) {
+        const menu = document.getElementById('popupMenu');
+        if (forceClose === false) {
+            menu.style.display = 'none';
+        } else {
+            menu.style.display = menu.style.display === 'flex' ? 'none' : 'flex';
+        }
+    }
 
-function toggleRoadmap(show) {
-    document.getElementById('roadmapOverlay').style.display = show ? "flex" : "none";
-}
-
-function toggleAbout(show) {
-    document.getElementById('aboutOverlay').style.display = show ? "flex" : "none";
-}
+    // Auto-close menu if tapping anywhere else on the screen
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.hamburger-btn') && !e.target.closest('#popupMenu')) {
+            const menu = document.getElementById('popupMenu');
+            if (menu) menu.style.display = 'none';
+        }
+    });
+    
 </script>
 
 </body>
