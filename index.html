@@ -83,14 +83,24 @@
 </head>
 <body>
 
-    <div class="top-nav" style="display: flex; justify-content: space-between; align-items: center;">
-        <button id="viewScoresBtn" class="nav-btn" onclick="toggleScores(true)" style="margin-left: 10px;">Scores</button>
-        <select id="modeSelect" class="mode-select" style="margin: 0 auto;">
-            <option value="daily">Daily 18-Hole</option>
-            <option value="random">Random 18-Hole</option>
-            <option value="casual">Casual (Free Play)</option>
-        </select>
-        <button class="hamburger-btn" onclick="toggleMenu(true)" style="margin-right: 10px;">&#9776;</button>
+    <div class="top-nav" style="display: flex; justify-content: space-between; align-items: center; width: 100%; padding: 10px 0;">
+        
+        <div style="flex: 1; display: flex; justify-content: flex-start; padding-left: 15px;">
+            <button id="viewScoresBtn" onclick="toggleScores(true)" style="background: none; border: none; color: #007aff; font-weight: bold; font-size: 16px; cursor: pointer; padding: 0;">Scores</button>
+        </div>
+
+        <div style="flex: 2; display: flex; justify-content: center;">
+            <select id="modeSelect" class="mode-select" style="margin: 0; padding: 5px 10px; border-radius: 5px; font-size: 14px;">
+                <option value="daily">Daily 18-Hole</option>
+                <option value="random">Random 18-Hole</option>
+                <option value="casual">Casual (Free Play)</option>
+            </select>
+        </div>
+
+        <div style="flex: 1; display: flex; justify-content: flex-end; padding-right: 15px;">
+            <button class="hamburger-btn" onclick="toggleMenu(true)" style="font-size: 28px; cursor: pointer; border: none; background: none; color: #007aff; padding: 0; margin: 0;">&#9776;</button>
+        </div>
+
     </div>
 
   <div id="scoreboard" style="text-align: center; font-family: monospace; font-weight: bold; font-size: 15px; white-space: nowrap; margin-bottom: 15px; background-color: #e8f4f8; padding: 10px 5px; border-radius: 5px; width: 100%; max-width: 350px; box-sizing: border-box;">
