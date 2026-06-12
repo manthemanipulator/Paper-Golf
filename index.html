@@ -73,7 +73,7 @@
         <div style="position: relative; display: flex; align-items: center; flex-shrink: 0;">
             <button class="hamburger-btn" onclick="toggleMenu()" style="font-size: 32px; line-height: 1; cursor: pointer; border: none; background: none; color: #007aff; padding: 0; margin: 0;">&#9776;</button>
             
-            <div id="popupMenu" style="position: absolute; top: 40px; right: 0; background: white; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); display: none; flex-direction: column; overflow: hidden; z-index: 2000; min-width: 190px; border: 1px solid #eee;">
+            <div id="popupMenu" style="position: absolute; top: 40px; right: 0; background: white; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); display: none; flex-direction: column; overflow: hidden; z-index: 2000; min-width: 190px; border: 1px solid #eee; white-space: nowrap;">
                 <div onclick="toggleMenu(false); toggleRules(true)" style="padding: 15px; font-size: 16px; color: #333; font-weight: bold; border-bottom: 1px solid #f0f0f0; cursor: pointer;">📜 Rules</div>
                 <div onclick="toggleMenu(false); toggleRoadmap(true)" style="padding: 15px; font-size: 16px; color: #333; font-weight: bold; border-bottom: 1px solid #f0f0f0; cursor: pointer;">💡 Roadmap / Feedback</div>
                 <div onclick="toggleMenu(false); toggleAbout(true)" style="padding: 15px; font-size: 16px; color: #333; font-weight: bold; cursor: pointer;">ℹ️ About</div>
@@ -157,10 +157,9 @@
             <span class="close-btn" onclick="toggleRoadmap(false)">&times;</span>
             <h3 style="margin-top:0;">Roadmap & Feedback</h3>
             
-            <h4 style="color: #2c3e50; margin-bottom: 10px;">🚧 Currently in Development</h4>
+            <h4 style="color: #2c3e50; margin-bottom: 10px;">🚧 Currently in Development 🚧</h4>
             <ol style="text-align: left; margin-bottom: 20px; font-size: 15px;">
                 <li>🌬️ Daily Course Modifiers (Wind, Sand limits)</li>
-                <li>📊 Shareable End-of-Round Scorecards</li>
                 <li>🎨 General UI Improvements</li>
             </ol>
             
