@@ -102,9 +102,8 @@
         </div>
     </div>
 
-    <div id="rulesOverlay" class="overlay" style="background: rgba(0,0,0,0.5);">
+   <div id="rulesOverlay" class="overlay" style="background: rgba(0,0,0,0.5);">
         <div class="modal-content">
-            <span class="close-btn" onclick="toggleRules(false)">&times;</span>
             <h3 style="margin-top:0;">Quick Rules</h3>
             <p style="font-weight: bold; margin-top: 0; color: #2c3e50; text-align: center;">All holes are Par 6.</p>
             <ul>
@@ -126,8 +125,6 @@
 
     <div id="leaderboardModal" class="overlay" style="background: rgba(0,0,0,0.95);">
         <div class="modal-content" style="background: transparent; color: white; text-align: center; border: 2px solid white;">
-            <span class="close-btn" onclick="document.getElementById('leaderboardModal').style.display='none'">&times;</span>
-            
             <h2 id="modalTitle">ROUND COMPLETE!</h2>
             <h3 id="finalScoreDisplay">Final Score: 0</h3>
             
@@ -154,7 +151,6 @@
 
     <div id="roadmapOverlay" class="overlay" style="display: none; background: rgba(0,0,0,0.5);">
         <div class="modal-content">
-            <span class="close-btn" onclick="toggleRoadmap(false)">&times;</span>
             <h3 style="margin-top:0;">Roadmap & Feedback</h3>
             
             <h4 style="color: #2c3e50; margin-bottom: 10px;">🚧 Currently in Development 🚧</h4>
@@ -171,9 +167,10 @@
             
             <a href="https://discord.gg/N9fn28Aq6A" target="_blank" style="display: block; background-color: #5865F2; color: white; text-decoration: none; font-weight: bold; padding: 12px; border-radius: 8px; text-align: center; margin-top: 10px;">👾 Join the Discord</a>
         </div>
-    </div> <div id="aboutOverlay" class="overlay" style="display: none; background: rgba(0,0,0,0.5);">
+    </div>
+
+    <div id="aboutOverlay" class="overlay" style="display: none; background: rgba(0,0,0,0.5);">
         <div class="modal-content">
-            <span class="close-btn" onclick="toggleAbout(false)">&times;</span>
             <h3 style="margin-top:0;">About</h3>
             <p style="font-weight: bold; font-size: 18px; margin-bottom: 5px;">Paper Golf</p>
             <p style="color: #666; margin-top: 0; font-size: 14px;">Version 2026.6.1</p>
@@ -185,9 +182,10 @@
             
             <hr style="border: 0; border-top: 1px solid #eee; margin: 15px 0;">
             
-            <a href="https://buymeacoffee.com/manthemanipulator" target="_blank" style="display: block; background-color: #ff9500; color: white; text-decoration: none; font-weight: bold; padding: 12px; border-radius: 8px; text-align: center; font-size: 16px;">🪫 Buy the dev an energy drink 🪫</a>
+            <a href="https://buymeacoffee.com/manthemanipulator" target="_blank" style="display: block; background-color: #ff9500; color: white; text-decoration: none; font-weight: bold; padding: 12px; border-radius: 8px; text-align: center; font-size: 16px;">⚡️ Buy the dev an energy drink 🪫</a>
         </div>
     </div>
+
     <div id="whatsNewOverlay" class="overlay" style="display: none; background: rgba(0,0,0,0.5); z-index: 3000;">
         <div class="modal-content" style="text-align: center;">
             <h2 style="margin-top: 0; color: #007aff; font-size: 28px;">App Updated!</h2>
