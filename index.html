@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#f0f2f5">
     <title>Paper Apps Golf Companion</title>
     <link rel="manifest" href="./manifest.json">
     <link rel="apple-touch-icon" href="./icon.png">
@@ -18,7 +19,8 @@
         .side-menu {
             height: 100%; width: 250px; position: fixed; z-index: 2000;
             top: 0; right: -250px; background-color: #fff; 
-            overflow-x: hidden; transition: 0.3s; padding-top: 60px;
+            overflow-x: hidden; transition: 0.3s; 
+            padding-top: calc(60px + env(safe-area-inset-top));
             box-shadow: -2px 0 5px rgba(0,0,0,0.2); 
         }
         .side-menu h2 {
@@ -88,7 +90,7 @@
             <button id="viewScoresBtn" class="nav-btn" onclick="toggleScores(true)" style="background: none; border: none; color: #007aff; font-weight: bold; font-size: 16px; cursor: pointer; padding: 0;">Scores</button>
         </div>
         <div style="flex: 2; display: flex; justify-content: center;">
-            <select id="modeSelect" class="mode-select" style="margin: 0; padding: 5px 10px; border-radius: 5px; font-size: 14px;">
+            <select id="modeSelect" class="mode-dropdown" style="margin: 0; border-radius: 5px;">
                 <option value="casual">Casual (Free Play)</option>
                 <option value="daily">Daily 18-Hole</option>
                 <option value="random">Random 18-Hole</option>
