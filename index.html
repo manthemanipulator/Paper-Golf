@@ -347,14 +347,23 @@ function showLeaderboard() {
             count++;
             
             const li = document.createElement('li');
-            li.textContent = `${entry.initials} ..... ${entry.score}`;
+            
+            // If this is the #1 score, add the trophies and make it pop!
+            if (count === 1) {
+                li.textContent = `🏆 ${entry.initials} ..... ${entry.score} 🏆`;
+                li.style.fontWeight = '900';
+                li.style.color = '#d35400'; // Gives it a nice dark gold/bronze tint
+            } else {
+                li.textContent = `${entry.initials} ..... ${entry.score}`;
+            }
+            
             list.appendChild(li);
         });
         
         if (count === 0) list.innerHTML = '<li>No scores yet!</li>';
     });
 }
-
+    
 // When the user changes the calendar date, automatically refresh the scores
 document.getElementById('historyDate')?.addEventListener('change', showLeaderboard);
 
