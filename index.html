@@ -84,11 +84,9 @@
 <body>
 
     <div class="top-nav" style="display: flex; justify-content: space-between; align-items: center; width: 100%; max-width: 500px; margin: 0 auto; padding: 10px 0;">
-        
         <div style="flex: 1; display: flex; justify-content: flex-start; padding-left: 15px;">
             <button id="viewScoresBtn" class="nav-btn" onclick="toggleScores(true)" style="background: none; border: none; color: #007aff; font-weight: bold; font-size: 16px; cursor: pointer; padding: 0;">Scores</button>
         </div>
-
         <div style="flex: 2; display: flex; justify-content: center;">
             <select id="modeSelect" class="mode-select" style="margin: 0; padding: 5px 10px; border-radius: 5px; font-size: 14px;">
                 <option value="daily">Daily 18-Hole</option>
@@ -96,11 +94,9 @@
                 <option value="casual">Casual (Free Play)</option>
             </select>
         </div>
-
         <div style="flex: 1; display: flex; justify-content: flex-end; padding-right: 15px;">
             <button class="hamburger-btn" onclick="toggleMenu(true)" style="font-size: 28px; cursor: pointer; border: none; background: none; color: #007aff; padding: 0; margin: 0;">&#9776;</button>
         </div>
-
     </div>
 
   <div id="scoreboard" style="text-align: center; font-family: monospace; font-weight: bold; font-size: 15px; white-space: nowrap; margin-bottom: 15px; background-color: #e8f4f8; padding: 10px 5px; border-radius: 5px; width: 100%; max-width: 350px; box-sizing: border-box;">
@@ -136,9 +132,6 @@
                 <li><b>Putting:</b> Exactly 1 space distance. Roll defaults to 'P'.</li>
                 <li><b>Mulligans:</b> 6 total. Tee-off rerolls are free (0 strokes taken).</li>
             </ul>
-            <div style="text-align: center; margin-top: 20px; padding-top: 15px; border-top: 1px solid #ddd;">
-                <a href=https://forms.gle/5AYhfgHsoFsjua9P7 target="_blank" style="color: #007aff; text-decoration: none; font-weight: bold; font-size: 16px;">Leave Feedback / Report a Bug</a>
-            </div>
         </div>
     </div>
 
@@ -174,6 +167,49 @@
     <div id="updateToast" class="hidden">
         <span>Course Update Available!</span>
         <button onclick="window.location.reload(true)">Reload</button>
+    </div>
+
+    <div id="menuBackdrop" class="overlay" style="display: none; background: rgba(0,0,0,0.5);" onclick="toggleMenu(false)"></div>
+    <div id="sideMenu" class="side-menu">
+        <span class="close-menu" onclick="toggleMenu(false)">&times;</span>
+        <h2>Menu</h2>
+        <a href="#" onclick="toggleMenu(false); toggleRules(true)">📜 Rules</a>
+        <a href="#" onclick="toggleMenu(false); toggleRoadmap(true)">💡 Roadmap & Feedback</a>
+        <a href="#" onclick="toggleMenu(false); toggleAbout(true)">ℹ️ About</a>
+    </div>
+
+    <div id="roadmapOverlay" class="overlay" style="display: none; background: rgba(0,0,0,0.5);">
+        <div class="modal-content">
+            <span class="close-btn" onclick="toggleRoadmap(false)">&times;</span>
+            <h3 style="margin-top:0;">Roadmap & Feedback</h3>
+            
+            <h4 style="color: #2c3e50; margin-bottom: 10px;">🚧 Currently in Development</h4>
+            <ol style="text-align: left; margin-bottom: 20px; font-size: 15px;">
+                <li>🌬️ Daily Course Modifiers (Wind, Sand limits)</li>
+                <li>📊 Shareable End-of-Round Scorecards</li>
+                <li>🎨 General UI Improvements</li>
+            </ol>
+            
+            <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
+            
+            <p style="font-size: 14px; color: #333; margin-bottom: 15px;">Have an idea for a new feature? Having an issue or encountered a bug?</p>
+            <a href="https://forms.gle/ufXp2BEkER7YdHd76" target="_blank" style="display: block; background-color: #007aff; color: white; text-decoration: none; font-weight: bold; padding: 12px; border-radius: 8px; text-align: center;">Let Me Know</a>
+        </div>
+    </div>
+
+    <div id="aboutOverlay" class="overlay" style="display: none; background: rgba(0,0,0,0.5);">
+        <div class="modal-content">
+            <span class="close-btn" onclick="toggleAbout(false)">&times;</span>
+            <h3 style="margin-top:0;">About</h3>
+            <p style="font-weight: bold; font-size: 18px; margin-bottom: 5px;">Paper Golf Companion</p>
+            <p style="color: #666; margin-top: 0;">Version 2026.6.1</p>
+            
+            <hr style="border: 0; border-top: 1px solid #eee; margin: 15px 0;">
+            <p style="font-size: 14px; color: #333;">Built for the crew.<br>Keep your drives straight and your putts short.</p>
+            <hr style="border: 0; border-top: 1px solid #eee; margin: 15px 0;">
+            
+            <a href="https://buymeacoffee.com/manthemanipulator" target="_blank" style="color: #007aff; text-decoration: none; font-size: 14px;">⚡ Buy the dev an energy drink</a>
+        </div>
     </div>
 
 <script>
@@ -218,7 +254,7 @@ function updateHUD() {
         if (uiHole) uiHole.textContent = `Hole: ${currentHole}/18`;
         if (uiTotal) uiTotal.textContent = ` | Total: ${totalCampaignScore}`;
         if (uiTotal) uiTotal.classList.remove('hidden');
-    } // <--- This was the missing bracket!
+    }
 
     // Visually disable the Scores button in Casual Mode
     const scoresBtn = document.getElementById('viewScoresBtn');
@@ -615,64 +651,21 @@ if ('serviceWorker' in navigator) {
         });
     });
 }
-    <div id="menuBackdrop" class="overlay" style="display: none; background: rgba(0,0,0,0.5);" onclick="toggleMenu(false)"></div>
-    <div id="sideMenu" class="side-menu">
-        <span class="close-menu" onclick="toggleMenu(false)">&times;</span>
-        <h2>Menu</h2>
-        <a href="#" onclick="toggleMenu(false); toggleRules(true)">📜 Rules</a>
-        <a href="#" onclick="toggleMenu(false); toggleRoadmap(true)">💡 Roadmap & Feedback</a>
-        <a href="#" onclick="toggleMenu(false); toggleAbout(true)">ℹ️ About</a>
-    </div>
 
-    <div id="roadmapOverlay" class="overlay" style="display: none; background: rgba(0,0,0,0.5);">
-        <div class="modal-content">
-            <span class="close-btn" onclick="toggleRoadmap(false)">&times;</span>
-            <h3 style="margin-top:0;">Roadmap & Feedback</h3>
-            
-            <h4 style="color: #2c3e50; margin-bottom: 10px;">🚧 Currently in Development</h4>
-            <ol style="text-align: left; margin-bottom: 20px; font-size: 15px;">
-                <li>🌬️ Daily Course Modifiers (Wind, Sand limits)</li>
-                <li>📊 Shareable End-of-Round Scorecards</li>
-                <li>🎨 General UI Improvements</li>
-            </ol>
-            
-            <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
-            
-            <p style="font-size: 14px; color: #333; margin-bottom: 15px;">Have an idea for a new feature? Having an issue or encountered a bug?</p>
-            <a href=https://forms.gle/ufXp2BEkER7YdHd76 target="_blank" style="display: block; background-color: #007aff; color: white; text-decoration: none; font-weight: bold; padding: 12px; border-radius: 8px; text-align: center;">Let Me Know</a>
-        </div>
-    </div>
+// Add these to your existing Javascript functions
+function toggleMenu(show) {
+    document.getElementById('sideMenu').style.right = show ? "0" : "-250px"; 
+    document.getElementById('menuBackdrop').style.display = show ? "block" : "none";
+}
 
-    <div id="aboutOverlay" class="overlay" style="display: none; background: rgba(0,0,0,0.5);">
-        <div class="modal-content">
-            <span class="close-btn" onclick="toggleAbout(false)">&times;</span>
-            <h3 style="margin-top:0;">About</h3>
-            <p style="font-weight: bold; font-size: 18px; margin-bottom: 5px;">Paper Golf Companion</p>
-            <p style="color: #666; margin-top: 0;">Version 2026.6.1</p>
-            
-            <hr style="border: 0; border-top: 1px solid #eee; margin: 15px 0;">
-            <p style="font-size: 14px; color: #333;">Built for the crew.<br>Keep your drives straight and your putts short.</p>
-            <hr style="border: 0; border-top: 1px solid #eee; margin: 15px 0;">
-            
-            <a href=buymeacoffee.com/manthemanipulator target="_blank" style="color: #007aff; text-decoration: none; font-size: 14px;">⚡ Buy the dev an energy drink</a>
-        </div>
-    </div>
+function toggleRoadmap(show) {
+    document.getElementById('roadmapOverlay').style.display = show ? "flex" : "none";
+}
 
-    <script>
-        // Add these to your existing Javascript functions
-        function toggleMenu(show) {
-            document.getElementById('sideMenu').style.right = show ? "0" : "-250px"; 
-            document.getElementById('menuBackdrop').style.display = show ? "block" : "none";
-        }
-
-        function toggleRoadmap(show) {
-            document.getElementById('roadmapOverlay').style.display = show ? "flex" : "none";
-        }
-
-        function toggleAbout(show) {
-            document.getElementById('aboutOverlay').style.display = show ? "flex" : "none";
-        }
-    </script>
+function toggleAbout(show) {
+    document.getElementById('aboutOverlay').style.display = show ? "flex" : "none";
+}
+</script>
 
 </body>
 </html>
