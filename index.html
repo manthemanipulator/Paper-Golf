@@ -86,22 +86,24 @@
 </head>
 <body>
 
-    <div class="top-nav" style="position: relative; display: flex; justify-content: center; align-items: center; width: 100%; max-width: 500px; margin: 0 auto; padding: 15px 0; height: 50px;">
+    <div class="top-nav" style="position: relative; display: flex; justify-content: space-between; align-items: center; width: 100%; max-width: 500px; margin: 0 auto; padding: 15px 20px; box-sizing: border-box;">
         
-        <button id="viewScoresBtn" class="nav-btn" onclick="toggleScores(true)" style="position: absolute; left: 15px; background: none; border: none; color: #007aff; font-weight: bold; font-size: 16px; cursor: pointer; padding: 0;">Scores</button>
+        <button id="viewScoresBtn" class="nav-btn" onclick="toggleScores(true)" style="background: none; border: none; color: #007aff; font-weight: bold; font-size: 16px; cursor: pointer; padding: 0; flex-shrink: 0;">Scores</button>
 
-        <select id="modeSelect" class="mode-dropdown" style="margin: 0; border-radius: 5px; font-size: 14px; z-index: 1;">
+        <select id="modeSelect" class="mode-dropdown" style="margin: 0 10px; border-radius: 5px; font-size: 14px; max-width: 210px; flex-grow: 1;">
             <option value="casual">Casual (Free Play)</option>
             <option value="daily">Daily 18-Hole</option>
             <option value="random">Random 18-Hole</option>
         </select>
 
-        <button class="hamburger-btn" onclick="toggleMenu()" style="position: absolute; right: 15px; font-size: 32px; line-height: 1; cursor: pointer; border: none; background: none; color: #007aff; padding: 0; margin: 0;">&#9776;</button>
-
-        <div id="popupMenu" style="position: absolute; top: 50px; right: 15px; background: white; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); display: none; flex-direction: column; overflow: hidden; z-index: 2000; min-width: 170px; border: 1px solid #eee;">
-            <a href="#" onclick="toggleMenu(false); toggleRules(true)" style="padding: 12px 15px; text-decoration: none; font-size: 16px; color: #333; font-weight: bold; border-bottom: 1px solid #f0f0f0;">📜 Rules</a>
-            <a href="#" onclick="toggleMenu(false); toggleRoadmap(true)" style="padding: 12px 15px; text-decoration: none; font-size: 16px; color: #333; font-weight: bold; border-bottom: 1px solid #f0f0f0;">💡 Roadmap/Feedback</a>
-            <a href="#" onclick="toggleMenu(false); toggleAbout(true)" style="padding: 12px 15px; text-decoration: none; font-size: 16px; color: #333; font-weight: bold;">ℹ️ About</a>
+        <div style="position: relative; display: flex; align-items: center; flex-shrink: 0;">
+            <button class="hamburger-btn" onclick="toggleMenu()" style="font-size: 32px; line-height: 1; cursor: pointer; border: none; background: none; color: #007aff; padding: 0; margin: 0;">&#9776;</button>
+            
+            <div id="popupMenu" style="position: absolute; top: 40px; right: 0; background: white; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); display: none; flex-direction: column; overflow: hidden; z-index: 2000; min-width: 190px; border: 1px solid #eee;">
+                <div onclick="toggleMenu(false); toggleRules(true)" style="padding: 15px; font-size: 16px; color: #333; font-weight: bold; border-bottom: 1px solid #f0f0f0; cursor: pointer;">📜 Rules</div>
+                <div onclick="toggleMenu(false); toggleRoadmap(true)" style="padding: 15px; font-size: 16px; color: #333; font-weight: bold; border-bottom: 1px solid #f0f0f0; cursor: pointer;">💡 Roadmap / Feedback</div>
+                <div onclick="toggleMenu(false); toggleAbout(true)" style="padding: 15px; font-size: 16px; color: #333; font-weight: bold; cursor: pointer;">ℹ️ About</div>
+            </div>
         </div>
 
     </div>
