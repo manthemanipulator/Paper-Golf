@@ -59,6 +59,20 @@
         /* Update Toast */
         #updateToast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background-color: #34495e; color: white; padding: 12px 20px; border-radius: 30px; box-shadow: 0 4px 10px rgba(0,0,0,0.2); font-weight: bold; font-size: 14px; display: flex; gap: 15px; align-items: center; z-index: 9999; }
         #updateToast button { background-color: #2ecc71; padding: 5px 15px; margin: 0; width: auto; font-size: 14px; }
+        
+        /* Achievements & Stats */
+        .ach-item { display: flex; align-items: center; padding: 12px 10px; border-bottom: 1px solid #eee; text-align: left; }
+        .ach-icon { font-size: 28px; margin-right: 15px; filter: grayscale(100%); opacity: 0.3; transition: all 0.3s; }
+        .ach-text { flex-grow: 1; }
+        .ach-title { font-weight: bold; margin-bottom: 3px; font-size: 16px; color: #aaa; }
+        .ach-desc { font-size: 13px; color: #bbb; }
+        
+        .ach-item.unlocked .ach-icon { filter: grayscale(0%); opacity: 1; }
+        .ach-item.unlocked .ach-title { color: #2c3e50; }
+        .ach-item.unlocked .ach-desc { color: #666; }
+        
+        #achToast { position: fixed; top: -100px; left: 50%; transform: translateX(-50%); background-color: #2c3e50; color: white; padding: 12px 20px; border-radius: 30px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); display: flex; gap: 12px; align-items: center; z-index: 9999; transition: top 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55); width: 85%; max-width: 320px; text-align: left; }
+        #achToast.show { top: 20px; }
     </style>
 </head>
 <body>
@@ -82,6 +96,8 @@
             
             <div id="popupMenu" style="position: absolute; top: 40px; right: 0; background: white; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); display: none; flex-direction: column; overflow: hidden; z-index: 2000; min-width: 190px; border: 1px solid #eee; white-space: nowrap;">
                 <div onclick="toggleMenu(false); toggleRules(true)" style="padding: 15px; font-size: 16px; color: #333; font-weight: bold; border-bottom: 1px solid #f0f0f0; cursor: pointer;">📜 Rules</div>
+                <div onclick="toggleMenu(false); toggleStats(true)" style="padding: 15px; font-size: 16px; color: #333; font-weight: bold; border-bottom: 1px solid #f0f0f0; cursor: pointer;">🏆 Stats & Achievements</div>
+                <div onclick="toggleMenu(false); toggleOffline(true)" style="padding: 15px; font-size: 16px; color: #333; font-weight: bold; border-bottom: 1px solid #f0f0f0; cursor: pointer;">📱 Offline Play</div>
                 <div onclick="toggleMenu(false); toggleRoadmap(true)" style="padding: 15px; font-size: 16px; color: #333; font-weight: bold; border-bottom: 1px solid #f0f0f0; cursor: pointer;">💡 Roadmap / Feedback</div>
                 <div onclick="toggleMenu(false); toggleAbout(true)" style="padding: 15px; font-size: 16px; color: #333; font-weight: bold; cursor: pointer;">ℹ️ About</div>
             </div>
@@ -124,6 +140,46 @@
         </div>
     </div>
 
+    <div id="achToast"></div>
+
+    <div id="statsOverlay" class="overlay" style="display: none; background: rgba(0,0,0,0.5);">
+        <div class="modal-content" style="width: 100%; max-width: 350px; text-align: center; padding: 20px 15px;">
+            <h2 style="margin-top:0; color: #d35400;">Career Stats</h2>
+            
+            <div style="display: flex; justify-content: space-around; margin-bottom: 20px; font-family: monospace; font-size: 16px;">
+                <div><div style="font-size: 24px;" id="statBest">--</div>Best 18</div>
+                <div><div style="font-size: 24px; color: #3498db;" id="statBirdies">0</div>Birdies</div>
+                <div><div style="font-size: 24px; color: #9b59b6;" id="statEagles">0</div>Eagles</div>
+            </div>
+            
+            <hr style="border: 0; border-top: 1px solid #eee; margin: 0 0 10px 0;">
+            <h3 style="margin-bottom: 10px; color: #2c3e50;">Achievements</h3>
+            
+            <div id="achievementsList" style="margin-bottom: 15px;">
+                </div>
+            
+        </div>
+    </div>
+
+    <div id="offlineOverlay" class="overlay" style="display: none; background: rgba(0,0,0,0.5);">
+        <div class="modal-content">
+            <h3 style="margin-top:0; color: #007aff;">Play Anywhere 🌍</h3>
+            <p style="font-size: 15px; color: #333; line-height: 1.5; margin-bottom: 20px;">
+                Want to play Paper Golf on an airplane or out in the woods? Save it directly to your phone to lock it into memory for offline play!
+            </p>
+            
+            <h4 style="margin-bottom: 5px; color: #2c3e50;">🍎 iPhone (Safari)</h4>
+            <p style="font-size: 14px; color: #555; margin-top: 0; margin-bottom: 15px;">
+                Tap the <b>Share</b> icon at the bottom of the screen, scroll down, and tap <b>"Add to Home Screen"</b>.
+            </p>
+
+            <h4 style="margin-bottom: 5px; color: #2c3e50;">🤖 Android (Chrome)</h4>
+            <p style="font-size: 14px; color: #555; margin-top: 0;">
+                Tap the <b>3 dots</b> in the top right corner, then tap <b>"Install App"</b> or <b>"Add to Home screen"</b>.
+            </p>
+        </div>
+    </div>
+
     <div id="victoryOverlay" class="overlay">
         <h2>HOLE COMPLETE!</h2>
         <p id="finalScoreText">Score: 0</p>
@@ -143,7 +199,9 @@
             
             <div id="leaderboardSection" class="hidden">
                 <h3>TOP SCORES</h3>
-                <input type="date" id="historyDate" style="font-size: 16px; padding: 5px; margin-bottom: 10px; border-radius: 5px; text-align: center; display: none; color: black;">
+                <p id="dailyPlaysCount" style="font-size: 14px; color: #4cd964; margin-top: -10px; margin-bottom: 15px; font-weight: bold;"></p>
+                
+                <p id="historyDate" style="font-size: 14px; color: #4cd964; margin-top: -10px; margin-bottom: 15px; font-weight: bold;"></p>
                 <ul class="leaderboard-list" id="leaderboardList"></ul>
                 <button id="playAgainBtn" style="margin-top: 20px;">Play Again</button>
                 <button id="backToCasualBtn" class="btn-secondary">Back to Casual</button>
@@ -179,7 +237,7 @@
     <div id="aboutOverlay" class="overlay" style="display: none; background: rgba(0,0,0,0.5);">
         <div class="modal-content">
             <h3 style="margin-top:0;">About</h3>
-            <p style="font-weight: bold; font-size: 18px; margin-bottom: 5px;">Paper Golf</p>
+            <p style="font-weight: bold; font-size: 18px; margin-bottom: 15px;">Paper Golf</p>
             <p style="color: #666; margin-top: 0; font-size: 14px;">Version 2026.6.2</p>
             
             <hr style="border: 0; border-top: 1px solid #eee; margin: 15px 0;">
@@ -188,7 +246,10 @@
             <p style="font-size: 14px; color: #333; line-height: 1.5;">All credit for Paper Apps™ GOLF goes to creator Tom Brinton and publisher Gladden. Grab the official physical notebook if you haven't already!</p>
             
             <hr style="border: 0; border-top: 1px solid #eee; margin: 15px 0;">
-            
+            <p style="font-size: 14px; color: #555; text-align: center; font-style: italic; margin-bottom: 15px;">
+                Special thanks to the incredible beta testers who helped make this possible!
+            </p>
+
             <a href="https://buymeacoffee.com/manthemanipulator" target="_blank" style="display: block; background-color: #ff9500; color: white; text-decoration: none; font-weight: bold; padding: 12px; border-radius: 8px; text-align: center; font-size: 16px;">🪫 Buy the dev an energy drink 🪫</a>
         </div>
     </div>
@@ -199,11 +260,13 @@
             <p style="font-size: 16px; color: #333; margin-bottom: 20px;">Welcome to version 2026.6.2</p>
             
             <ul style="text-align: left; font-size: 15px; color: #333; margin-bottom: 25px; line-height: 1.6;">
-                <li>✨ Brand new, cleaner popup menu</li>
-                <li>🏆 The #1 Leaderboard spot now gets a trophy</li>
-                <li>👾 Added a link to join the Discord community</li>
-                <li>🐛 Fixed Safari layout bugs & header overlapping</li>
-                <li>👤 Added a LIVE player counter!</li>
+                <li>📱 <b>Offline Play:</b> Added instructions in the menu to save the game to your phone for offline use.</li>
+                <li>⏱️ <b>Live Daily Stats:</b> The Daily Leaderboard now shows exactly how many rounds have been completed today globally.</li>
+                <li>🌍 <b>Lifetime Arcade Counter:</b> The Random Leaderboard now tracks the total lifetime rounds played by the community.</li>
+                <li>🏅 <b>Stats & Achievements:</b> Added a new menu to track your personal best 18-hole score, total birdies, eagles, and 5 hidden unlockable achievements!</li>
+                <li>🛠️ <b>Soft Lock Fix:</b> Fixed an edge case where being boxed in by hazards froze the game. It now calls an "Unplayable Lie" (+1 stroke) and lets you re-roll!</li>
+                
+                <li style="margin-top: 10px;">🙌 <b>Huge Thanks:</b> To the amazing beta testers who helped polish this update!</li>
             </ul>
             
             <button onclick="document.getElementById('whatsNewOverlay').style.display='none'" style="width: 100%; font-size: 18px;">Awesome!</button>
@@ -217,9 +280,18 @@
 let currentMode = 'casual'; 
 let totalCampaignScore = 0;
 let dailySeed = 1;
-
 let currentHole = 1, strokes = 0, mulligans = 6, currentRoll = 0, canShoot = false, isPutting = false, isHoleComplete = false, usedTeeOffReroll = false;
 let currentBallPos = { x: 0, y: 0 }, holePos = { x: 0, y: 0 }, gridData = [], validTargets = [];
+let hitSandThisHole = false;
+let localStats = JSON.parse(localStorage.getItem('paperGolfStats')) || { bestScore: null, birdies: 0, eagles: 0, unlocked: [] };
+
+const ACHIEVEMENTS = {
+    'birdie': { icon: '🐤', title: 'First Birdie', desc: 'Finish a hole in 5 strokes or less.' },
+    'eagle': { icon: '🦅', title: 'Eagle Eye', desc: 'Finish a hole in 4 strokes or less.' },
+    'sand': { icon: '🏖️', title: 'The Sandman', desc: 'Save Par (6) or better after hitting sand.' },
+    'ironman': { icon: '🏅', title: 'Ironman', desc: 'Complete a full 18-hole round.' },
+    'purist': { icon: '✨', title: 'Purist', desc: 'Finish 18 holes with ZERO mulligans used.' }
+};
 const TILE_SIZE = 20, COLS = 15, ROWS = 20;
 const TERRAIN = { ROUGH: 0, FAIRWAY: 1, SAND: 2, WATER: 3, TREE: 4 };
 const COLORS = { [TERRAIN.ROUGH]: '#e9f5e9', [TERRAIN.FAIRWAY]: '#90ee90', [TERRAIN.SAND]: '#f5deb3', [TERRAIN.WATER]: '#4682b4', [TERRAIN.TREE]: '#228b22', dot: 'rgba(0, 0, 0, 0.15)' };
@@ -254,7 +326,6 @@ function updateHUD() {
         if (uiTotal) uiTotal.classList.remove('hidden');
     }
 
-    // Visually disable the Scores button in Casual Mode
     const scoresBtn = document.getElementById('viewScoresBtn');
     if (scoresBtn) {
         if (currentMode === 'casual') {
@@ -305,36 +376,26 @@ const firebaseConfig = {
 };
 
 if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
-    // Wakes up Google Analytics to start tracking visitors
 const analytics = firebase.analytics();
 const db = firebase.firestore();
-    // --- LIVE PRESENCE SYSTEM ---
 const rtdb = firebase.database();
-// Create a random temporary ID for this specific session
 const sessionId = Math.random().toString(36).substring(2, 15);
 const myUserRef = rtdb.ref('online_users/' + sessionId);
 const connectedRef = rtdb.ref('.info/connected');
 
-// Watch for connection status
 connectedRef.on('value', (snap) => {
     if (snap.val() === true) {
-        // We connected! Add this user to the database
         myUserRef.set(true);
-        // MAGIC TRICK: Tell Google to delete this record the exact millisecond the user closes the app
         myUserRef.onDisconnect().remove();
     }
 });
 
-// Watch the total number of people in the 'online_users' folder
 const allUsersRef = rtdb.ref('online_users');
 allUsersRef.on('value', (snap) => {
-    // Count how many records exist
     const count = snap.numChildren();
-    // Update the UI
     const countDisplay = document.getElementById('playerCount');
     if (countDisplay) {
         countDisplay.innerText = `👤 ${count}`;
-        // Add a tiny animation to let players know it's a live number
         countDisplay.style.opacity = '0.5';
         setTimeout(() => countDisplay.style.opacity = '1', 150);
     }
@@ -342,6 +403,17 @@ allUsersRef.on('value', (snap) => {
 db.enablePersistence().catch((err) => console.log("Offline mode failed: ", err.code));
 
 function triggerVictorySequence() {
+// NEW: Log the completed round to our daily tracker!
+    const today = new Date().toLocaleDateString('en-CA');
+    // Add 1 to today's count
+    firebase.database().ref(`daily_stats/${today}/${currentMode}`).set(firebase.database.ServerValue.increment(1));
+    // Add 1 to the all-time count
+    firebase.database().ref(`lifetime_stats/${currentMode}`).set(firebase.database.ServerValue.increment(1));
+    // Check 18-hole Stats
+    if (!localStats.bestScore || totalCampaignScore < localStats.bestScore) localStats.bestScore = totalCampaignScore;
+    saveStats();
+    unlockAchievement('ironman');
+    if (mulligans === 6) unlockAchievement('purist');
     document.getElementById('modalTitle').textContent = currentMode === 'daily' ? "DAILY COMPLETE!" : "ROUND COMPLETE!";
     document.getElementById('finalScoreDisplay').textContent = `Final Score: ${totalCampaignScore}`;
     document.getElementById('inputSection').classList.remove('hidden');
@@ -374,6 +446,46 @@ function saveScoreToCloud(initials, score) {
       .catch((error) => document.getElementById('leaderboardList').innerHTML = '<li>Error saving score.</li>');
 }
 
+function saveStats() { localStorage.setItem('paperGolfStats', JSON.stringify(localStats)); renderStats(); }
+
+function unlockAchievement(id) {
+    if (!localStats.unlocked.includes(id)) {
+        localStats.unlocked.push(id);
+        saveStats();
+        // Fire the Toast Popup!
+        const toast = document.getElementById('achToast');
+        toast.innerHTML = `<span style="font-size: 32px;">${ACHIEVEMENTS[id].icon}</span> <div><div style="font-size:12px; color:#aaa; text-transform:uppercase;">Achievement Unlocked</div><div style="font-size:16px;">${ACHIEVEMENTS[id].title}</div></div>`;
+        toast.classList.add('show');
+        if (navigator.vibrate) navigator.vibrate([100, 50, 100, 50, 100]); // Epic vibration
+        setTimeout(() => toast.classList.remove('show'), 4000);
+    }
+}
+
+function toggleStats(show) {
+    document.getElementById('statsOverlay').style.display = show ? "flex" : "none";
+    if (show) renderStats();
+}
+
+function renderStats() {
+    document.getElementById('statBest').innerText = localStats.bestScore || '--';
+    document.getElementById('statBirdies').innerText = localStats.birdies;
+    document.getElementById('statEagles').innerText = localStats.eagles;
+    
+    let html = '';
+    for (const [id, ach] of Object.entries(ACHIEVEMENTS)) {
+        const isUnlocked = localStats.unlocked.includes(id);
+        html += `
+        <div class="ach-item ${isUnlocked ? 'unlocked' : ''}">
+            <div class="ach-icon">${isUnlocked ? ach.icon : '🔒'}</div>
+            <div class="ach-text">
+                <div class="ach-title">${isUnlocked ? ach.title : '???'}</div>
+                <div class="ach-desc">${isUnlocked ? ach.desc : 'Keep playing to unlock.'}</div>
+            </div>
+        </div>`;
+    }
+    document.getElementById('achievementsList').innerHTML = html;
+}
+
 function showLeaderboard() {
     document.getElementById('inputSection').classList.add('hidden');
     document.getElementById('leaderboardSection').classList.remove('hidden');
@@ -381,48 +493,54 @@ function showLeaderboard() {
     const list = document.getElementById('leaderboardList');
     list.innerHTML = '<li>Loading...</li>';
     
-    // Check the calendar to see what day the user wants to look at
     const datePicker = document.getElementById('historyDate');
     const targetDate = (currentMode === 'daily' && datePicker.value) ? datePicker.value : new Date().toLocaleDateString('en-CA');
     
+    // NEW: Smart Stat Display
+    if (currentMode === 'daily') {
+        const statsRef = firebase.database().ref(`daily_stats/${targetDate}/daily`);
+        statsRef.once('value').then((snap) => {
+            const plays = snap.val() || 0;
+            document.getElementById('dailyPlaysCount').innerText = `⛳️ ${plays} rounds completed today`;
+        });
+    } else {
+        const lifetimeRef = firebase.database().ref(`lifetime_stats/${currentMode}`);
+        lifetimeRef.once('value').then((snap) => {
+            const plays = snap.val() || 0;
+            document.getElementById('dailyPlaysCount').innerText = `⛳️ ${plays} lifetime rounds completed`;
+        });
+    }
+    
     db.collection("globalLeaderboard").orderBy("score", "asc").onSnapshot((querySnapshot) => {
+  
         list.innerHTML = ''; 
         let count = 0;
         
         querySnapshot.forEach((doc) => {
             const entry = doc.data();
-            
-            // If we are in daily mode, only show scores matching the calendar date
             if (currentMode === 'daily' && (entry.mode !== 'daily' || entry.date !== targetDate)) return;
-            // If we are in Campaign, hide the daily scores
             if (currentMode === 'campaign' && entry.mode === 'daily') return;
             
             if (count >= 5) return;
             count++;
             
             const li = document.createElement('li');
-            
-            // If this is the #1 score, add the trophies and make it pop!
             if (count === 1) {
                 li.textContent = `🏆 ${entry.initials} ..... ${entry.score} 🏆`;
                 li.style.fontWeight = '900';
-                li.style.color = '#d35400'; // Gives it a nice dark gold/bronze tint
+                li.style.color = '#d35400'; 
             } else {
                 li.textContent = `${entry.initials} ..... ${entry.score}`;
             }
-            
             list.appendChild(li);
         });
-        
         if (count === 0) list.innerHTML = '<li>No scores yet!</li>';
     });
 }
     
-// When the user changes the calendar date, automatically refresh the scores
 document.getElementById('historyDate')?.addEventListener('change', showLeaderboard);
 
 document.getElementById('viewScoresBtn')?.addEventListener('click', () => {
-    // If in Casual Mode, do absolutely nothing when clicked
     if (currentMode === 'casual') return; 
     
     document.getElementById('modalTitle').textContent = currentMode === 'daily' ? "DAILY LEADERBOARD" : "ALL-TIME TOP 5";
@@ -468,6 +586,11 @@ function toggleRules(forceState) {
     overlay.style.display = (typeof forceState === 'boolean') ? (forceState ? 'flex' : 'none') : (overlay.style.display === 'flex' ? 'none' : 'flex');
 }
 
+// NEW FUNCTION: Toggles the Offline Modal
+function toggleOffline(show) {
+    document.getElementById('offlineOverlay').style.display = show ? "flex" : "none";
+}
+
 function updateRerollButton() {
     if (!canShoot || isPutting || isHoleComplete) { rerollBtn.disabled = true; rerollBtn.innerText = "Re-roll"; return; }
     if (strokes === 0 && !usedTeeOffReroll) { rerollBtn.disabled = false; rerollBtn.innerText = "Free Re-roll"; }
@@ -503,7 +626,27 @@ function calculateValidTargets() {
         }
         if (!pathBlocked) validTargets.push({x: sx + dir.dx * eff, y: sy + dir.dy * eff});
     }
-}
+
+    // 🚨 NEW: UNPLAYABLE LIE (SOFT LOCK FIX) 🚨
+    if (validTargets.length === 0 && !isHoleComplete) {
+        // Change the status text to warn them
+        statusText.style.color = '#d9534f';
+        statusText.innerText = "Blocked! Unplayable lie (+1 Stroke). Roll again.";
+        
+        // Automatically add the penalty stroke to their score
+        strokes++;
+        updateHUD();
+        
+        // Unlock the buttons so they can try a different roll
+        canShoot = false;
+        rollBtn.disabled = false;
+        puttBtn.disabled = false;
+        
+        // Optional: Give a little warning buzz if they are on mobile
+        if (navigator.vibrate) navigator.vibrate([50, 100, 50]);
+    }
+} // <-- THIS CLOSING BRACKET NOW PROPERLY CONTAINS THE ENTIRE FUNCTION
+
 
 function renderScene() { 
     ctx.clearRect(0,0,canvas.width, canvas.height);
@@ -606,6 +749,7 @@ function generateCourse() {
     canShoot=false; isPutting=false; rollBtn.disabled=false; puttBtn.disabled=false; currentRoll=0; diceResult.innerText='-';
     validTargets = []; statusText.style.color = '#d9534f'; statusText.innerText = "Choose your shot type to start!";
     usedTeeOffReroll=false; isHoleComplete=false; 
+    hitSandThisHole = false;
     
     updateRerollButton();
     renderScene();
@@ -626,6 +770,7 @@ canvas.addEventListener('pointerdown', (e) => {
     const hy = Math.floor(holePos.y / TILE_SIZE);
 
     strokes++; updateHUD();
+    if (gridData[ty] && gridData[ty][tx] === TERRAIN.SAND) hitSandThisHole = true;
     validTargets = []; renderScene();
     ctx.beginPath(); ctx.moveTo(currentBallPos.x, currentBallPos.y); ctx.lineTo(gx, gy); ctx.strokeStyle='#ff3b30'; ctx.lineWidth=2; ctx.stroke(); drawBall(gx, gy, false);
 
@@ -648,6 +793,11 @@ canvas.addEventListener('pointerdown', (e) => {
     if(sankIt) {
         isHoleComplete = true; canShoot = false; rollBtn.disabled = true; puttBtn.disabled = true; rerollBtn.disabled = true;
         if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+        // Check Hole Stats
+        if (strokes <= 5) { localStats.birdies++; unlockAchievement('birdie'); }
+        if (strokes <= 4) { localStats.eagles++; unlockAchievement('eagle'); }
+        if (strokes <= 6 && hitSandThisHole) unlockAchievement('sand');
+        saveStats();
         
         if (currentMode === 'casual') {
             statusText.style.color = '#5cb85c'; statusText.innerText = "Hole completed!";
@@ -678,14 +828,11 @@ function drawBall(x,y,s) { ctx.beginPath(); ctx.arc(x,y,5,0,Math.PI*2); ctx.fill
 document.addEventListener('DOMContentLoaded', () => { 
     resetGame(); 
     
-    // --- Update Notification Logic ---
     const CURRENT_VERSION = '2026.6.2';
     const lastSeenVersion = localStorage.getItem('paperGolfVersion');
     
     if (lastSeenVersion !== CURRENT_VERSION) {
-        // Show the update modal
         document.getElementById('whatsNewOverlay').style.display = 'flex';
-        // Save the new version to the browser so it doesn't show again
         localStorage.setItem('paperGolfVersion', CURRENT_VERSION);
     }
 });
@@ -722,7 +869,6 @@ function toggleAbout(show) {
     document.getElementById('aboutOverlay').style.display = show ? "flex" : "none";
 }
 
-// Auto-close menu if tapping anywhere else on the screen
 document.addEventListener('click', (e) => {
     if (!e.target.closest('.hamburger-btn') && !e.target.closest('#popupMenu')) {
         const menu = document.getElementById('popupMenu');
@@ -730,13 +876,9 @@ document.addEventListener('click', (e) => {
     }
 });
 
-// --- Backdrop Dismiss (Click Outside to Close) ---
     document.querySelectorAll('.overlay').forEach(overlay => {
         overlay.addEventListener('click', function(event) {
-            // Check if the user clicked the dark background itself, NOT the white box inside it
             if (event.target === this) {
-                // We exclude the victory screen so players don't accidentally 
-                // click away and break the "Next Hole" game loop!
                 if (this.id !== 'victoryOverlay') {
                     this.style.display = 'none';
                 }
