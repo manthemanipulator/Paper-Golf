@@ -189,8 +189,9 @@
 
     <div id="leaderboardModal" class="overlay" style="background: rgba(0,0,0,0.95);">
         <div class="modal-content" style="background: transparent; color: white; text-align: center; border: 2px solid white;">
-            <h2 id="modalTitle">ROUND COMPLETE!</h2>
-            <h3 id="finalScoreDisplay">Final Score: 0</h3>
+            <h2 id="modalTitle" style="margin-bottom: 5px;">ROUND COMPLETE!</h2>
+            <p id="dailyPlaysCount" style="font-size: 14px; color: #4cd964; margin-top: 0; margin-bottom: 15px; font-weight: bold;"></p>
+            <h3 id="finalScoreDisplay" style="margin-top: 0;">Final Score: 0</h3>
             
             <div id="inputSection">
                 <p>Enter 3 initials for the leaderboard:</p>
@@ -200,10 +201,11 @@
             
             <div id="leaderboardSection" class="hidden">
                 <h3>TOP SCORES</h3>
-                <p id="dailyPlaysCount" style="font-size: 14px; color: #4cd964; margin-top: -10px; margin-bottom: 15px; font-weight: bold;"></p>
+                                
+                <input type="date" id="historyDate" style="font-size: 16px; margin-bottom: 15px; padding: 5px; border-radius: 5px; border: 1px solid #ccc; font-family: monospace; color: #2c3e50;">
                 
-                <p id="historyDate" style="font-size: 14px; color: #4cd964; margin-top: -10px; margin-bottom: 15px; font-weight: bold;"></p>
                 <ul class="leaderboard-list" id="leaderboardList"></ul>
+                
                 <button id="playAgainBtn" style="margin-top: 20px;">Play Again</button>
                 <button id="backToCasualBtn" class="btn-secondary">Back to Casual</button>
             </div>
