@@ -99,6 +99,7 @@
                 <div onclick="toggleMenu(false); toggleStats(true)" style="padding: 15px; font-size: 16px; color: #333; font-weight: bold; border-bottom: 1px solid #f0f0f0; cursor: pointer;">🏆 Stats & Achievements</div>
                 <div onclick="toggleMenu(false); toggleOffline(true)" style="padding: 15px; font-size: 16px; color: #333; font-weight: bold; border-bottom: 1px solid #f0f0f0; cursor: pointer;">📱 Offline Play</div>
                 <div onclick="toggleMenu(false); toggleRoadmap(true)" style="padding: 15px; font-size: 16px; color: #333; font-weight: bold; border-bottom: 1px solid #f0f0f0; cursor: pointer;">💡 Roadmap / Feedback</div>
+                <div onclick="toggleMenu(false); toggleWhatsNew(true)" style="padding: 15px; font-size: 16px; color: #333; font-weight: bold; border-bottom: 1px solid #f0f0f0; cursor: pointer;">📦 What's New</div>
                 <div onclick="toggleMenu(false); toggleAbout(true)" style="padding: 15px; font-size: 16px; color: #333; font-weight: bold; cursor: pointer;">ℹ️ About</div>
             </div>
         </div>
@@ -238,7 +239,7 @@
         <div class="modal-content">
             <h3 style="margin-top:0;">About</h3>
             <p style="font-weight: bold; font-size: 18px; margin-bottom: 15px;">Paper Golf</p>
-            <p style="color: #666; margin-top: 0; font-size: 14px;">Version 2026.6.2</p>
+            <p style="color: #666; margin-top: 0; font-size: 14px;">Version 2026.6.3</p>
             
             <hr style="border: 0; border-top: 1px solid #eee; margin: 15px 0;">
             
@@ -257,7 +258,7 @@
     <div id="whatsNewOverlay" class="overlay" style="display: none; background: rgba(0,0,0,0.5); z-index: 3000;">
         <div class="modal-content" style="text-align: center;">
             <h2 style="margin-top: 0; color: #007aff; font-size: 28px;">App Updated!</h2>
-            <p style="font-size: 16px; color: #333; margin-bottom: 20px;">Welcome to version 2026.6.2</p>
+            <p style="font-size: 16px; color: #333; margin-bottom: 20px;">Welcome to version 2026.6.3</p>
             
             <ul style="text-align: left; font-size: 15px; color: #333; margin-bottom: 25px; line-height: 1.6;">
                 <li>📱 <b>Offline Play:</b> Added instructions in the menu to save the game to your phone for offline use.</li>
@@ -265,7 +266,7 @@
                 <li>🌍 <b>Lifetime Arcade Counter:</b> The Random Leaderboard now tracks the total lifetime rounds played by the community.</li>
                 <li>🏅 <b>Stats & Achievements:</b> Added a new menu to track your personal best 18-hole score, total birdies, eagles, and 5 hidden unlockable achievements!</li>
                 <li>🛠️ <b>Soft Lock Fix:</b> Fixed an edge case where being boxed in by hazards froze the game. It now calls an "Unplayable Lie" (+1 stroke) and lets you re-roll!</li>
-                
+                <li>📦 <b>Update History:</b> Added a "What's New" option to the main menu so you can review patch notes anytime!</li>
                 <li style="margin-top: 10px;">🙌 <b>Huge Thanks:</b> To the amazing beta testers who helped polish this update!</li>
             </ul>
             
@@ -828,7 +829,7 @@ function drawBall(x,y,s) { ctx.beginPath(); ctx.arc(x,y,5,0,Math.PI*2); ctx.fill
 document.addEventListener('DOMContentLoaded', () => { 
     resetGame(); 
     
-    const CURRENT_VERSION = '2026.6.2';
+    const CURRENT_VERSION = '2026.6.3';
     const lastSeenVersion = localStorage.getItem('paperGolfVersion');
     
     if (lastSeenVersion !== CURRENT_VERSION) {
@@ -868,12 +869,16 @@ function toggleRoadmap(show) {
 function toggleAbout(show) {
     document.getElementById('aboutOverlay').style.display = show ? "flex" : "none";
 }
+function toggleWhatsNew(show) {
+    document.getElementById('whatsNewOverlay').style.display = show ? "flex" : "none";
+}
 
 document.addEventListener('click', (e) => {
     if (!e.target.closest('.hamburger-btn') && !e.target.closest('#popupMenu')) {
         const menu = document.getElementById('popupMenu');
         if (menu) menu.style.display = 'none';
     }
+    
 });
 
     document.querySelectorAll('.overlay').forEach(overlay => {
