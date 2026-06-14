@@ -241,7 +241,7 @@
         <div class="modal-content">
             <h3 style="margin-top:0;">About</h3>
             <p style="font-weight: bold; font-size: 18px; margin-bottom: 15px;">Paper Golf</p>
-            <p style="color: #666; margin-top: 0; font-size: 14px;">Version 2026.6.3</p>
+            <p style="color: #666; margin-top: 0; font-size: 14px;">Version 2026.6.4</p>
             
             <hr style="border: 0; border-top: 1px solid #eee; margin: 15px 0;">
             
@@ -265,22 +265,28 @@
         </div>
     </div>
 
+    <div id="hazardOverlay" class="overlay" style="display: none; background: rgba(0,0,0,0.7); z-index: 4000;">
+        <div class="modal-content" style="text-align: center; border: 2px solid #3498db;">
+            <h2 style="margin-top:0; color: #3498db; font-size: 28px;">Hazard Penalty!</h2>
+            <p style="font-size: 16px; color: #333; margin-bottom: 20px;">The wind pushed your ball into a hazard! <b>(+1 Stroke)</b>. Your ball has been dropped at the nearest safe spot.</p>
+            <button onclick="document.getElementById('hazardOverlay').style.display='none'" style="background-color: #3498db; width: 100%; font-size: 18px;">Take Drop</button>
+        </div>
+    </div>
+
     <div id="whatsNewOverlay" class="overlay" style="display: none; background: rgba(0,0,0,0.5); z-index: 3000;">
         <div class="modal-content" style="text-align: center;">
             <h2 style="margin-top: 0; color: #007aff; font-size: 28px;">App Updated!</h2>
-            <p style="font-size: 16px; color: #333; margin-bottom: 20px;">Welcome to version 2026.6.3</p>
+            <p style="font-size: 16px; color: #333; margin-bottom: 20px;">Welcome to version 2026.6.4</p>
             
             <ul style="text-align: left; font-size: 15px; color: #333; margin-bottom: 25px; line-height: 1.6;">
-                <li>📱 <b>Offline Play:</b> Added instructions in the menu to save the game to your phone for offline use.</li>
-                <li>⏱️ <b>Live Daily Stats:</b> The Daily Leaderboard now shows exactly how many rounds have been completed today globally.</li>
-                <li>🌍 <b>Lifetime Arcade Counter:</b> The Random Leaderboard now tracks the total lifetime rounds played by the community.</li>
-                <li>🏅 <b>Stats & Achievements:</b> Added a new menu to track your personal best 18-hole score, total birdies, eagles, and 5 hidden unlockable achievements!</li>
-                <li>🛠️ <b>Soft Lock Fix:</b> Fixed an edge case where being boxed in by hazards froze the game. It now calls an "Unplayable Lie" (+1 stroke) and lets you re-roll!</li>
-                <li>📦 <b>Update History:</b> Added a "What's New" option to the main menu so you can review patch notes anytime!</li>
-                <li style="margin-top: 10px;">🙌 <b>Huge Thanks:</b> To the amazing beta testers who helped polish this update!</li>
+                <li>🌦️ <b>Dynamic Weather:</b> Experience true wind physics! Watch the flag stretch and leaves blow across the screen to gauge the wind before you shoot.</li>
+                <li>☄️ <b>Sweeping Animations:</b> The ball now travels in beautiful, sweeping arcs (complete with a comet trail) as it fights the wind, plus fireworks when you sink a shot!</li>
+                <li>🧲 <b>Magnetic Touch UI:</b> Invisible "compensation zones" allow you to tap empty grass to aim into the wind, with a generous magnetic snap so you never miss a tap.</li>
+                <li>🛑 <b>Hazard Penalties:</b> Hitting the water or trees now plays a full animation, issues a +1 stroke penalty, and automatically drops your ball at the nearest safe tile.</li>
+                <li>🛠️ <b>Unplayable Lie Fix:</b> Got permanently boxed in by trees? The game now detects the soft-lock, issues a +1 penalty, and lets you re-roll to safety!</li>
             </ul>
             
-            <button onclick="document.getElementById('whatsNewOverlay').style.display='none'" style="width: 100%; font-size: 18px;">Awesome!</button>
+            <button onclick="document.getElementById('whatsNewOverlay').style.display='none'" style="width: 100%; font-size: 18px;">Let's Golf!</button>
         </div>
     </div>
 
@@ -293,7 +299,7 @@ let currentWeather = { windX: 1, windY: 0 }; // Defaults to blowing East
 let totalCampaignScore = 0;
 let dailySeed = 1;
 let currentHole = 1, strokes = 0, mulligans = 6, currentRoll = 0, canShoot = false, isPutting = false, isHoleComplete = false, usedTeeOffReroll = false;
-let currentBallPos = { x: 0, y: 0 }, holePos = { x: 0, y: 0 }, gridData = [], validTargets = [], particles = [], trail = [], leaves = [];
+let currentBallPos = { x: 0, y: 0 }, holePos = { x: 0, y: 0 }, gridData = [], validTargets = [], clickableTargets = [], particles = [], trail = [], leaves = [];
 let hitSandThisHole = false;
 let localStats = JSON.parse(localStorage.getItem('paperGolfStats')) || { bestScore: null, birdies: 0, eagles: 0, unlocked: [] };
 
@@ -603,37 +609,44 @@ function drawParticles() {
     ctx.globalAlpha = 1.0;
 }
 
-function playShotAnimation(targetX, targetY, sankIt, callback) {
+function playShotAnimation(aimX, aimY, finalX, finalY, sankIt, callback) {
+    let startX = currentBallPos.x;
+    let startY = currentBallPos.y;
+    let t = 0; // This is our "time" or progress along the curve (0 to 1)
     let spawned = false;
     
     function animLoop() {
         // 1. Record the trail BEFORE we move the ball
         trail.push({ x: currentBallPos.x, y: currentBallPos.y });
-        if (trail.length > 10) trail.shift(); // Upped to 10 for a slightly longer tail
+        if (trail.length > 10) trail.shift(); 
 
-        // 2. Now move the ball
-        let dx = targetX - currentBallPos.x;
-        let dy = targetY - currentBallPos.y;
-        currentBallPos.x += dx * 0.15; 
-        currentBallPos.y += dy * 0.15;
+        // 2. Move time forward (increase this to make the ball fly faster)
+        t += 0.05; 
+        if (t > 1) t = 1;
+
+        // 3. The Magic Bézier Curve Math!
+        // It pulls the ball towards the aim point, then sweeps it to the final landing spot
+        let invT = 1 - t;
+        currentBallPos.x = (invT * invT * startX) + (2 * invT * t * aimX) + (t * t * finalX);
+        currentBallPos.y = (invT * invT * startY) + (2 * invT * t * aimY) + (t * t * finalY);
 
         renderScene();
 
-        let dist = Math.hypot(dx, dy);
-
-        if (dist < 2 && sankIt && !spawned) {
-            createParticles(targetX, targetY);
+        // 4. Sink particle effects
+        if (t > 0.9 && sankIt && !spawned) {
+            createParticles(finalX, finalY);
             spawned = true;
             if (navigator.vibrate) navigator.vibrate([100, 50, 100]); 
         }
 
         drawParticles();
 
-        if (dist > 0.5 || particles.length > 0) {
+        // 5. Loop until time reaches 1 (100% complete)
+        if (t < 1 || particles.length > 0) {
             requestAnimationFrame(animLoop);
         } else {
             trail = []; // Clear the trail for the next shot!
-            currentBallPos = { x: targetX, y: targetY }; 
+            currentBallPos = { x: finalX, y: finalY }; 
             callback(); 
         }
     }
@@ -671,6 +684,7 @@ function updateRerollButton() {
 
 function calculateValidTargets() {
     validTargets = [];
+    clickableTargets = []; // <-- Our new invisible touch zones!
     if (!canShoot || isHoleComplete) return;
 
     let sx = Math.floor(currentBallPos.x / TILE_SIZE), sy = Math.floor(currentBallPos.y / TILE_SIZE);
@@ -685,9 +699,16 @@ function calculateValidTargets() {
     let modText = isPutting ? "" : (startingTerrain === TERRAIN.FAIRWAY ? " (+1 Fairway)" : (startingTerrain === TERRAIN.SAND ? " (-1 Sand)" : ""));
     statusText.innerText = isPutting ? "Tap a glowing dot to putt." : `Required distance: ${eff}${modText}`;
 
+    // Calculate the compensation direction (The exact OPPOSITE of the wind)
+    let compX = (currentRoll === 1 || isPutting) ? 0 : -currentWeather.windX; 
+    let compY = (currentRoll === 1 || isPutting) ? 0 : -currentWeather.windY;
+
     const directions = [{dx: 1, dy: 0}, {dx: -1, dy: 0}, {dx: 0, dy: 1}, {dx: 0, dy: -1}, {dx: 1, dy: 1}, {dx: -1, dy: -1}, {dx: 1, dy: -1}, {dx: -1, dy: 1}];
+    
     for (let dir of directions) {
         let pathBlocked = false;
+        
+        // 1. Check if the path to the BASE target is clear
         for (let i = 1; i <= eff; i++) {
             let tx = sx + dir.dx * i, ty = sy + dir.dy * i;
             if (tx < 0 || tx >= COLS || ty < 0 || ty >= ROWS) { pathBlocked = true; break; }
@@ -695,10 +716,46 @@ function calculateValidTargets() {
             if (i < eff && terrain === TERRAIN.TREE && startingTerrain !== TERRAIN.FAIRWAY) { pathBlocked = true; break; }
             if (i === eff && (terrain === TERRAIN.WATER || terrain === TERRAIN.TREE)) { pathBlocked = true; break; }
         }
-        if (!pathBlocked) validTargets.push({x: sx + dir.dx * eff, y: sy + dir.dy * eff});
+        
+        // 2. If the base path is clear, create targets
+        if (!pathBlocked) {
+            let baseX = sx + dir.dx * eff;
+            let baseY = sy + dir.dy * eff;
+            
+            // VISUAL target (The only one that glows on screen)
+            validTargets.push({x: baseX, y: baseY});
+            
+            // MECHANICAL target (Base spot is still clickable)
+            clickableTargets.push({x: baseX, y: baseY});
+            
+           // Add the invisible "Compensation Targets" into the clickable array
+            // We calculate this based on the wind, respecting putt/1-roll immunity
+            let windFactorX = (currentRoll === 1 || isPutting) ? 0 : currentWeather.windX;
+            let windFactorY = (currentRoll === 1 || isPutting) ? 0 : currentWeather.windY;
+            
+            let maxSteps = Math.max(Math.abs(windFactorX), Math.abs(windFactorY));
+            if (maxSteps > 0) {
+                let stepX = windFactorX === 0 ? 0 : Math.sign(windFactorX);
+                let stepY = windFactorY === 0 ? 0 : Math.sign(windFactorY);
+                
+                // Build invisible targets BOTH against and with the wind (-maxSteps to +maxSteps)
+                for (let w = -maxSteps; w <= maxSteps; w++) {
+                    if (w === 0) continue; // The base target is already pushed!
+                    
+                    let cx = baseX + (stepX * w);
+                    let cy = baseY + (stepY * w);
+                    
+                    // Keep the touch targets on the board
+                    if (cx >= 0 && cx < COLS && cy >= 0 && cy < ROWS) {
+                        clickableTargets.push({x: cx, y: cy});
+                    }
+                }
+            }
+        }
     }
 
-    // 🚨 NEW: UNPLAYABLE LIE (SOFT LOCK FIX) 🚨
+
+    // 🚨 UNPLAYABLE LIE (SOFT LOCK FIX) 🚨
     if (validTargets.length === 0 && !isHoleComplete) {
         if (strokes === 0) {
             // Blocked on the very first roll off the tee! No penalty.
@@ -727,8 +784,7 @@ function calculateValidTargets() {
             if (navigator.vibrate) navigator.vibrate([50, 100, 50]);
         }
     }
-} // <-- THIS CLOSING BRACKET NOW PROPERLY CONTAINS THE ENTIRE FUNCTION
-
+} // End of calculateValidTargets
 
 function renderScene() { 
     ctx.clearRect(0,0,canvas.width, canvas.height);
@@ -1087,7 +1143,7 @@ canvas.addEventListener('pointerdown', (e) => {
     let minDistance = Infinity;
     let magneticRadius = TILE_SIZE * 1.5; // Forgiving touch radius (30 pixels!)
 
-    for (let t of validTargets) {
+    for (let t of clickableTargets) { // <---- MAGIC SWAP HERE
         // Find the exact center of this target
         let targetCenterX = t.x * TILE_SIZE + TILE_SIZE / 2;
         let targetCenterY = t.y * TILE_SIZE + TILE_SIZE / 2;
@@ -1121,9 +1177,13 @@ canvas.addEventListener('pointerdown', (e) => {
 
     strokes++; updateHUD();
     if (gridData[ty] && gridData[ty][tx] === TERRAIN.SAND) hitSandThisHole = true;
-    validTargets = []; renderScene();
-    ctx.beginPath(); ctx.moveTo(currentBallPos.x, currentBallPos.y); ctx.lineTo(gx, gy); ctx.strokeStyle='#ff3b30'; ctx.lineWidth=2; ctx.stroke(); drawBall(gx, gy, false);
+    
+    // Clear both arrays and refresh the map to hide the glowing dots
+    validTargets = []; 
+    clickableTargets = []; 
+    renderScene();
 
+    // Calculate the distance to see if it was a sink!
     const dx = tx - sx, dy = ty - sy;
     const dist = Math.max(Math.abs(dx), Math.abs(dy));
     const stepX = dist === 0 ? 0 : dx / dist;
@@ -1139,16 +1199,106 @@ canvas.addEventListener('pointerdown', (e) => {
     }
     
  // Start the animation, then run this logic when it finishes!
-    // 🚨 Intercept the destination! If it is a sink, force the ball to stop at the hole!
-    let animTargetX = sankIt ? holePos.x : gx;
-    let animTargetY = sankIt ? holePos.y : gy;
+    
+    // 1. Calculate the final landing spot including wind drift
+    let windShiftX = (currentRoll === 1 || isPutting) ? 0 : currentWeather.windX;
+    let windShiftY = (currentRoll === 1 || isPutting) ? 0 : currentWeather.windY;
 
-    // Start the animation using our new corrected target
-    playShotAnimation(animTargetX, animTargetY, sankIt, () => {
-        if(sankIt) {
+    // 2. Determine the exact grid coordinates of the final landing spot
+    let landingGridX = tx + windShiftX;
+    let landingGridY = ty + windShiftY;
+
+    // 🚨 THE WIND SINK FIX 🚨
+    // If the wind perfectly pushed the ball into the hole, you win!
+    if (landingGridX === hx && landingGridY === hy) {
+        sankIt = true;
+    } 
+    // Conversely, if you aimed at the hole but the wind blew you away, cancel the sink!
+    else if (sankIt && (Math.abs(landingGridX - hx) > 1 || Math.abs(landingGridY - hy) > 1 || (landingGridX !== hx && landingGridY !== hy))) {
+        sankIt = false;
+    }
+
+    let isHazard = false;
+    let safeX = landingGridX;
+    let safeY = landingGridY;
+
+    // 3. Hazard Detection & Drop Zone Calculation
+    // First, check if the wind blew them completely off the board
+    if (landingGridX < 0 || landingGridX >= COLS || landingGridY < 0 || landingGridY >= ROWS) {
+        isHazard = true; 
+    } else {
+        // Then, check if they landed in water or a tree
+        let terrain = gridData[landingGridY][landingGridX];
+        if (terrain === TERRAIN.WATER || terrain === TERRAIN.TREE) {
+            isHazard = true;
+        }
+    }
+
+    if (isHazard) {
+        sankIt = false; // You cannot sink a putt if it blows into the water!
+        let foundSafe = false;
+        
+        // Search the 8 surrounding tiles to find a safe "Drop Zone" 1 space away
+        // We prioritize the direction the ball came from (backtracking against the wind)
+        let searchDirs = [
+            {dx: windShiftX === 0 ? 0 : -Math.sign(windShiftX), dy: windShiftY === 0 ? 0 : -Math.sign(windShiftY)},
+            {dx: 0, dy: 1}, {dx: 0, dy: -1}, {dx: 1, dy: 0}, {dx: -1, dy: 0},
+            {dx: 1, dy: 1}, {dx: -1, dy: -1}, {dx: 1, dy: -1}, {dx: -1, dy: 1}
+        ];
+        
+        for (let sd of searchDirs) {
+            let checkX = landingGridX + sd.dx;
+            let checkY = landingGridY + sd.dy;
+            if (checkX >= 0 && checkX < COLS && checkY >= 0 && checkY < ROWS) {
+                let t = gridData[checkY][checkX];
+                if (t !== TERRAIN.WATER && t !== TERRAIN.TREE) {
+                    safeX = checkX;
+                    safeY = checkY;
+                    foundSafe = true;
+                    break;
+                }
+            }
+        }
+        // Fallback: If they are totally surrounded by hazards, drop at the original start spot
+        if (!foundSafe) { safeX = sx; safeY = sy; }
+    }
+
+    // 4. Set animation targets
+    // Where did they AIM?
+    let baseAimX = sankIt ? holePos.x : tx * TILE_SIZE + TILE_SIZE / 2;
+    let baseAimY = sankIt ? holePos.y : ty * TILE_SIZE + TILE_SIZE / 2;
+
+    // Where is the wind pushing them to LAND? (Animate directly into the hazard if necessary!)
+    let animTargetX = sankIt ? holePos.x : landingGridX * TILE_SIZE + TILE_SIZE / 2;
+    let animTargetY = sankIt ? holePos.y : landingGridY * TILE_SIZE + TILE_SIZE / 2;
+    
+    // Clamp the final destination so the ball doesn't fly infinitely off the screen
+    animTargetX = Math.max(0, Math.min(animTargetX, COLS * TILE_SIZE));
+    animTargetY = Math.max(0, Math.min(animTargetY, ROWS * TILE_SIZE));
+
+    // 5. Start the Bézier Curve animation! (Passing Aim AND Final spots)
+    playShotAnimation(baseAimX, baseAimY, animTargetX, animTargetY, sankIt, () => {
+        if (isHazard) {
+            // THE PENALTY SEQUENCE
+            strokes++; // +1 Stroke Penalty
+            updateHUD();
+            
+            // Teleport ball to the safe drop zone we calculated earlier
+            currentBallPos = { x: safeX * TILE_SIZE + TILE_SIZE / 2, y: safeY * TILE_SIZE + TILE_SIZE / 2 };
+            
+            // Trigger the modal and an angry vibration
+            document.getElementById('hazardOverlay').style.display = 'flex';
+            if (navigator.vibrate) navigator.vibrate([100, 50, 100, 50, 100]);
+            
+            // Reset shot state so they can try again
+            canShoot = false; isPutting = false; rollBtn.disabled = false; puttBtn.disabled = false; currentRoll = 0; diceResult.innerText = '-';
+            statusText.style.color = '#d9534f'; statusText.innerText = "Penalty! Choose your shot type to continue.";
+            updateRerollButton(); renderScene();
+            
+        } else if (sankIt) {
+            // THE VICTORY SEQUENCE
             isHoleComplete = true; canShoot = false; rollBtn.disabled = true; puttBtn.disabled = true; rerollBtn.disabled = true;
             
-            // Check Hole Stats
             if (strokes <= 5) { localStats.birdies++; unlockAchievement('birdie'); }
             if (strokes <= 4) { localStats.eagles++; unlockAchievement('eagle'); }
             if (strokes <= 6 && hitSandThisHole) unlockAchievement('sand');
@@ -1162,14 +1312,14 @@ canvas.addEventListener('pointerdown', (e) => {
                 totalCampaignScore += strokes;
                 statusText.style.color = '#5cb85c'; statusText.innerText = `Hole ${currentHole} Complete! (Score: ${strokes})`;
                 updateHUD();
-                
                 setTimeout(() => {
                     if (currentHole >= 18) triggerVictorySequence();
                     else { currentHole++; strokes = 0; generateCourse(); updateHUD(); }
                 }, 1500);
             }
         } else {
-            canShoot=false; isPutting=false; rollBtn.disabled=false; puttBtn.disabled=false; currentRoll=0; diceResult.innerText='-';
+            // THE STANDARD SAFE SHOT SEQUENCE
+            canShoot = false; isPutting = false; rollBtn.disabled = false; puttBtn.disabled = false; currentRoll = 0; diceResult.innerText = '-';
             statusText.style.color = '#d9534f'; statusText.innerText = "Choose your shot type to continue.";
             updateRerollButton(); renderScene();
         }
@@ -1188,7 +1338,6 @@ function idleLoop() {
         continuousRender(); // Kick off the permanent loop
     }
 }
-function drawBall(x,y,s) { ctx.beginPath(); ctx.arc(x,y,5,0,Math.PI*2); ctx.fillStyle='white'; ctx.fill(); ctx.strokeStyle=s?'black':'red'; ctx.lineWidth=2; ctx.stroke(); }
 
 // ==========================================
 // 5. BOOT SEQUENCE & PWA UPDATER
@@ -1196,7 +1345,7 @@ function drawBall(x,y,s) { ctx.beginPath(); ctx.arc(x,y,5,0,Math.PI*2); ctx.fill
 document.addEventListener('DOMContentLoaded', () => { 
     resetGame(); 
     
-    const CURRENT_VERSION = '2026.6.3';
+    const CURRENT_VERSION = '2026.6.4';
     const lastSeenVersion = localStorage.getItem('paperGolfVersion');
     
     if (lastSeenVersion !== CURRENT_VERSION) {
