@@ -257,6 +257,14 @@
         </div>
     </div>
 
+    <div id="warningOverlay" class="overlay" style="display: none; background: rgba(0,0,0,0.5); z-index: 4000;">
+        <div class="modal-content" style="text-align: center; border: 2px solid #ff3b30;">
+            <h2 style="margin-top:0; color: #ff3b30; font-size: 24px;">Missed the Mark!</h2>
+            <p style="font-size: 16px; color: #333; margin-bottom: 20px;">Oops! Make sure to tap directly on one of the glowing yellow targets to take your shot.</p>
+            <button onclick="document.getElementById('warningOverlay').style.display='none'" style="background-color: #ff3b30; width: 100%; font-size: 18px;">Got it</button>
+        </div>
+    </div>
+
     <div id="whatsNewOverlay" class="overlay" style="display: none; background: rgba(0,0,0,0.5); z-index: 3000;">
         <div class="modal-content" style="text-align: center;">
             <h2 style="margin-top: 0; color: #007aff; font-size: 28px;">App Updated!</h2>
@@ -281,10 +289,11 @@
 // 1. STATE VARIABLES
 // ==========================================
 let currentMode = 'casual'; 
+let currentWeather = { windX: 1, windY: 0 }; // Defaults to blowing East
 let totalCampaignScore = 0;
 let dailySeed = 1;
 let currentHole = 1, strokes = 0, mulligans = 6, currentRoll = 0, canShoot = false, isPutting = false, isHoleComplete = false, usedTeeOffReroll = false;
-let currentBallPos = { x: 0, y: 0 }, holePos = { x: 0, y: 0 }, gridData = [], validTargets = [];
+let currentBallPos = { x: 0, y: 0 }, holePos = { x: 0, y: 0 }, gridData = [], validTargets = [], particles = [], trail = [], leaves = [];
 let hitSandThisHole = false;
 let localStats = JSON.parse(localStorage.getItem('paperGolfStats')) || { bestScore: null, birdies: 0, eagles: 0, unlocked: [] };
 
@@ -570,7 +579,66 @@ document.getElementById('backToCasualBtn')?.addEventListener('click', () => {
     modeSelect.className = "mode-dropdown";
     resetGame();
 });
+function createParticles(x, y) {
+    for(let i=0; i<25; i++) {
+        particles.push({
+            x: x, y: y,
+            vx: (Math.random() - 0.5) * 10,
+            vy: (Math.random() - 0.5) * 10,
+            life: 1.0,
+            color: ['#f1c40f', '#e74c3c', '#3498db', '#2ecc71', '#9b59b6'][Math.floor(Math.random()*5)]
+        });
+    }
+}
 
+function drawParticles() {
+    for(let i = particles.length - 1; i >= 0; i--) {
+        let p = particles[i];
+        p.x += p.vx; p.y += p.vy; p.life -= 0.04; // Fade out slightly each frame
+        if(p.life <= 0) { particles.splice(i, 1); continue; }
+        ctx.globalAlpha = p.life;
+        ctx.fillStyle = p.color;
+        ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, Math.PI*2); ctx.fill();
+    }
+    ctx.globalAlpha = 1.0;
+}
+
+function playShotAnimation(targetX, targetY, sankIt, callback) {
+    let spawned = false;
+    
+    function animLoop() {
+        // 1. Record the trail BEFORE we move the ball
+        trail.push({ x: currentBallPos.x, y: currentBallPos.y });
+        if (trail.length > 10) trail.shift(); // Upped to 10 for a slightly longer tail
+
+        // 2. Now move the ball
+        let dx = targetX - currentBallPos.x;
+        let dy = targetY - currentBallPos.y;
+        currentBallPos.x += dx * 0.15; 
+        currentBallPos.y += dy * 0.15;
+
+        renderScene();
+
+        let dist = Math.hypot(dx, dy);
+
+        if (dist < 2 && sankIt && !spawned) {
+            createParticles(targetX, targetY);
+            spawned = true;
+            if (navigator.vibrate) navigator.vibrate([100, 50, 100]); 
+        }
+
+        drawParticles();
+
+        if (dist > 0.5 || particles.length > 0) {
+            requestAnimationFrame(animLoop);
+        } else {
+            trail = []; // Clear the trail for the next shot!
+            currentBallPos = { x: targetX, y: targetY }; 
+            callback(); 
+        }
+    }
+    animLoop(); 
+}
 // ==========================================
 // 4. CORE ENGINE & MAP GENERATION
 // ==========================================
@@ -632,21 +700,32 @@ function calculateValidTargets() {
 
     // 🚨 NEW: UNPLAYABLE LIE (SOFT LOCK FIX) 🚨
     if (validTargets.length === 0 && !isHoleComplete) {
-        // Change the status text to warn them
-        statusText.style.color = '#d9534f';
-        statusText.innerText = "Blocked! Unplayable lie (+1 Stroke). Roll again.";
-        
-        // Automatically add the penalty stroke to their score
-        strokes++;
-        updateHUD();
-        
-        // Unlock the buttons so they can try a different roll
-        canShoot = false;
-        rollBtn.disabled = false;
-        puttBtn.disabled = false;
-        
-        // Optional: Give a little warning buzz if they are on mobile
-        if (navigator.vibrate) navigator.vibrate([50, 100, 50]);
+        if (strokes === 0) {
+            // Blocked on the very first roll off the tee! No penalty.
+            statusText.style.color = '#ff9500';
+            statusText.innerText = "Blocked off the tee! Roll again for free.";
+            
+            // Unlock the buttons so they can try again, but DO NOT add a stroke!
+            canShoot = false;
+            rollBtn.disabled = false;
+            puttBtn.disabled = false;
+        } else {
+            // Blocked out on the course. Standard penalty applies.
+            statusText.style.color = '#d9534f';
+            statusText.innerText = "Blocked! Unplayable lie (+1 Stroke). Roll again.";
+            
+            // Automatically add the penalty stroke to their score
+            strokes++;
+            updateHUD();
+            
+            // Unlock the buttons so they can try a different roll
+            canShoot = false;
+            rollBtn.disabled = false;
+            puttBtn.disabled = false;
+            
+            // Give a little warning buzz if they are on mobile
+            if (navigator.vibrate) navigator.vibrate([50, 100, 50]);
+        }
     }
 } // <-- THIS CLOSING BRACKET NOW PROPERLY CONTAINS THE ENTIRE FUNCTION
 
@@ -659,46 +738,229 @@ function renderScene() {
             if(tile === TERRAIN.TREE) {
                 ctx.fillStyle = COLORS[TERRAIN.ROUGH]; ctx.fillRect(x*TILE_SIZE, y*TILE_SIZE, TILE_SIZE, TILE_SIZE);
                 ctx.fillStyle = COLORS[TERRAIN.TREE]; ctx.beginPath(); ctx.moveTo(x*TILE_SIZE + TILE_SIZE/2, y*TILE_SIZE + 4); ctx.lineTo(x*TILE_SIZE + TILE_SIZE - 4, y*TILE_SIZE + TILE_SIZE - 4); ctx.lineTo(x*TILE_SIZE + 4, y*TILE_SIZE + TILE_SIZE - 4); ctx.fill();
-            } else { ctx.fillStyle = COLORS[tile]; ctx.fillRect(x*TILE_SIZE, y*TILE_SIZE, TILE_SIZE, TILE_SIZE); }
+            } else if (tile === TERRAIN.WATER) {
+                // 1. Draw the base water color
+                ctx.fillStyle = COLORS[TERRAIN.WATER]; 
+                ctx.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+
+                // 2. Calculate global drift speed using our new wind vectors!
+                let time = Date.now() / 800;
+                let driftX = time * 10 * currentWeather.windX;
+                let driftY = time * 10 * currentWeather.windY;
+
+                // 3. Create local tile offsets
+                let localOffset1 = x * 4 + y * 6;
+                let localOffset2 = x * 4 + y * 6 + 10;
+
+                // 4. Wrap helper for negative coordinates (like a West wind)
+                let wrap = (val, max) => ((val % max) + max) % max;
+
+                // 5. Calculate final ripple coordinates
+                let rx1 = wrap(driftX + localOffset1, TILE_SIZE);
+                let ry1 = wrap(driftY + localOffset1, TILE_SIZE);
+                let rx2 = wrap(driftX + localOffset2, TILE_SIZE);
+                let ry2 = wrap(driftY + localOffset2, TILE_SIZE);
+
+                // 6. Draw the moving ripples
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)'; 
+                ctx.lineWidth = 1.5;
+
+                ctx.beginPath();
+                ctx.arc(x * TILE_SIZE + rx1, y * TILE_SIZE + ry1, 3, 0, Math.PI);
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.arc(x * TILE_SIZE + rx2, y * TILE_SIZE + ry2, 3, 0, Math.PI);
+                ctx.stroke();
+            } else {
+                ctx.fillStyle = COLORS[tile]; ctx.fillRect(x*TILE_SIZE, y*TILE_SIZE, TILE_SIZE, TILE_SIZE); 
+            }
         }
     }
     ctx.fillStyle = COLORS.dot;
     for(let y=0; y<ROWS; y++) for(let x=0; x<COLS; x++) { ctx.beginPath(); ctx.arc(x*TILE_SIZE + TILE_SIZE/2, y*TILE_SIZE + TILE_SIZE/2, 1.5, 0, Math.PI*2); ctx.fill(); }
-    ctx.fillStyle = 'black'; ctx.beginPath(); ctx.arc(holePos.x, holePos.y, 7, 0, Math.PI*2); ctx.fill();
+    // 1. Draw the actual hole
+    ctx.fillStyle = 'black'; 
+    ctx.beginPath(); 
+    ctx.arc(holePos.x, holePos.y, 7, 0, Math.PI*2); 
+    ctx.fill();
+
+   // 2. Draw the straight flag pole
+    ctx.strokeStyle = '#ffffff'; 
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(holePos.x, holePos.y); // Start at center of hole
+    ctx.lineTo(holePos.x, holePos.y - 18); // End straight up (no X shift)
+    ctx.stroke();
+
+    // 3. Draw the dynamic stretching red flag
+    let flagDir = currentWeather.windX < 0 ? -1 : 1; 
+    let windStrength = Math.abs(currentWeather.windX);
     
+    // Base length is 10. If it's heavy wind (2), add 8 extra pixels so it stretches out!
+    let flagLength = 10 + (windStrength === 2 ? 8 : 0);
+    
+    ctx.fillStyle = '#ff3b30'; 
+    ctx.beginPath();
+    ctx.moveTo(holePos.x, holePos.y - 18); // Top of pole
+    ctx.lineTo(holePos.x + (flagLength * flagDir), holePos.y - 13); // Tip stretches!
+    ctx.lineTo(holePos.x, holePos.y - 8); // Bottom of flag on pole
+    ctx.fill();
+
     if (canShoot && validTargets.length > 0) {
+        let baseRadius = 6; 
+        let time = (Date.now() % 1500) / 1500; 
+        let pulseRadius = baseRadius * time;   
+        let pulseOpacity = 1 - time;           
+
         for (let t of validTargets) {
-            ctx.beginPath(); ctx.arc(t.x * TILE_SIZE + TILE_SIZE / 2, t.y * TILE_SIZE + TILE_SIZE / 2, 6, 0, Math.PI * 2);
-            ctx.fillStyle = 'rgba(255, 215, 0, 0.5)'; ctx.fill(); ctx.strokeStyle = '#f1c40f'; ctx.lineWidth = 2; ctx.stroke();
+            let centerX = t.x * TILE_SIZE + TILE_SIZE / 2;
+            let centerY = t.y * TILE_SIZE + TILE_SIZE / 2;
+
+            ctx.globalAlpha = 0.5; 
+            ctx.beginPath(); 
+            ctx.arc(centerX, centerY, baseRadius, 0, Math.PI * 2);
+            ctx.strokeStyle = '#f1c40f'; 
+            ctx.lineWidth = 2; 
+            ctx.stroke();
+
+            ctx.globalAlpha = pulseOpacity;
+            ctx.beginPath(); 
+            ctx.arc(centerX, centerY, pulseRadius, 0, Math.PI * 2);
+            ctx.fillStyle = '#f1c40f'; 
+            ctx.fill(); 
+        }
+        ctx.globalAlpha = 1.0; 
+    }
+
+    // --- THE COMET TRAIL ---
+    if (trail.length > 0) {
+        trail.forEach((pos, index) => {
+            // Added +1 so the oldest dot isn't mathematically size 0!
+            let scale = (index + 1) / trail.length; 
+            ctx.globalAlpha = scale * 0.6; // Slightly more opaque
+            ctx.fillStyle = '#007aff'; // Changed from white to a bright iOS blue
+            ctx.beginPath();
+            ctx.arc(pos.x, pos.y, 4.5 * scale, 0, Math.PI * 2);
+            ctx.fill();
+        });
+        ctx.globalAlpha = 1.0; 
+    }
+
+    // --- THE BALL ---
+    ctx.beginPath(); ctx.arc(currentBallPos.x, currentBallPos.y, 5, 0, Math.PI*2); ctx.fillStyle='white'; ctx.fill(); ctx.strokeStyle=strokes===0?'black':'red'; ctx.lineWidth=2; ctx.stroke();
+
+    // --- THE BLOWING LEAVES ---
+    // Only render leaves if there is actually a breeze!
+    if (currentWeather.windX !== 0 || currentWeather.windY !== 0) {
+        ctx.fillStyle = '#228b22'; 
+        for (let l of leaves) {
+            // Natural tumble animation
+            l.wobble += 0.05;
+            let wobbleOffset = Math.sin(l.wobble) * 1.5;
+            
+            // Draw the leaf with the wobble applied
+            ctx.fillRect(l.x + wobbleOffset, l.y + wobbleOffset, 3, 3); 
+            
+            // Move them in both directions!
+            l.x += l.speedX;
+            l.y += l.speedY;
+            
+            // Horizontal screen wrap
+            if (l.speedX > 0 && l.x > COLS * TILE_SIZE) l.x = -5;
+            if (l.speedX < 0 && l.x < 0) l.x = COLS * TILE_SIZE + 5;
+            
+            // Vertical screen wrap (New!)
+            if (l.speedY > 0 && l.y > ROWS * TILE_SIZE) l.y = -5;
+            if (l.speedY < 0 && l.y < 0) l.y = ROWS * TILE_SIZE + 5;
         }
     }
-    ctx.beginPath(); ctx.arc(currentBallPos.x, currentBallPos.y, 5, 0, Math.PI*2); ctx.fillStyle='white'; ctx.fill(); ctx.strokeStyle=strokes===0?'black':'red'; ctx.lineWidth=2; ctx.stroke();
 }
 
 rollBtn.addEventListener('click', () => {
     if (isHoleComplete) return;
     if (navigator.vibrate) navigator.vibrate(50);
-    currentRoll = Math.floor(Math.random() * 6) + 1;
-    diceResult.innerText = currentRoll; canShoot = true; isPutting = false; rollBtn.disabled = true; puttBtn.disabled = true;
-    calculateValidTargets(); updateRerollButton(); renderScene();
+    
+    // Lock all buttons & hide targets during the suspense spin
+    rollBtn.disabled = true; 
+    puttBtn.disabled = true;
+    rerollBtn.disabled = true; 
+    canShoot = false; 
+    validTargets = []; 
+    renderScene();
+
+    let flashes = 0;
+    let suspense = setInterval(() => {
+        diceResult.innerText = Math.floor(Math.random() * 6) + 1; 
+        flashes++;
+
+        if (flashes > 10) { 
+            clearInterval(suspense);
+            currentRoll = Math.floor(Math.random() * 6) + 1; // Lock in the real roll
+            diceResult.innerText = currentRoll; 
+            canShoot = true; 
+            isPutting = false; 
+            calculateValidTargets(); 
+            updateRerollButton(); 
+            renderScene();
+            idleLoop(); // Start the target animation
+        }
+    }, 50); 
 });
 
 puttBtn.addEventListener('click', () => {
     if (isHoleComplete) return;
     if (navigator.vibrate) navigator.vibrate(30);
-    currentRoll = 1; diceResult.innerText = 'P'; canShoot = true; isPutting = true; rollBtn.disabled = true; puttBtn.disabled = true;
-    calculateValidTargets(); updateRerollButton(); renderScene();
+    
+    // Putts don't need a spin, they instantly lock to 'P'
+    rollBtn.disabled = true; 
+    puttBtn.disabled = true;
+    rerollBtn.disabled = true;
+    
+    currentRoll = 1; 
+    diceResult.innerText = 'P'; 
+    canShoot = true; 
+    isPutting = true; 
+    
+    calculateValidTargets(); 
+    updateRerollButton(); 
+    renderScene();
+    idleLoop(); // Start the target animation
 });
 
 rerollBtn.addEventListener('click', () => {
     if (strokes !== 0 && mulligans <= 0) return; 
     
-    if (strokes === 0 && !usedTeeOffReroll) usedTeeOffReroll = true; 
-    else { mulligans--; updateHUD(); }
+    // Deduct the mulligan
+    if (strokes === 0 && !usedTeeOffReroll) {
+        usedTeeOffReroll = true; 
+    } else { 
+        mulligans--; 
+        updateHUD(); 
+    }
     
-    currentRoll = Math.floor(Math.random() * 6) + 1;
-    diceResult.innerText = currentRoll; rerollBtn.disabled = true; 
-    calculateValidTargets(); renderScene();
+    // Lock buttons & hide targets during the reroll spin
+    rerollBtn.disabled = true; 
+    canShoot = false; 
+    validTargets = []; 
+    renderScene();
+    
+    let flashes = 0;
+    let suspense = setInterval(() => {
+        diceResult.innerText = Math.floor(Math.random() * 6) + 1; 
+        flashes++;
+
+        if (flashes > 10) { 
+            clearInterval(suspense);
+            currentRoll = Math.floor(Math.random() * 6) + 1; // Lock in the new roll
+            diceResult.innerText = currentRoll; 
+            canShoot = true; 
+            isPutting = false; 
+            calculateValidTargets(); 
+            renderScene();
+            idleLoop(); // Restart the target animation
+        }
+    }, 50);
 });
 
 document.getElementById('nextHoleBtn')?.addEventListener('click', () => {
@@ -708,12 +970,62 @@ document.getElementById('nextHoleBtn')?.addEventListener('click', () => {
 });
 
 function generateCourse() {
+    // 1. Set the seed first (Your original code)
     if (currentMode === 'daily') {
         const d = new Date();
         dailySeed = d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate() + (currentHole * 1000000);
     }
 
+    // 2. Calculate weather AFTER the seed, using getRand() so leaderboards stay fair!
+    let weatherRoll = getRand(); // Returns a decimal between 0 and 1
+    let wX = 0;
+    let wY = 0;
+
+    if (weatherRoll > 0.20) { 
+        // 80% of the time, it's windy. Let's decide if it's Light or Heavy wind.
+        let isHeavy = getRand() > 0.60; // 40% chance of Heavy wind if it's windy
+        let strength = isHeavy ? 2 : 1;
+
+        // Pick a random direction for X (-1, 0, or 1) and Y (-1, 0, or 1)
+        wX = (Math.floor(getRand() * 3) - 1) * strength;
+        wY = (Math.floor(getRand() * 3) - 1) * strength;
+
+        // Safety catch: If both randomly picked 0, force it to a light breeze 
+        if (wX === 0 && wY === 0) {
+            wX = getRand() > 0.5 ? 1 : -1;
+        }
+    } 
+    // If weatherRoll <= 0.20 (20% chance), wX and wY stay 0. Perfect calm!
+
+    currentWeather = {
+        windX: wX,
+        windY: wY
+    };
+
+    // 3. Generate Blowing Leaves based on wind strength!
+    leaves = [];
+    if (currentWeather.windX !== 0 || currentWeather.windY !== 0) {
+        // Look at whichever wind speed is stronger to determine leaf count
+        let maxWind = Math.max(Math.abs(currentWeather.windX), Math.abs(currentWeather.windY));
+        let numLeaves = maxWind === 2 ? 15 : 6; 
+        
+        for(let i=0; i<numLeaves; i++) {
+            leaves.push({
+                x: Math.random() * (COLS * TILE_SIZE),
+                y: Math.random() * (ROWS * TILE_SIZE),
+                // Calculate speed for BOTH directions
+                speedX: (Math.random() * 1.5 + 0.5) * currentWeather.windX, 
+                speedY: (Math.random() * 1.5 + 0.5) * currentWeather.windY, 
+                wobble: Math.random() * Math.PI * 2
+            });
+        }
+    }
+
+    // 3. To prove it's working, let's log the wind to your developer console!
+    console.log(`Hole ${currentHole} Wind: X=${currentWeather.windX}, Y=${currentWeather.windY}`);
+
     gridData = Array.from({length: ROWS}, () => Array(COLS).fill(TERRAIN.ROUGH));
+
     let startGridX = Math.floor(COLS / 2) + Math.floor(getRand() * 5 - 2), startGridY = ROWS - 3;
     let holeGridX = Math.floor(COLS / 2) + Math.floor(getRand() * 9 - 4), holeGridY = 2;
 
@@ -756,16 +1068,51 @@ function generateCourse() {
     
     updateRerollButton();
     renderScene();
+    idleLoop();
 }
 
 canvas.addEventListener('pointerdown', (e) => {
     if(!canShoot || isHoleComplete) return;
-    const r = canvas.getBoundingClientRect(), tx = Math.floor((e.clientX-r.left)/TILE_SIZE), ty = Math.floor((e.clientY-r.top)/TILE_SIZE);
-    const gx = tx*TILE_SIZE + TILE_SIZE/2, gy = ty*TILE_SIZE + TILE_SIZE/2;
     
-    let validHit = false;
-    for (let t of validTargets) { if (tx === t.x && ty === t.y) { validHit = true; break; } }
-    if (!validHit) { alert("Invalid hit! Tap a glowing target."); return; }
+    // 1. Account for CSS scaling (since your canvas stretches to fit the screen)
+    const r = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / r.width;
+    const scaleY = canvas.height / r.height;
+    
+    const clickX = (e.clientX - r.left) * scaleX;
+    const clickY = (e.clientY - r.top) * scaleY;
+    
+    // 2. Magnetic Snap Logic
+    let closestTarget = null;
+    let minDistance = Infinity;
+    let magneticRadius = TILE_SIZE * 1.5; // Forgiving touch radius (30 pixels!)
+
+    for (let t of validTargets) {
+        // Find the exact center of this target
+        let targetCenterX = t.x * TILE_SIZE + TILE_SIZE / 2;
+        let targetCenterY = t.y * TILE_SIZE + TILE_SIZE / 2;
+        
+        // Calculate Euclidean distance from the tap to the center of the target
+        let dist = Math.hypot(clickX - targetCenterX, clickY - targetCenterY);
+
+        if (dist < minDistance && dist <= magneticRadius) {
+            minDistance = dist;
+            closestTarget = t;
+        }
+    }
+
+    // 3. Check if they hit the magnetic radius
+    if (!closestTarget) { 
+        document.getElementById('warningOverlay').style.display = 'flex';
+        if (navigator.vibrate) navigator.vibrate([50, 50, 50]); 
+        return; 
+    }
+
+    // 4. Override the click coordinates with the perfectly snapped target coordinates!
+    const tx = closestTarget.x;
+    const ty = closestTarget.y;
+    const gx = tx * TILE_SIZE + TILE_SIZE / 2;
+    const gy = ty * TILE_SIZE + TILE_SIZE / 2;
 
     const sx = Math.floor(currentBallPos.x / TILE_SIZE);
     const sy = Math.floor(currentBallPos.y / TILE_SIZE);
@@ -791,38 +1138,56 @@ canvas.addEventListener('pointerdown', (e) => {
         }
     }
     
-    currentBallPos = { x: gx, y: gy };
-    
-    if(sankIt) {
-        isHoleComplete = true; canShoot = false; rollBtn.disabled = true; puttBtn.disabled = true; rerollBtn.disabled = true;
-        if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
-        // Check Hole Stats
-        if (strokes <= 5) { localStats.birdies++; unlockAchievement('birdie'); }
-        if (strokes <= 4) { localStats.eagles++; unlockAchievement('eagle'); }
-        if (strokes <= 6 && hitSandThisHole) unlockAchievement('sand');
-        saveStats();
-        
-        if (currentMode === 'casual') {
-            statusText.style.color = '#5cb85c'; statusText.innerText = "Hole completed!";
-            document.getElementById('victoryOverlay').style.display = 'flex';
-            document.getElementById('finalScoreText').innerText = `Score: ${strokes}`;
-        } else {
-            totalCampaignScore += strokes;
-            statusText.style.color = '#5cb85c'; statusText.innerText = `Hole ${currentHole} Complete! (Score: ${strokes})`;
-            updateHUD();
-            
-            setTimeout(() => {
-                if (currentHole >= 18) triggerVictorySequence();
-                else { currentHole++; strokes = 0; generateCourse(); updateHUD(); }
-            }, 1500);
-        }
-    } else {
-        canShoot=false; isPutting=false; rollBtn.disabled=false; puttBtn.disabled=false; currentRoll=0; diceResult.innerText='-';
-        statusText.style.color = '#d9534f'; statusText.innerText = "Choose your shot type to continue.";
-        updateRerollButton(); renderScene();
-    }
-});
+ // Start the animation, then run this logic when it finishes!
+    // 🚨 Intercept the destination! If it is a sink, force the ball to stop at the hole!
+    let animTargetX = sankIt ? holePos.x : gx;
+    let animTargetY = sankIt ? holePos.y : gy;
 
+    // Start the animation using our new corrected target
+    playShotAnimation(animTargetX, animTargetY, sankIt, () => {
+        if(sankIt) {
+            isHoleComplete = true; canShoot = false; rollBtn.disabled = true; puttBtn.disabled = true; rerollBtn.disabled = true;
+            
+            // Check Hole Stats
+            if (strokes <= 5) { localStats.birdies++; unlockAchievement('birdie'); }
+            if (strokes <= 4) { localStats.eagles++; unlockAchievement('eagle'); }
+            if (strokes <= 6 && hitSandThisHole) unlockAchievement('sand');
+            saveStats();
+            
+            if (currentMode === 'casual') {
+                statusText.style.color = '#5cb85c'; statusText.innerText = "Hole completed!";
+                document.getElementById('victoryOverlay').style.display = 'flex';
+                document.getElementById('finalScoreText').innerText = `Score: ${strokes}`;
+            } else {
+                totalCampaignScore += strokes;
+                statusText.style.color = '#5cb85c'; statusText.innerText = `Hole ${currentHole} Complete! (Score: ${strokes})`;
+                updateHUD();
+                
+                setTimeout(() => {
+                    if (currentHole >= 18) triggerVictorySequence();
+                    else { currentHole++; strokes = 0; generateCourse(); updateHUD(); }
+                }, 1500);
+            }
+        } else {
+            canShoot=false; isPutting=false; rollBtn.disabled=false; puttBtn.disabled=false; currentRoll=0; diceResult.innerText='-';
+            statusText.style.color = '#d9534f'; statusText.innerText = "Choose your shot type to continue.";
+            updateRerollButton(); renderScene();
+        }
+    });
+}); // End of pointerdown event
+
+let engineRunning = false;
+function idleLoop() {
+    // Only start the engine if it isn't already running!
+    if (!engineRunning) {
+        engineRunning = true;
+        function continuousRender() {
+            renderScene();
+            requestAnimationFrame(continuousRender);
+        }
+        continuousRender(); // Kick off the permanent loop
+    }
+}
 function drawBall(x,y,s) { ctx.beginPath(); ctx.arc(x,y,5,0,Math.PI*2); ctx.fillStyle='white'; ctx.fill(); ctx.strokeStyle=s?'black':'red'; ctx.lineWidth=2; ctx.stroke(); }
 
 // ==========================================
