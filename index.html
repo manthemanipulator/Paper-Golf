@@ -141,6 +141,28 @@
         </div>
     </div>
 
+    <div id="tutorialOverlay" class="overlay" style="display: none; background: rgba(0,0,0,0.8); z-index: 3500;">
+    <div class="modal-content" style="text-align: center; max-width: 400px;">
+        <h2 style="margin-top: 0; color: #007aff; font-size: 28px;">How to Play</h2>
+        
+        <p style="font-size: 16px; color: #333; margin-bottom: 20px;">Welcome to Paper Golf! Here is the quick rundown:</p>
+        
+        <ul style="text-align: left; font-size: 15px; color: #333; margin-bottom: 20px; line-height: 1.6;">
+            <li>🎲 <b>Roll the Dice:</b> Tap 'Roll' to see how far your ball will travel.</li>
+            <li>🎯 <b>Aim your Shot:</b> Tap one of the glowing yellow dots to hit the ball.</li>
+            <li>⛳ <b>Terrain:</b> Fairways (light green) add +1 distance. Sand (tan) subtracts -1 distance.</li>
+            <li>🌬️ <b>Wind:</b> Watch the red flag! The wind will push your ball in the air, so compensate your aim.</li>
+        </ul>
+        
+        <label style="display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 14px; color: #555; margin-bottom: 20px; cursor: pointer;">
+            <input type="checkbox" id="dontShowAgainCheck" style="width: 18px; height: 18px; cursor: pointer;">
+            Don't show this automatically
+        </label>
+        
+        <button onclick="if(document.getElementById('dontShowAgainCheck').checked) { localStorage.setItem('hideTutorial', 'true'); } document.getElementById('tutorialOverlay').style.display='none';" style="width: 100%; font-size: 18px;">Got it!</button>
+    </div>
+</div>
+
     <div id="achToast"></div>
 
     <div id="statsOverlay" class="overlay" style="display: none; background: rgba(0,0,0,0.5);">
@@ -243,7 +265,7 @@
         
         <h3 style="margin: 0 0 12px 0; font-size: 24px;">About</h3>
         <p style="margin: 0 0 12px 0; font-weight: bold; font-size: 18px;">Paper Golf</p>
-        <p style="margin: 0 0 12px 0; font-size: 14px; color: #666;">Version 2026.6.4</p>
+        <p style="margin: 0 0 12px 0; font-size: 14px; color: #666;">Version 2026.6.4.1</p>
         <div style="margin: 0 0 15px 0; font-size: 14px; color: #333;">
             🌍 <strong>Official Website:</strong> <span style="color: #007aff; font-weight: bold;">papergolf.app</span>
         </div>
@@ -283,7 +305,7 @@
     <div id="whatsNewOverlay" class="overlay" style="display: none; background: rgba(0,0,0,0.5); z-index: 3000;">
         <div class="modal-content" style="text-align: center;">
             <h2 style="margin-top: 0; color: #007aff; font-size: 28px;">App Updated!</h2>
-            <p style="font-size: 16px; color: #333; margin-bottom: 20px;">Welcome to version 2026.6.4</p>
+            <p style="font-size: 16px; color: #333; margin-bottom: 20px;">Welcome to version 2026.6.4.1</p>
             
             <div style="background-color: #e8f4fd; border-left: 4px solid #007aff; padding: 12px; margin-bottom: 20px; border-radius: 4px; font-size: 14px; color: #333; text-align: left;">
                 🎉 <strong>We have an official home!</strong> Paper Golf is now live at <a href="https://papergolf.app" style="color: #007aff; text-decoration: none; font-weight: bold;">papergolf.app</a>. Update your bookmarks (though old links will automatically bring you here safely)!
@@ -297,7 +319,7 @@
                 <li>🛠️ <b>Unplayable Lie Fix:</b> Got permanently boxed in by trees? The game now detects the soft-lock, issues a +1 penalty, and lets you re-roll to safety!</li>
             </ul>
             
-            <button onclick="document.getElementById('whatsNewOverlay').style.display='none'" style="width: 100%; font-size: 18px;">Let's Golf!</button>
+            <button onclick="document.getElementById('whatsNewOverlay').style.display='none'; checkTutorial();" style="width: 100%; font-size: 18px;">Let's Golf!</button>
         </div>
     </div>
 
@@ -1356,14 +1378,26 @@ function idleLoop() {
 document.addEventListener('DOMContentLoaded', () => { 
     resetGame(); 
     
-    const CURRENT_VERSION = '2026.6.4';
+    const CURRENT_VERSION = '2026.6.4.1';
     const lastSeenVersion = localStorage.getItem('paperGolfVersion');
     
     if (lastSeenVersion !== CURRENT_VERSION) {
+        // Show update notes first
         document.getElementById('whatsNewOverlay').style.display = 'flex';
         localStorage.setItem('paperGolfVersion', CURRENT_VERSION);
+    } else {
+        // If there's no update, check for the tutorial immediately
+        checkTutorial();
     }
 });
+
+// The dedicated tutorial checker
+function checkTutorial() {
+    const hideTutorial = localStorage.getItem('hideTutorial');
+    if (hideTutorial !== 'true') {
+        document.getElementById('tutorialOverlay').style.display = 'flex';
+    }
+}
 
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
