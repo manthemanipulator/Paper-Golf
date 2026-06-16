@@ -717,7 +717,7 @@ function updateRerollButton() {
 
 function calculateValidTargets() {
     validTargets = [];
-    clickableTargets = []; // <-- Our new invisible touch zones!
+    clickableTargets = []; 
     if (!canShoot || isHoleComplete) return;
 
     let sx = Math.floor(currentBallPos.x / TILE_SIZE), sy = Math.floor(currentBallPos.y / TILE_SIZE);
@@ -732,7 +732,6 @@ function calculateValidTargets() {
     let modText = isPutting ? "" : (startingTerrain === TERRAIN.FAIRWAY ? " (+1 Fairway)" : (startingTerrain === TERRAIN.SAND ? " (-1 Sand)" : ""));
     statusText.innerText = isPutting ? "Tap a glowing dot to putt." : `Required distance: ${eff}${modText}`;
 
-    // Calculate the compensation direction (The exact OPPOSITE of the wind)
     let compX = (currentRoll === 1 || isPutting) ? 0 : -currentWeather.windX; 
     let compY = (currentRoll === 1 || isPutting) ? 0 : -currentWeather.windY;
 
@@ -750,74 +749,65 @@ function calculateValidTargets() {
             if (i === eff && (terrain === TERRAIN.WATER || terrain === TERRAIN.TREE)) { pathBlocked = true; break; }
         }
         
-        // 2. If the base path is clear, create targets
-        if (!pathBlocked) {
-            let baseX = sx + dir.dx * eff;
-            let baseY = sy + dir.dy * eff;
+        // 2. ALWAYS create the base target if it is on the board
+        let baseX = sx + dir.dx * eff;
+        let baseY = sy + dir.dy * eff;
+
+        if (baseX >= 0 && baseX < COLS && baseY >= 0 && baseY < ROWS) {
             
-            // VISUAL target (The only one that glows on screen)
-            validTargets.push({x: baseX, y: baseY});
+            // VISUAL target (Now remembers if it is blocked!)
+            validTargets.push({x: baseX, y: baseY, blocked: pathBlocked});
             
-            // MECHANICAL target (Base spot is still clickable)
-            clickableTargets.push({x: baseX, y: baseY});
-            
-           // Add the invisible "Compensation Targets" into the clickable array
-            // We calculate this based on the wind, respecting putt/1-roll immunity
-            let windFactorX = (currentRoll === 1 || isPutting) ? 0 : currentWeather.windX;
-            let windFactorY = (currentRoll === 1 || isPutting) ? 0 : currentWeather.windY;
-            
-            let maxSteps = Math.max(Math.abs(windFactorX), Math.abs(windFactorY));
-            if (maxSteps > 0) {
-                let stepX = windFactorX === 0 ? 0 : Math.sign(windFactorX);
-                let stepY = windFactorY === 0 ? 0 : Math.sign(windFactorY);
+            // MECHANICAL target (Also remembers if it is blocked!)
+            clickableTargets.push({x: baseX, y: baseY, blocked: pathBlocked});
+
+            // 3. ONLY add the invisible "Compensation Targets" if the shot is actually safe
+            if (!pathBlocked) {
+                let windFactorX = (currentRoll === 1 || isPutting) ? 0 : currentWeather.windX;
+                let windFactorY = (currentRoll === 1 || isPutting) ? 0 : currentWeather.windY;
                 
-                // Build invisible targets BOTH against and with the wind (-maxSteps to +maxSteps)
-                for (let w = -maxSteps; w <= maxSteps; w++) {
-                    if (w === 0) continue; // The base target is already pushed!
+                let maxSteps = Math.max(Math.abs(windFactorX), Math.abs(windFactorY));
+                if (maxSteps > 0) {
+                    let stepX = windFactorX === 0 ? 0 : Math.sign(windFactorX);
+                    let stepY = windFactorY === 0 ? 0 : Math.sign(windFactorY);
                     
-                    let cx = baseX + (stepX * w);
-                    let cy = baseY + (stepY * w);
-                    
-                    // Keep the touch targets on the board
-                    if (cx >= 0 && cx < COLS && cy >= 0 && cy < ROWS) {
-                        clickableTargets.push({x: cx, y: cy});
+                    for (let w = -maxSteps; w <= maxSteps; w++) {
+                        if (w === 0) continue; // Base target already pushed
+                        
+                        let cx = baseX + (stepX * w);
+                        let cy = baseY + (stepY * w);
+                        
+                        // Keep the touch targets on the board
+                        if (cx >= 0 && cx < COLS && cy >= 0 && cy < ROWS) {
+                            clickableTargets.push({x: cx, y: cy, blocked: false});
+                        }
                     }
                 }
             }
         }
     }
 
-
     // 🚨 UNPLAYABLE LIE (SOFT LOCK FIX) 🚨
-    if (validTargets.length === 0 && !isHoleComplete) {
+    let hasSafeMove = validTargets.some(t => !t.blocked);
+    if (!hasSafeMove && !isHoleComplete) {
         if (strokes === 0) {
-            // Blocked on the very first roll off the tee! No penalty.
             statusText.style.color = '#ff9500';
             statusText.innerText = "Blocked off the tee! Roll again for free.";
-            
-            // Unlock the buttons so they can try again, but DO NOT add a stroke!
             canShoot = false;
             rollBtn.disabled = false;
             puttBtn.disabled = false;
         } else {
-            // Blocked out on the course. Standard penalty applies.
             statusText.style.color = '#d9534f';
             statusText.innerText = "Blocked! Unplayable lie (+1 Stroke). Roll again.";
-            
-            // Automatically add the penalty stroke to their score
             strokes++;
             updateHUD();
-            
-            // Unlock the buttons so they can try a different roll
             canShoot = false;
             rollBtn.disabled = false;
             puttBtn.disabled = false;
-            
-            // Give a little warning buzz if they are on mobile
             if (navigator.vibrate) navigator.vibrate([50, 100, 50]);
         }
     }
-} // End of calculateValidTargets
+}
 
 function renderScene() { 
     ctx.clearRect(0,0,canvas.width, canvas.height);
@@ -906,20 +896,31 @@ function renderScene() {
             let centerX = t.x * TILE_SIZE + TILE_SIZE / 2;
             let centerY = t.y * TILE_SIZE + TILE_SIZE / 2;
 
-            ctx.globalAlpha = 0.5; 
+            // Paint it Red if blocked, Arcade Orange if safe!
+            let targetColor = t.blocked ? '#ff3b30' : '#ff9500'; 
+
+            ctx.globalAlpha = 0.9; // Bumped up slightly for maximum punch
             ctx.beginPath(); 
             ctx.arc(centerX, centerY, baseRadius, 0, Math.PI * 2);
-            ctx.strokeStyle = '#f1c40f'; 
-            ctx.lineWidth = 2; 
+            
+            // The Dark Outline (The Bodyguard)
+            ctx.strokeStyle = 'rgba(0,0,0,0.6)'; 
+            ctx.lineWidth = 4; // Thicker base for the dark stroke
             ctx.stroke();
 
+            // The Inner Orange Ring
+            ctx.strokeStyle = targetColor; 
+            ctx.lineWidth = 2.5; 
+            ctx.stroke();
+
+            // The Pulsing Center
             ctx.globalAlpha = pulseOpacity;
             ctx.beginPath(); 
             ctx.arc(centerX, centerY, pulseRadius, 0, Math.PI * 2);
-            ctx.fillStyle = '#f1c40f'; 
+            ctx.fillStyle = targetColor; 
             ctx.fill(); 
         }
-        ctx.globalAlpha = 1.0; 
+        ctx.globalAlpha = 1.0;
     }
 
     // --- THE COMET TRAIL ---
