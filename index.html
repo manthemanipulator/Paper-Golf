@@ -267,7 +267,7 @@
         <div class="modal-content">
             <h3 style="margin-top:0;">Roadmap & Feedback</h3>
             
-            <h4 style="color: #2c3e50; margin-bottom: 10px;">🚧 Planned for 2026.6.5 🚧</h4>
+            <h4 style="color: #2c3e50; margin-bottom: 10px;">🚧 Planned for 2026.6.5.1 🚧</h4>
             <ul style="text-align: left; margin-bottom: 20px; font-size: 14px; color: #333; line-height: 1.5; padding-left: 20px;">
                 <li style="margin-bottom: 8px;"><b>🧃 Impact Visuals:</b> Ball hops on grass, heavy sand dust bursts, and splashing water ripples.</li>
                 <li style="margin-bottom: 8px;"><b>📊 Tactical Dashboard:</b> New UI layout wrapping the dice with live lie modifiers and exact wind coordinates.</li>
@@ -289,7 +289,7 @@
         
         <h3 style="margin: 0 0 12px 0; font-size: 24px;">About</h3>
         <p style="margin: 0 0 12px 0; font-weight: bold; font-size: 18px;">Paper Golf</p>
-        <p style="margin: 0 0 12px 0; font-size: 14px; color: #666;">Version 2026.6.5</p>
+        <p style="margin: 0 0 12px 0; font-size: 14px; color: #666;">Version 2026..1</p>
         <div style="margin: 0 0 15px 0; font-size: 14px; color: #333;">
             🌍 <strong>Official Website:</strong> <span style="color: #007aff; font-weight: bold;">papergolf.app</span>
         </div>
@@ -329,7 +329,7 @@
     <div id="whatsNewOverlay" class="overlay" style="display: none; background: rgba(0,0,0,0.5); z-index: 3000;">
         <div class="modal-content" style="text-align: center;">
             <h2 style="margin-top: 0; color: #007aff; font-size: 28px;">App Updated!</h2>
-            <p style="font-size: 16px; color: #333; margin-bottom: 20px;">Welcome to version 2026.6.5 🌍</p>
+            <p style="font-size: 16px; color: #333; margin-bottom: 20px;">Welcome to version 2026.6.5.1 🌍</p>
             
             <div style="background-color: #e8f4fd; border-left: 4px solid #007aff; padding: 12px; margin-bottom: 20px; border-radius: 4px; font-size: 14px; color: #333; text-align: left;">
                 🎉 <strong>Welcome Reddit & New Players!</strong> Paper Golf is completely free, runs offline, and is now tracking global stats live. Play at <a href="https://papergolf.app" style="color: #007aff; text-decoration: none; font-weight: bold;">papergolf.app</a>!
@@ -528,14 +528,47 @@ function triggerDailyPulseToast(dailyHoleCount) {
     }, 4500);
 }
 
-// 2. Local Stat Tracking (Call this exact function EVERY TIME a ball goes in the hole!)
+// 2. Local Stat Tracking & The Secret Ledger
 function incrementLocalHoles() {
+    // A. Update what the player sees
     let currentLocalHoles = parseInt(localStorage.getItem('paperGolf_lifetimeHoles')) || 0;
     currentLocalHoles++;
     localStorage.setItem('paperGolf_lifetimeHoles', currentLocalHoles);
-    
-    // Update the UI in the stats menu immediately
     document.getElementById('statLocalHoles').innerText = formatLargeNumber(currentLocalHoles);
+
+    // B. Add the shot to the secret offline waiting list
+    let unsynced = parseInt(localStorage.getItem('paperGolf_unsyncedHoles')) || 0;
+    unsynced++;
+    localStorage.setItem('paperGolf_unsyncedHoles', unsynced);
+}
+
+// 3. The Smart Sync Engine
+function syncOfflineHolesToDatabase() {
+    // If the phone explicitly knows it has no signal, abort.
+    if (!navigator.onLine) return; 
+
+    // Check the secret ledger
+    let unsynced = parseInt(localStorage.getItem('paperGolf_unsyncedHoles')) || 0;
+    if (unsynced === 0) return; // Nothing to sync!
+
+    const todayStr = getTodayDateString();
+    
+    // We package ALL the offline holes into one giant payload
+    const bulkIncrement = firebase.database.ServerValue.increment(unsynced);
+    const updates = {};
+    updates[`paperGolf_stats/daily_holes/${todayStr}`] = bulkIncrement;
+    updates['paperGolf_stats/global_lifetime_holes'] = bulkIncrement;
+    
+    // Fire the payload at the server
+    firebase.database().ref().update(updates)
+        .then(() => {
+            console.log(`Successfully dropped ${unsynced} offline holes onto the server!`);
+            // ONLY wipe the ledger if the server actually received the data
+            localStorage.setItem('paperGolf_unsyncedHoles', 0); 
+        })
+        .catch((error) => {
+            console.error("Firebase Sync FAILED. Holes safely remain in the local ledger.", error);
+        });
 }
 
 // 3. Load Local Stats on Boot (Call this inside your window.onload or init function)
@@ -681,24 +714,7 @@ function initializeCommunityStats() {
     });
 }
 
-// 2. The Incrementer (Call this EVERY TIME a ball goes in the cup)
-function pushHoleCompletedToDatabase() {
-    const todayStr = getTodayDateString();
-    const increment = firebase.database.ServerValue.increment(1);
-    
-    const updates = {};
-    updates[`paperGolf_stats/daily_holes/${todayStr}`] = increment;
-    updates['paperGolf_stats/global_lifetime_holes'] = increment;
-    
-    // The `.then()` and `.catch()` will tell us exactly what happens!
-    firebase.database().ref().update(updates)
-        .then(() => {
-            console.log("Firebase Update Success!");
-        })
-        .catch((error) => {
-            console.error("Firebase Update FAILED: ", error);
-        });
-}
+
 
 loadLocalHoleStats();        // Loads the player's personal local stats
 initializeCommunityStats();  // Hooks up Firebase & triggers the daily Toast
@@ -1455,7 +1471,7 @@ canvas.addEventListener('pointerdown', (e) => {
 
             // 🚨 FIRE THE 6.5 TRACKERS HERE! 🚨
             incrementLocalHoles();
-            pushHoleCompletedToDatabase();
+            syncOfflineHolesToDatabase();
             
             if (currentMode === 'casual') {
                 statusText.style.color = '#5cb85c'; statusText.innerText = "Hole completed!";
@@ -1498,7 +1514,7 @@ function idleLoop() {
 document.addEventListener('DOMContentLoaded', () => { 
     resetGame(); 
     
-    const CURRENT_VERSION = '2026.6.5';
+    const CURRENT_VERSION = '2026.6.5.1';
     const lastSeenVersion = localStorage.getItem('paperGolfVersion');
     
     if (lastSeenVersion !== CURRENT_VERSION) {
@@ -1510,6 +1526,12 @@ document.addEventListener('DOMContentLoaded', () => {
         checkTutorial();
     }
 });
+
+// Check for stranded offline holes every time the app boots up
+syncOfflineHolesToDatabase();
+
+// Instantly fire the sync engine the second the phone connects to a network
+window.addEventListener('online', syncOfflineHolesToDatabase);
 
 // The dedicated tutorial checker
 function checkTutorial() {
