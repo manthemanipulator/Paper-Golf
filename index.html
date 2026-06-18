@@ -59,12 +59,32 @@
         /* Update Toast */
         #updateToast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background-color: #34495e; color: white; padding: 12px 20px; border-radius: 30px; box-shadow: 0 4px 10px rgba(0,0,0,0.2); font-weight: bold; font-size: 14px; display: flex; gap: 15px; align-items: center; z-index: 9999; }
         #updateToast button { background-color: #2ecc71; padding: 5px 15px; margin: 0; width: auto; font-size: 14px; }
-        /* Date Picker iOS Fix */
+        /* Enhanced Date Picker */
         input[type="date"] {
             -webkit-appearance: none;
             appearance: none;
             background-color: white;
             min-height: 1.2em;
+            position: relative;
+            cursor: pointer;
+            
+            /* The Custom Arrow from your Dropdown */
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232c3e50' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 10px center;
+            background-size: 16px;
+            padding-right: 30px !important; /* Keeps text from bleeding into the arrow */
+        }
+
+        /* The Invisible Hitbox Trick */
+        input[type="date"]::-webkit-calendar-picker-indicator {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0; /* Hides the ugly default icon */
+            cursor: pointer;
         }
 
         /* Achievements & Stats */
