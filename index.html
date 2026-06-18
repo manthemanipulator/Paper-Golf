@@ -173,29 +173,37 @@
     <div id="achToast"></div>
 
     <div id="statsOverlay" class="overlay" style="display: none; background: rgba(0,0,0,0.5);">
-        <div class="modal-content" style="width: 100%; max-width: 350px; text-align: center; padding: 20px 15px;">
-            <h2 style="margin-top:0; color: #d35400;">Career Stats</h2>
+        <div class="modal-content" style="width: 100%; max-width: 350px; text-align: center; padding: 20px 15px; position: relative;">
+
+            <h2 style="margin: 0 0 10px 0; color: #d35400; font-size: 24px;">Career Stats</h2>
             
-            <div style="display: flex; justify-content: space-around; margin-bottom: 20px; font-family: monospace; font-size: 16px;">
-                <div><div style="font-size: 24px;" id="statBest">--</div>Best 18</div>
-                <div><div style="font-size: 24px; color: #3498db;" id="statBirdies">0</div>Birdies</div>
-                <div><div style="font-size: 24px; color: #9b59b6;" id="statEagles">0</div>Eagles</div>
+            <div style="display: flex; justify-content: space-around; margin-bottom: 15px; font-family: monospace; font-size: 14px;">
+                <div><div style="font-size: 22px;" id="statBest">--</div>Best 18</div>
+                <div><div style="font-size: 22px; color: #3498db;" id="statBirdies">0</div>Birdies</div>
+                <div><div style="font-size: 22px; color: #9b59b6;" id="statEagles">0</div>Eagles</div>
             </div>
             
-            <hr style="border: 0; border-top: 1px solid #eee; margin: 0 0 10px 0;">
+            <hr style="border: 0; border-top: 1px solid #eee; margin: 10px 0;">
             
-            <h3 style="margin-bottom: 10px; color: #2c3e50;">Holes Completed</h3>
-            <div style="display: flex; justify-content: space-around; margin-bottom: 20px; font-family: monospace; font-size: 16px;">
-                <div><div style="font-size: 24px; color: #27ae60;" id="statLocalHoles">0</div>👤 You</div>
-                <div><div style="font-size: 24px; color: #e67e22;" id="statGlobalHoles">...</div>🌍 Global</div>
+            <h3 style="margin: 0 0 5px 0; color: #d35400; font-size: 16px;">👑 All-Time Random Crown</h3>
+            <div style="font-family: monospace; font-size: 14px; margin-bottom: 10px; color: #333;" id="statAllTimeCrown">
+                Loading...
             </div>
             
-            <hr style="border: 0; border-top: 1px solid #eee; margin: 0 0 10px 0;">
-            <h3 style="margin-bottom: 10px; color: #2c3e50;">Achievements</h3>
+            <hr style="border: 0; border-top: 1px solid #eee; margin: 10px 0;">
             
-            <div id="achievementsList" style="margin-bottom: 15px;"></div>
+            <h3 style="margin: 0 0 5px 0; color: #2c3e50; font-size: 16px;">Lifetime Holes Played</h3>
+            <div style="display: flex; justify-content: space-around; margin-bottom: 15px; font-family: monospace; font-size: 14px;">
+                <div><div style="font-size: 22px; color: #27ae60;" id="statLocalHoles">0</div>👤 You</div>
+                <div><div style="font-size: 22px; color: #e67e22;" id="statGlobalHoles">...</div>🌍 Global</div>
+            </div>
             
-            <button onclick="document.getElementById('statsOverlay').style.display='none'" style="display: block; margin: 15px auto 0 auto; width: 100%; max-width: 250px; font-size: 18px;">Close</button>
+            <hr style="border: 0; border-top: 1px solid #eee; margin: 10px 0;">
+            <h3 style="margin: 0 0 10px 0; color: #2c3e50; font-size: 16px;">Achievements</h3>
+            
+            <div id="achievementsList" style="margin-bottom: 20px;"></div>
+            
+            <button onclick="document.getElementById('statsOverlay').style.display='none'" style="display: block; margin: 0 auto; width: 100%; max-width: 250px; font-size: 16px; padding: 12px;">Close</button>
         </div>
     </div>
 
@@ -267,7 +275,7 @@
         <div class="modal-content">
             <h3 style="margin-top:0;">Roadmap & Feedback</h3>
             
-            <h4 style="color: #2c3e50; margin-bottom: 10px;">🚧 Planned for 2026.6.5.1 🚧</h4>
+            <h4 style="color: #2c3e50; margin-bottom: 10px;">🚧 Planned for 2026.6.5.2 🚧</h4>
             <ul style="text-align: left; margin-bottom: 20px; font-size: 14px; color: #333; line-height: 1.5; padding-left: 20px;">
                 <li style="margin-bottom: 8px;"><b>🧃 Impact Visuals:</b> Ball hops on grass, heavy sand dust bursts, and splashing water ripples.</li>
                 <li style="margin-bottom: 8px;"><b>📊 Tactical Dashboard:</b> New UI layout wrapping the dice with live lie modifiers and exact wind coordinates.</li>
@@ -289,7 +297,7 @@
         
         <h3 style="margin: 0 0 12px 0; font-size: 24px;">About</h3>
         <p style="margin: 0 0 12px 0; font-weight: bold; font-size: 18px;">Paper Golf</p>
-        <p style="margin: 0 0 12px 0; font-size: 14px; color: #666;">Version 2026..1</p>
+        <p style="margin: 0 0 12px 0; font-size: 14px; color: #666;">Version 2026.6.5.2</p>
         <div style="margin: 0 0 15px 0; font-size: 14px; color: #333;">
             🌍 <strong>Official Website:</strong> <span style="color: #007aff; font-weight: bold;">papergolf.app</span>
         </div>
@@ -329,7 +337,7 @@
     <div id="whatsNewOverlay" class="overlay" style="display: none; background: rgba(0,0,0,0.5); z-index: 3000;">
         <div class="modal-content" style="text-align: center;">
             <h2 style="margin-top: 0; color: #007aff; font-size: 28px;">App Updated!</h2>
-            <p style="font-size: 16px; color: #333; margin-bottom: 20px;">Welcome to version 2026.6.5.1 🌍</p>
+            <p style="font-size: 16px; color: #333; margin-bottom: 20px;">Welcome to version 2026.6.5.2 🌍</p>
             
             <div style="background-color: #e8f4fd; border-left: 4px solid #007aff; padding: 12px; margin-bottom: 20px; border-radius: 4px; font-size: 14px; color: #333; text-align: left;">
                 🎉 <strong>Welcome Reddit & New Players!</strong> Paper Golf is completely free, runs offline, and is now tracking global stats live. Play at <a href="https://papergolf.app" style="color: #007aff; text-decoration: none; font-weight: bold;">papergolf.app</a>!
@@ -517,53 +525,40 @@ function triggerDailyPulseToast(dailyHoleCount) {
     document.getElementById('dailyPulseText').innerText = formatLargeNumber(dailyHoleCount);
     
     toast.style.display = 'block';
-    
-    // Slight delay to allow CSS transition to catch
     setTimeout(() => { toast.style.top = '30px'; }, 100);
-    
-    // Slide it back up after 4.5 seconds
     setTimeout(() => { 
         toast.style.top = '-100px'; 
-        setTimeout(() => { toast.style.display = 'none'; }, 600); // Wait for transition to end
+        setTimeout(() => { toast.style.display = 'none'; }, 600); 
     }, 4500);
 }
 
 // 2. Local Stat Tracking & The Secret Ledger
 function incrementLocalHoles() {
-    // A. Update what the player sees
     let currentLocalHoles = parseInt(localStorage.getItem('paperGolf_lifetimeHoles')) || 0;
     currentLocalHoles++;
     localStorage.setItem('paperGolf_lifetimeHoles', currentLocalHoles);
     document.getElementById('statLocalHoles').innerText = formatLargeNumber(currentLocalHoles);
 
-    // B. Add the shot to the secret offline waiting list
     let unsynced = parseInt(localStorage.getItem('paperGolf_unsyncedHoles')) || 0;
     unsynced++;
     localStorage.setItem('paperGolf_unsyncedHoles', unsynced);
 }
 
-// 3. The Smart Sync Engine
+// 3. The Offline Holes Sync Engine (RESTORED!)
 function syncOfflineHolesToDatabase() {
-    // If the phone explicitly knows it has no signal, abort.
     if (!navigator.onLine) return; 
-
-    // Check the secret ledger
     let unsynced = parseInt(localStorage.getItem('paperGolf_unsyncedHoles')) || 0;
-    if (unsynced === 0) return; // Nothing to sync!
+    if (unsynced === 0) return; 
 
     const todayStr = getTodayDateString();
-    
-    // We package ALL the offline holes into one giant payload
     const bulkIncrement = firebase.database.ServerValue.increment(unsynced);
     const updates = {};
     updates[`paperGolf_stats/daily_holes/${todayStr}`] = bulkIncrement;
     updates['paperGolf_stats/global_lifetime_holes'] = bulkIncrement;
     
-    // Fire the payload at the server
     firebase.database().ref().update(updates)
         .then(() => {
             console.log(`Successfully dropped ${unsynced} offline holes onto the server!`);
-            // ONLY wipe the ledger if the server actually received the data
             localStorage.setItem('paperGolf_unsyncedHoles', 0); 
         })
         .catch((error) => {
@@ -571,7 +566,34 @@ function syncOfflineHolesToDatabase() {
         });
 }
 
-// 3. Load Local Stats on Boot (Call this inside your window.onload or init function)
+// 4. The Leaderboard Sync Engine
+function syncOfflineScoresToCloud() {
+    if (!navigator.onLine) return;
+
+    let offlineScores = JSON.parse(localStorage.getItem('paperGolf_offlineScores')) || [];
+    if (offlineScores.length === 0) return; 
+
+    console.log(`Attempting to upload ${offlineScores.length} offline scores to the Leaderboard...`);
+
+    offlineScores.forEach((payload) => {
+        payload.timestamp = firebase.firestore.FieldValue.serverTimestamp();
+        db.collection("globalLeaderboard").add(payload).then(() => {
+            if (payload.mode === 'random') {
+                const crownRef = firebase.database().ref('paperGolf_stats/all_time_random_crown');
+                crownRef.once('value').then((snap) => {
+                    const currentCrown = snap.val();
+                    if (!currentCrown || payload.score < currentCrown.score) {
+                        crownRef.set({ initials: payload.initials, score: payload.score, month: payload.monthYear });
+                    }
+                });
+            }
+        }).catch(e => console.error("Offline score sync failed", e));
+    });
+
+    localStorage.setItem('paperGolf_offlineScores', JSON.stringify([]));
+}
+
+// 5. Load Local Stats on Boot
 function loadLocalHoleStats() {
     let currentLocalHoles = parseInt(localStorage.getItem('paperGolf_lifetimeHoles')) || 0;
     document.getElementById('statLocalHoles').innerText = formatLargeNumber(currentLocalHoles);
@@ -579,16 +601,52 @@ function loadLocalHoleStats() {
 
 function saveScoreToCloud(initials, score) {
     const today = new Date().toLocaleDateString('en-CA');
+    const monthYear = new Date().toLocaleString('default', { month: 'long', year: 'numeric' });
+
     const payload = {
         initials: initials,
         score: score,
-        timestamp: firebase.firestore.FieldValue.serverTimestamp(),
         mode: currentMode,
-        date: currentMode === 'daily' ? today : null
+        date: currentMode === 'daily' ? today : null,
+        monthYear: currentMode === 'random' ? monthYear : null
     };
 
+    // 🚨 THE OFFLINE INTERCEPTOR 🚨
+    if (!navigator.onLine) {
+        // 1. Pull the secret ledger (or create a blank one)
+        let offlineScores = JSON.parse(localStorage.getItem('paperGolf_offlineScores')) || [];
+        
+        // 2. Add this specific score to the waiting list
+        offlineScores.push(payload);
+        
+        // 3. Save it back to the phone's hard drive
+        localStorage.setItem('paperGolf_offlineScores', JSON.stringify(offlineScores));
+        
+        // 4. Tell the player it is safely locked away
+        document.getElementById('leaderboardList').innerHTML = `
+            <li style="color: #e67e22; font-weight: bold; font-size: 16px;">📶 OFFLINE MODE</li>
+            <li style="font-size: 14px; color: #333;">Score securely saved to your local ledger! It will automatically upload to the Hall of Fame when you reach port.</li>
+        `;
+        return; // Stop the function here so Firebase doesn't throw an error!
+    }
+
+    // If we ARE online, proceed with the normal upload
+    payload.timestamp = firebase.firestore.FieldValue.serverTimestamp();
+
     db.collection("globalLeaderboard").add(payload)
-      .then(() => showLeaderboard())
+      .then(() => {
+          if (currentMode === 'random') {
+              const crownRef = firebase.database().ref('paperGolf_stats/all_time_random_crown');
+              crownRef.once('value').then((snap) => {
+                  const currentCrown = snap.val();
+                  if (!currentCrown || score < currentCrown.score) {
+                      crownRef.set({ initials: initials, score: score, month: monthYear });
+                  }
+              }).then(() => showLeaderboard());
+          } else {
+              showLeaderboard();
+          }
+      })
       .catch((error) => document.getElementById('leaderboardList').innerHTML = '<li>Error saving score.</li>');
 }
 
@@ -641,13 +699,25 @@ function showLeaderboard() {
     
     const datePicker = document.getElementById('historyDate');
     const targetDate = (currentMode === 'daily' && datePicker.value) ? datePicker.value : new Date().toLocaleDateString('en-CA');
+    const currentMonthYear = new Date().toLocaleString('default', { month: 'long', year: 'numeric' });
     
-    // NEW: Smart Stat Display
+    // Smart Stat & Crown Display
     if (currentMode === 'daily') {
         const statsRef = firebase.database().ref(`daily_stats/${targetDate}/daily`);
         statsRef.once('value').then((snap) => {
             const plays = snap.val() || 0;
             document.getElementById('dailyPlaysCount').innerText = `⛳️ ${plays} rounds completed today`;
+        });
+    } else if (currentMode === 'random') {
+        // Fetch the All-Time Crown for Random Mode
+        const crownRef = firebase.database().ref('paperGolf_stats/all_time_random_crown');
+        crownRef.once('value').then((snap) => {
+            const crown = snap.val();
+            if (crown) {
+                document.getElementById('dailyPlaysCount').innerHTML = `👑 ALL-TIME RECORD: <span style="color:white;">${crown.initials} - ${crown.score}</span> 👑`;
+            } else {
+                document.getElementById('dailyPlaysCount').innerText = `👑 ALL-TIME RECORD: None yet! 👑`;
+            }
         });
     } else {
         const lifetimeRef = firebase.database().ref(`lifetime_stats/${currentMode}`);
@@ -658,14 +728,16 @@ function showLeaderboard() {
     }
     
     db.collection("globalLeaderboard").orderBy("score", "asc").onSnapshot((querySnapshot) => {
-  
         list.innerHTML = ''; 
         let count = 0;
         
         querySnapshot.forEach((doc) => {
             const entry = doc.data();
+            
+            // Filter out wrong days for Daily, and wrong months for Random!
             if (currentMode === 'daily' && (entry.mode !== 'daily' || entry.date !== targetDate)) return;
-            if (currentMode === 'campaign' && entry.mode === 'daily') return;
+            if (currentMode === 'random' && (entry.mode !== 'random' || entry.monthYear !== currentMonthYear)) return;
+            if (currentMode === 'casual' && entry.mode !== 'casual') return;
             
             if (count >= 5) return;
             count++;
@@ -712,6 +784,20 @@ function initializeCommunityStats() {
         let globalCount = snapshot.val() || 0;
         document.getElementById('statGlobalHoles').innerText = formatLargeNumber(globalCount);
     });
+
+    // C. NEW: Attach the LIVE listener to the All-Time Random Crown
+    firebase.database().ref('paperGolf_stats/all_time_random_crown').on('value', (snapshot) => {
+        const crown = snapshot.val();
+        const crownDisplay = document.getElementById('statAllTimeCrown');
+        if (crownDisplay) {
+            if (crown) {
+                // Formats it like: 32 by ABC (June 2026)
+                crownDisplay.innerHTML = `<span style="font-weight: bold; font-size: 22px;">${crown.score}</span> by <b>${crown.initials}</b><br><span style="font-size: 12px; color: #888;">(${crown.month})</span>`;
+            } else {
+                crownDisplay.innerText = "None yet!";
+            }
+        }
+    });
 }
 
 
@@ -731,6 +817,10 @@ document.getElementById('viewScoresBtn')?.addEventListener('click', () => {
     if (currentMode === 'daily') {
         datePicker.style.display = 'inline-block';
         datePicker.value = new Date().toLocaleDateString('en-CA'); 
+    } else if (currentMode === 'random') {
+        const currentMonth = new Date().toLocaleString('default', { month: 'long' });
+        document.getElementById('modalTitle').textContent = `${currentMonth.toUpperCase()} LEADERBOARD`;
+        datePicker.style.display = 'none';
     } else {
         datePicker.style.display = 'none';
     }
@@ -1514,7 +1604,7 @@ function idleLoop() {
 document.addEventListener('DOMContentLoaded', () => { 
     resetGame(); 
     
-    const CURRENT_VERSION = '2026.6.5.1';
+    const CURRENT_VERSION = '2026.6.5.2';
     const lastSeenVersion = localStorage.getItem('paperGolfVersion');
     
     if (lastSeenVersion !== CURRENT_VERSION) {
@@ -1527,11 +1617,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// Check for stranded offline holes every time the app boots up
+// Check for stranded offline holes AND scores every time the app boots up
 syncOfflineHolesToDatabase();
+syncOfflineScoresToCloud();
 
-// Instantly fire the sync engine the second the phone connects to a network
-window.addEventListener('online', syncOfflineHolesToDatabase);
+// Instantly fire the sync engines the second the phone connects to a network
+window.addEventListener('online', () => {
+    syncOfflineHolesToDatabase();
+    syncOfflineScoresToCloud();
+});
 
 // The dedicated tutorial checker
 function checkTutorial() {
