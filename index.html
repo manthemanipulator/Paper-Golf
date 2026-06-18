@@ -183,11 +183,19 @@
             </div>
             
             <hr style="border: 0; border-top: 1px solid #eee; margin: 0 0 10px 0;">
+            
+            <h3 style="margin-bottom: 10px; color: #2c3e50;">Holes Completed</h3>
+            <div style="display: flex; justify-content: space-around; margin-bottom: 20px; font-family: monospace; font-size: 16px;">
+                <div><div style="font-size: 24px; color: #27ae60;" id="statLocalHoles">0</div>👤 You</div>
+                <div><div style="font-size: 24px; color: #e67e22;" id="statGlobalHoles">...</div>🌍 Global</div>
+            </div>
+            
+            <hr style="border: 0; border-top: 1px solid #eee; margin: 0 0 10px 0;">
             <h3 style="margin-bottom: 10px; color: #2c3e50;">Achievements</h3>
             
-            <div id="achievementsList" style="margin-bottom: 15px;">
-                </div>
+            <div id="achievementsList" style="margin-bottom: 15px;"></div>
             
+            <button onclick="document.getElementById('statsOverlay').style.display='none'" style="display: block; margin: 15px auto 0 auto; width: 100%; max-width: 250px; font-size: 18px;">Close</button>
         </div>
     </div>
 
@@ -251,6 +259,10 @@
         <button onclick="window.location.reload(true)">Reload</button>
     </div>
 
+    <div id="dailyPulseToast" style="display: none; position: fixed; top: -100px; left: 50%; transform: translateX(-50%); background-color: #34495e; color: white; padding: 12px 24px; border-radius: 30px; font-family: monospace; font-size: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.4); z-index: 4000; transition: top 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275); text-align: center; white-space: nowrap;">
+        🌍 <span id="dailyPulseText" style="font-weight: bold; color: #ff9500;">...</span> holes played today!
+    </div>
+
     <div id="roadmapOverlay" class="overlay" style="display: none; background: rgba(0,0,0,0.5);">
         <div class="modal-content">
             <h3 style="margin-top:0;">Roadmap & Feedback</h3>
@@ -277,7 +289,7 @@
         
         <h3 style="margin: 0 0 12px 0; font-size: 24px;">About</h3>
         <p style="margin: 0 0 12px 0; font-weight: bold; font-size: 18px;">Paper Golf</p>
-        <p style="margin: 0 0 12px 0; font-size: 14px; color: #666;">Version 2026.6.4.1</p>
+        <p style="margin: 0 0 12px 0; font-size: 14px; color: #666;">Version 2026.6.5</p>
         <div style="margin: 0 0 15px 0; font-size: 14px; color: #333;">
             🌍 <strong>Official Website:</strong> <span style="color: #007aff; font-weight: bold;">papergolf.app</span>
         </div>
@@ -317,18 +329,16 @@
     <div id="whatsNewOverlay" class="overlay" style="display: none; background: rgba(0,0,0,0.5); z-index: 3000;">
         <div class="modal-content" style="text-align: center;">
             <h2 style="margin-top: 0; color: #007aff; font-size: 28px;">App Updated!</h2>
-            <p style="font-size: 16px; color: #333; margin-bottom: 20px;">Welcome to version 2026.6.4.1</p>
+            <p style="font-size: 16px; color: #333; margin-bottom: 20px;">Welcome to version 2026.6.5 🌍</p>
             
             <div style="background-color: #e8f4fd; border-left: 4px solid #007aff; padding: 12px; margin-bottom: 20px; border-radius: 4px; font-size: 14px; color: #333; text-align: left;">
-                🎉 <strong>We have an official home!</strong> Paper Golf is now live at <a href="https://papergolf.app" style="color: #007aff; text-decoration: none; font-weight: bold;">papergolf.app</a>. Update your bookmarks (though old links will automatically bring you here safely)!
+                🎉 <strong>Welcome Reddit & New Players!</strong> Paper Golf is completely free, runs offline, and is now tracking global stats live. Play at <a href="https://papergolf.app" style="color: #007aff; text-decoration: none; font-weight: bold;">papergolf.app</a>!
             </div>
             
             <ul style="text-align: left; font-size: 15px; color: #333; margin-bottom: 25px; line-height: 1.6;">
-                <li>🌦️ <b>Dynamic Weather:</b> Experience true wind physics! Watch the flag stretch and leaves blow across the screen to gauge the wind before you shoot.</li>
-                <li>☄️ <b>Sweeping Animations:</b> The ball now travels in beautiful, sweeping arcs (complete with a comet trail) as it fights the wind, plus fireworks when you sink a shot!</li>
-                <li>🧲 <b>Magnetic Touch UI:</b> Invisible "compensation zones" allow you to tap empty grass to aim into the wind, with a generous magnetic snap so you never miss a tap.</li>
-                <li>🛑 <b>Hazard Penalties:</b> Hitting the water or trees now plays a full animation, issues a +1 stroke penalty, and automatically drops your ball at the nearest safe tile.</li>
-                <li>🛠️ <b>Unplayable Lie Fix:</b> Got permanently boxed in by trees? The game now detects the soft-lock, issues a +1 penalty, and lets you re-roll to safety!</li>
+                <li>🌍 <b>The Global Pulse:</b> When you open the game, a live banner will drop down showing exactly how many holes the community has played today. You are not golfing alone!</li>
+                <li>🏆 <b>Hall of Fame Stats:</b> Open your Stats menu to see your personal lifetime holes completed, plus watch the massive all-time Global Community counter tick up in real-time!</li>
+                <li>📱 <b>Device Polish:</b> Clarified the "Offline Play" instructions for Android users (make sure you use the standalone Chrome app!) and fixed a visual glitch on the iOS Daily Leaderboard.</li>
             </ul>
             
             <button onclick="document.getElementById('whatsNewOverlay').style.display='none'; checkTutorial();" style="width: 100%; font-size: 18px;">Let's Golf!</button>
@@ -494,6 +504,46 @@ document.getElementById('submitScoreBtn')?.addEventListener('click', () => {
     saveScoreToCloud(initials, totalCampaignScore);
 });
 
+function formatLargeNumber(num) {
+    if (num > 9999999) {
+        return (num / 1000000).toFixed(1) + 'M';
+    }
+    return num.toLocaleString();
+}
+
+// 1. The Toast Animation
+function triggerDailyPulseToast(dailyHoleCount) {
+    const toast = document.getElementById('dailyPulseToast');
+    document.getElementById('dailyPulseText').innerText = formatLargeNumber(dailyHoleCount);
+    
+    toast.style.display = 'block';
+    
+    // Slight delay to allow CSS transition to catch
+    setTimeout(() => { toast.style.top = '30px'; }, 100);
+    
+    // Slide it back up after 4.5 seconds
+    setTimeout(() => { 
+        toast.style.top = '-100px'; 
+        setTimeout(() => { toast.style.display = 'none'; }, 600); // Wait for transition to end
+    }, 4500);
+}
+
+// 2. Local Stat Tracking (Call this exact function EVERY TIME a ball goes in the hole!)
+function incrementLocalHoles() {
+    let currentLocalHoles = parseInt(localStorage.getItem('paperGolf_lifetimeHoles')) || 0;
+    currentLocalHoles++;
+    localStorage.setItem('paperGolf_lifetimeHoles', currentLocalHoles);
+    
+    // Update the UI in the stats menu immediately
+    document.getElementById('statLocalHoles').innerText = formatLargeNumber(currentLocalHoles);
+}
+
+// 3. Load Local Stats on Boot (Call this inside your window.onload or init function)
+function loadLocalHoleStats() {
+    let currentLocalHoles = parseInt(localStorage.getItem('paperGolf_lifetimeHoles')) || 0;
+    document.getElementById('statLocalHoles').innerText = formatLargeNumber(currentLocalHoles);
+}
+
 function saveScoreToCloud(initials, score) {
     const today = new Date().toLocaleDateString('en-CA');
     const payload = {
@@ -600,6 +650,59 @@ function showLeaderboard() {
         if (count === 0) list.innerHTML = '<li>No scores yet!</li>';
     });
 }
+
+// --- 6.5 COMMUNITY STATS LOGIC ---
+
+// Helper to get today's date formatted perfectly for a database key (e.g., "2026_06_16")
+function getTodayDateString() {
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    return `${yyyy}_${mm}_${dd}`;
+}
+
+// 1. The Boot Sequence (Call this ONCE when the game loads)
+function initializeCommunityStats() {
+    const todayStr = getTodayDateString();
+    
+    // A. Fetch today's global holes for the slide-down Toast
+    firebase.database().ref(`paperGolf_stats/daily_holes/${todayStr}`).once('value').then((snapshot) => {
+        let dailyCount = snapshot.val() || 0;
+        if (dailyCount > 0) {
+            triggerDailyPulseToast(dailyCount); // Fires the UI animation we built earlier
+        }
+    });
+
+    // B. Attach the LIVE listener to the Global Lifetime count for the Stats Menu
+    firebase.database().ref('paperGolf_stats/global_lifetime_holes').on('value', (snapshot) => {
+        let globalCount = snapshot.val() || 0;
+        document.getElementById('statGlobalHoles').innerText = formatLargeNumber(globalCount);
+    });
+}
+
+// 2. The Incrementer (Call this EVERY TIME a ball goes in the cup)
+function pushHoleCompletedToDatabase() {
+    const todayStr = getTodayDateString();
+    const increment = firebase.database.ServerValue.increment(1);
+    
+    const updates = {};
+    updates[`paperGolf_stats/daily_holes/${todayStr}`] = increment;
+    updates['paperGolf_stats/global_lifetime_holes'] = increment;
+    
+    // The `.then()` and `.catch()` will tell us exactly what happens!
+    firebase.database().ref().update(updates)
+        .then(() => {
+            console.log("Firebase Update Success!");
+        })
+        .catch((error) => {
+            console.error("Firebase Update FAILED: ", error);
+        });
+}
+
+loadLocalHoleStats();        // Loads the player's personal local stats
+initializeCommunityStats();  // Hooks up Firebase & triggers the daily Toast
+
     
 document.getElementById('historyDate')?.addEventListener('change', showLeaderboard);
 
@@ -1349,6 +1452,10 @@ canvas.addEventListener('pointerdown', (e) => {
             if (strokes <= 4) { localStats.eagles++; unlockAchievement('eagle'); }
             if (strokes <= 6 && hitSandThisHole) unlockAchievement('sand');
             saveStats();
+
+            // 🚨 FIRE THE 6.5 TRACKERS HERE! 🚨
+            incrementLocalHoles();
+            pushHoleCompletedToDatabase();
             
             if (currentMode === 'casual') {
                 statusText.style.color = '#5cb85c'; statusText.innerText = "Hole completed!";
@@ -1391,7 +1498,7 @@ function idleLoop() {
 document.addEventListener('DOMContentLoaded', () => { 
     resetGame(); 
     
-    const CURRENT_VERSION = '2026.6.4.1';
+    const CURRENT_VERSION = '2026.6.5';
     const lastSeenVersion = localStorage.getItem('paperGolfVersion');
     
     if (lastSeenVersion !== CURRENT_VERSION) {
