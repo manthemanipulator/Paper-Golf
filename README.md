@@ -55,4 +55,4 @@ The GOLF Companion will now appear as an app icon on your home screen and will o
 
 ## ⚖️ Disclaimer
 
-This is an unofficial, non-commercial fan project built strictly for personal utility. *Paper Apps™ GOLF* is created by Tom Brinton and published by Gl
+This is an unofficial, non-commercial fan project built strictly for personal utility. *Paper Apps™ GOLF* is created by Tom Brinton and published by Gladden. Please support the official physical release at [gladdendesign.com](https://gladdendesign.com/)!
