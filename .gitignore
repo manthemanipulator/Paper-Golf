@@ -1,0 +1,9 @@
+# Ignore the secret vault!
+functions/.env
+
+# Ignore giant downloaded dependency folders
+functions/node_modules/
+node_modules/
+
+# Ignore Mac system trash
+.DS_Store
