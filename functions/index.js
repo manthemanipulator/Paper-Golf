@@ -9,7 +9,7 @@ exports.sendScoreToDiscord = functions.firestore
         const newScore = snap.data();
         
         // 🚨 YOUR SECRET DISCORD WEBHOOK URL GOES HERE 🚨
-        const webhookUrl = "https://discord.com/api/webhooks/1517365185613004930/xiSmebXyNp159XN_9amewgdeVM9HNJe2uhaaYSj0XibMfOspMg0oCBzghutdCQhugJvu";
+        const webhookUrl = "";
 
         // Construct a beautifully formatted Discord "Embed" card
         const discordPayload = {
