@@ -780,11 +780,13 @@ function showLeaderboard() {
 
 // Helper to get today's date formatted perfectly for a database key (e.g., "2026_06_16")
 function getTodayDateString() {
-    const today = new Date();
-    const yyyy = today.getFullYear();
-    const mm = String(today.getMonth() + 1).padStart(2, '0');
-    const dd = String(today.getDate()).padStart(2, '0');
-    return `${yyyy}_${mm}_${dd}`;
+    const now = new Date();
+    const year = now.getFullYear();
+    // Months are 0-indexed, so add 1, then pad to 2 digits
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    
+    return `${year}_${month}_${day}`;
 }
 
 // 1. The Boot Sequence (Call this ONCE when the game loads)
