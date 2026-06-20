@@ -359,7 +359,7 @@
         
         <h3 style="margin: 0 0 12px 0; font-size: 24px;">About</h3>
         <p style="margin: 0 0 12px 0; font-weight: bold; font-size: 18px;">Paper Golf</p>
-        <p style="margin: 0 0 12px 0; font-size: 14px; color: #666;">Version 2026.6.6.2</p>
+        <p style="margin: 0 0 12px 0; font-size: 14px; color: #666;">Version 2026.6.6.3</p>
         <div style="margin: 0 0 15px 0; font-size: 14px; color: #333;">
             🌍 <strong>Official Website:</strong> <span style="color: #007aff; font-weight: bold;">papergolf.app</span>
         </div>
@@ -399,7 +399,7 @@
     <div id="whatsNewOverlay" class="overlay" style="display: none; background: rgba(0,0,0,0.5); z-index: 3000;">
         <div class="modal-content" style="text-align: center;">
             <h2 style="margin-top: 0; color: #007aff; font-size: 28px;">App Updated!</h2>
-            <p style="font-size: 16px; color: #333; margin-bottom: 20px;">Welcome to version 2026.6.6.2 🚀</p>
+            <p style="font-size: 16px; color: #333; margin-bottom: 20px;">Welcome to version 2026.6.3 🚀</p>
             
             <div style="background-color: #e8f4fd; border-left: 4px solid #007aff; padding: 12px; margin-bottom: 20px; border-radius: 4px; font-size: 14px; color: #333; text-align: left;">
                 🎉 <strong>Welcome Reddit & New Players!</strong> Paper Golf is completely free, runs offline, and is tracked live. Play at <a href="https://papergolf.app" style="color: #007aff; text-decoration: none; font-weight: bold;">papergolf.app</a>!
@@ -1050,8 +1050,8 @@ function calculateValidTargets() {
 
             // 3. ONLY add the invisible "Compensation Targets" if the shot is actually safe
             if (!pathBlocked) {
-                let windFactorX = (currentRoll === 1 || isPutting) ? 0 : currentWeather.windX;
-                let windFactorY = (currentRoll === 1 || isPutting) ? 0 : currentWeather.windY;
+                let windFactorX = (eff === 1) ? 0 : currentWeather.windX;
+                let windFactorY = (eff === 1) ? 0 : currentWeather.windY;
                 
                 let maxSteps = Math.max(Math.abs(windFactorX), Math.abs(windFactorY));
                 if (maxSteps > 0) {
@@ -1574,9 +1574,17 @@ canvas.addEventListener('pointerdown', (e) => {
     
  // Start the animation, then run this logic when it finishes!
     
+    // NEW: Calculate the true effective distance to determine if wind applies
+    let startingTerrain = gridData[sy][sx];
+    let eff = currentRoll;
+    if (startingTerrain === TERRAIN.FAIRWAY) eff += 1;
+    else if (startingTerrain === TERRAIN.SAND) eff = Math.max(1, currentRoll - 1);
+    if (isPutting) eff = 1;
+
     // 1. Calculate the final landing spot including wind drift
-    let windShiftX = (currentRoll === 1 || isPutting) ? 0 : currentWeather.windX;
-    let windShiftY = (currentRoll === 1 || isPutting) ? 0 : currentWeather.windY;
+    // NEW: Now using (eff === 1) instead of (currentRoll === 1)
+    let windShiftX = (eff === 1) ? 0 : currentWeather.windX;
+    let windShiftY = (eff === 1) ? 0 : currentWeather.windY;
 
     // 2. Determine the exact grid coordinates of the final landing spot
     let landingGridX = tx + windShiftX;
@@ -1724,7 +1732,7 @@ function idleLoop() {
 document.addEventListener('DOMContentLoaded', () => { 
     resetGame(); 
     
-    const CURRENT_VERSION = '2026.6.6.2';
+    const CURRENT_VERSION = '2026.6.3';
     const lastSeenVersion = localStorage.getItem('paperGolfVersion');
     
     if (lastSeenVersion !== CURRENT_VERSION) {
