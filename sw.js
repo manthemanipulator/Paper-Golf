@@ -1,4 +1,4 @@
-const CACHE_NAME = 'paper-golf-v2026.6.6.1';
+const CACHE_NAME = 'paper-golf-v2026.6.6.2';
 const urlsToCache = [
     './',
     './index.html'

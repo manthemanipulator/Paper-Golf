@@ -191,18 +191,23 @@
         </div>
     </div>
 
-   <div id="rulesOverlay" class="overlay" style="background: rgba(0,0,0,0.5);">
+   <div id="rulesOverlay" class="overlay" style="display: none; background: rgba(0,0,0,0.5); z-index: 3000;">
         <div class="modal-content">
             <h3 style="margin-top:0;">Quick Rules</h3>
             <p style="font-weight: bold; margin-top: 0; color: #2c3e50; text-align: center;">All holes are Par 6.</p>
-            <ul>
-                <li><b>Fairway (Light Green):</b> Grants +1 to your roll distance. Shoot through trees.</li>
-                <li><b>Sand (Tan):</b> Subtracts -1 from your roll distance (minimum 1).</li>
-                <li><b>Trees (Dark Green):</b> Blocks shots unless starting from a Fairway.</li>
-                <li><b>Water (Blue):</b> Cannot land here.</li>
-                <li><b>Putting:</b> Exactly 1 space distance. Roll defaults to 'P'.</li>
-                <li><b>Mulligans:</b> 6 total. Tee-off rerolls are free (0 strokes taken).</li>
+            
+            <ul style="padding-left: 20px; font-size: 14px; color: #333; margin-bottom: 25px; line-height: 1.5;">
+                <li style="margin-bottom: 8px;"><b>Fairway (Light Green):</b> Grants +1 to your roll distance. Shoot through trees.</li>
+                <li style="margin-bottom: 8px;"><b>Sand (Tan):</b> Subtracts -1 from your roll distance (minimum 1).</li>
+                <li style="margin-bottom: 8px;"><b>Trees (Dark Green):</b> Blocks shots unless starting from a Fairway.</li>
+                <li style="margin-bottom: 8px;"><b>Water (Blue):</b> Cannot land here.</li>
+                <li style="margin-bottom: 8px;"><b>Putting:</b> Exactly 1 space distance. Roll defaults to 'P'.</li>
+                <li style="margin-bottom: 8px;"><b>Mulligans:</b> 6 total. Tee-off rerolls are free (0 strokes taken).</li>
             </ul>
+            
+            <button onclick="document.getElementById('rulesOverlay').style.display='none'" style="display: block; margin: 0 auto 12px auto; width: 100%; max-width: 300px; font-size: 18px;">OK, let's play</button>
+            
+            <button class="btn-secondary" onclick="document.getElementById('rulesOverlay').style.display='none'; document.getElementById('tutorialOverlay').style.display='flex';" style="display: block; margin: 0 auto; width: 100%; max-width: 300px; font-size: 15px;">Show me how to play again</button>
         </div>
     </div>
 
@@ -354,7 +359,7 @@
         
         <h3 style="margin: 0 0 12px 0; font-size: 24px;">About</h3>
         <p style="margin: 0 0 12px 0; font-weight: bold; font-size: 18px;">Paper Golf</p>
-        <p style="margin: 0 0 12px 0; font-size: 14px; color: #666;">Version 2026.6.6.1</p>
+        <p style="margin: 0 0 12px 0; font-size: 14px; color: #666;">Version 2026.6.6.2</p>
         <div style="margin: 0 0 15px 0; font-size: 14px; color: #333;">
             🌍 <strong>Official Website:</strong> <span style="color: #007aff; font-weight: bold;">papergolf.app</span>
         </div>
@@ -394,7 +399,7 @@
     <div id="whatsNewOverlay" class="overlay" style="display: none; background: rgba(0,0,0,0.5); z-index: 3000;">
         <div class="modal-content" style="text-align: center;">
             <h2 style="margin-top: 0; color: #007aff; font-size: 28px;">App Updated!</h2>
-            <p style="font-size: 16px; color: #333; margin-bottom: 20px;">Welcome to version 2026.6.6.1 🚀</p>
+            <p style="font-size: 16px; color: #333; margin-bottom: 20px;">Welcome to version 2026.6.6.2 🚀</p>
             
             <div style="background-color: #e8f4fd; border-left: 4px solid #007aff; padding: 12px; margin-bottom: 20px; border-radius: 4px; font-size: 14px; color: #333; text-align: left;">
                 🎉 <strong>Welcome Reddit & New Players!</strong> Paper Golf is completely free, runs offline, and is tracked live. Play at <a href="https://papergolf.app" style="color: #007aff; text-decoration: none; font-weight: bold;">papergolf.app</a>!
@@ -1719,7 +1724,7 @@ function idleLoop() {
 document.addEventListener('DOMContentLoaded', () => { 
     resetGame(); 
     
-    const CURRENT_VERSION = '2026.6.6.1';
+    const CURRENT_VERSION = '2026.6.6.2';
     const lastSeenVersion = localStorage.getItem('paperGolfVersion');
     
     if (lastSeenVersion !== CURRENT_VERSION) {
