@@ -16,6 +16,27 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
     <style>
+        /* --- 6.6 UI Upgrades --- */
+        .top-nav-bar { display: flex; justify-content: space-between; align-items: center; width: 100%; max-width: 500px; padding: 10px 15px; box-sizing: border-box; margin-bottom: 10px; }
+        .nav-left { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+        .nav-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+        
+        .live-stat { font-size: 14px; font-weight: bold; color: #8e8e93; transition: opacity 0.3s; }
+        .global-stat { font-size: 14px; font-weight: bold; color: #2c3e50; }
+        .leaderboard-icon { font-size: 20px; cursor: pointer; transition: opacity 0.2s; }
+        .hamburger-btn { font-size: 28px; background: none; border: none; color: #007aff; cursor: pointer; padding: 0; line-height: 1; }
+
+        .tactical-dashboard { display: flex; justify-content: space-between; align-items: center; width: 100%; padding: 5px 0 15px 0; }
+        .dashboard-badge { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 8px 10px; border-radius: 8px; min-width: 75px; height: 50px; box-sizing: border-box; }
+        .badge-title { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; opacity: 0.7; margin-bottom: 2px; }
+        .badge-value { font-weight: bold; font-size: 13px; font-family: monospace; }
+        
+        .lie-fairway { background-color: #e6f4ea; color: #1e8e3e; }
+        .lie-sand { background-color: #fef7e0; color: #b06000; }
+        .lie-rough { background-color: #e8f0fe; color: #1a73e8; }
+        .wind-gauge { background-color: #f0f0f0; color: #2c3e50; border: 1px solid #ddd; }
+
+
         html, body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; display: flex; flex-direction: column; align-items: center; background-color: #f0f2f5; margin: 0; padding: 15px; touch-action: manipulation; -webkit-user-select: none; user-select: none; }
         .hidden { display: none !important; }
 
@@ -104,34 +125,26 @@
 </head>
 <body>
 
-    <div class="top-nav" style="position: relative; display: flex; justify-content: space-between; align-items: center; width: 100%; max-width: 500px; margin: 0 auto; padding: 15px 20px; box-sizing: border-box;">
-        
-        <div style="display: flex; align-items: center; gap: 15px; flex-shrink: 0; position: relative; top: 1px;">
-            <span id="playerCount" style="display: flex; align-items: center; font-size: 14px; color: #8e8e93; font-weight: bold; transition: opacity 0.3s; line-height: 1;">👤 1</span>
-            <button id="viewScoresBtn" class="nav-btn" style="background: none; border: none; color: #007aff; font-weight: bold; font-size: 16px; cursor: pointer; padding: 0; line-height: 1;">Scores</button>
+    <nav class="top-nav-bar">
+        <div class="nav-left">
+            <span id="playerCount" class="live-stat">👤 1</span>
+            <span id="global-holes" class="global-stat">🌎⛳️ ...</span>
         </div>
 
-        <select id="modeSelect" class="mode-dropdown" style="margin: 0 10px; border-radius: 5px; font-size: 14px; max-width: 210px; flex-grow: 1;">
-            <option value="casual">Casual</option>
-            <option value="daily">Daily 18-Hole</option>
-            <option value="random">Random 18-Hole</option>
-        </select>
+        <div class="nav-right">
+            <span id="viewScoresBtn" class="leaderboard-icon">🏆</span>
+            
+            <select id="modeSelect" class="mode-dropdown">
+                <option value="casual">Casual</option>
+                <option value="daily">Daily</option>
+                <option value="random">Random</option>
+            </select>
 
-        <div style="position: relative; display: flex; align-items: center; flex-shrink: 0;">
-            
-            <button class="hamburger-btn" onclick="toggleMenu()" style="font-size: 32px; line-height: 1; cursor: pointer; border: none; background: none; color: #007aff; padding: 0; margin: 0; position: relative; top: -2px;">&#9776;</button>
-            
-            <div id="popupMenu" style="position: absolute; top: 40px; right: 0; background: white; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); display: none; flex-direction: column; overflow: hidden; z-index: 2000; min-width: 190px; border: 1px solid #eee; white-space: nowrap;">
-                <div onclick="toggleMenu(false); toggleRules(true)" style="padding: 15px; font-size: 16px; color: #333; font-weight: bold; border-bottom: 1px solid #f0f0f0; cursor: pointer;">📜 Rules</div>
-                <div onclick="toggleMenu(false); toggleStats(true)" style="padding: 15px; font-size: 16px; color: #333; font-weight: bold; border-bottom: 1px solid #f0f0f0; cursor: pointer;">🏆 Stats & Achievements</div>
-                <div onclick="toggleMenu(false); toggleOffline(true)" style="padding: 15px; font-size: 16px; color: #333; font-weight: bold; border-bottom: 1px solid #f0f0f0; cursor: pointer;">📱 Offline Play</div>
-                <div onclick="toggleMenu(false); toggleRoadmap(true)" style="padding: 15px; font-size: 16px; color: #333; font-weight: bold; border-bottom: 1px solid #f0f0f0; cursor: pointer;">💡 Roadmap / Feedback</div>
-                <div onclick="toggleMenu(false); toggleWhatsNew(true)" style="padding: 15px; font-size: 16px; color: #333; font-weight: bold; border-bottom: 1px solid #f0f0f0; cursor: pointer;">📦 What's New</div>
-                <div onclick="toggleMenu(false); toggleAbout(true)" style="padding: 15px; font-size: 16px; color: #333; font-weight: bold; cursor: pointer;">ℹ️ About</div>
-            </div>
+            <div style="position: relative;">
+                <button class="hamburger-btn" onclick="toggleMenu()">☰</button>
+                </div>
         </div>
-
-    </div>
+    </nav>
 
   <div id="scoreboard" style="text-align: center; font-family: monospace; font-weight: bold; font-size: 15px; white-space: nowrap; margin-bottom: 15px; background-color: #e8f4f8; padding: 10px 5px; border-radius: 5px; width: 100%; max-width: 350px; box-sizing: border-box;">
         <span id="uiHole">Hole: 1</span> | 
@@ -144,8 +157,24 @@
     </div>
 
     <div class="controls-container">
-        <div style="font-weight: bold; color: #d9534f; margin-bottom: 10px;" id="statusText">Choose your shot type to start!</div>
-        <div class="dice-display" id="diceResult">-</div>
+        <div style="font-weight: bold; color: #d9534f; margin-bottom: 15px;" id="statusText">Choose your shot type to start!</div>
+        
+        <div class="tactical-dashboard">
+            <div id="lieBadge" class="dashboard-badge lie-fairway">
+                <span class="badge-title">Lie</span>
+                <span id="lieValue" class="badge-value">Tee (+1)</span>
+            </div>
+
+            <div class="dice-container">
+                <div class="dice-display" id="diceResult">-</div>
+            </div>
+
+            <div id="windBadge" class="dashboard-badge wind-gauge">
+                <span class="badge-title">Wind</span>
+                <span id="windValue" class="badge-value">CALM</span>
+            </div>
+        </div>
+
         <div class="btn-row">
             <button id="rollBtn" class="btn-roll">Roll</button>
             <button id="rerollBtn" class="btn-reroll">Re-roll</button>
@@ -295,11 +324,10 @@
         <div class="modal-content">
             <h3 style="margin-top:0;">Roadmap & Feedback</h3>
             
-            <h4 style="color: #2c3e50; margin-bottom: 10px;">🚧 Planned for 2026.6.6 🚧</h4>
+            <h4 style="color: #2c3e50; margin-bottom: 10px;">🚧 Planned for 2026.6.7 🚧</h4>
             <ul style="text-align: left; margin-bottom: 20px; font-size: 14px; color: #333; line-height: 1.5; padding-left: 20px;">
-                <li style="margin-bottom: 8px;"><b>🧃 Impact Visuals:</b> Ball hops on grass, heavy sand dust bursts, and splashing water ripples.</li>
-                <li style="margin-bottom: 8px;"><b>📊 Tactical Dashboard:</b> New UI layout wrapping the dice with live lie modifiers and exact wind coordinates.</li>
-                <li style="margin-bottom: 8px;"><b>🌬️ Shifting Winds:</b> Weather that changes per stroke, perfectly synced to the daily seed for fair leaderboards.</li>
+                <li style="margin-bottom: 8px;"><b>🧃 Landing Visuals ("Juice"):</b> Subtle ball hops on grass, heavy sand dust bursts, and expanding water ripples on hazards.</li>
+                <li style="margin-bottom: 8px;"><b>🌬️ Shifting Winds:</b> Weather that recalculates on every single stroke, perfectly synced to the daily seed so competitive leaderboards remain 100% fair.</li>
             </ul>
             
             <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
@@ -317,7 +345,7 @@
         
         <h3 style="margin: 0 0 12px 0; font-size: 24px;">About</h3>
         <p style="margin: 0 0 12px 0; font-weight: bold; font-size: 18px;">Paper Golf</p>
-        <p style="margin: 0 0 12px 0; font-size: 14px; color: #666;">Version 2026.6.5.2</p>
+        <p style="margin: 0 0 12px 0; font-size: 14px; color: #666;">Version 2026.6.6</p>
         <div style="margin: 0 0 15px 0; font-size: 14px; color: #333;">
             🌍 <strong>Official Website:</strong> <span style="color: #007aff; font-weight: bold;">papergolf.app</span>
         </div>
@@ -357,16 +385,16 @@
     <div id="whatsNewOverlay" class="overlay" style="display: none; background: rgba(0,0,0,0.5); z-index: 3000;">
         <div class="modal-content" style="text-align: center;">
             <h2 style="margin-top: 0; color: #007aff; font-size: 28px;">App Updated!</h2>
-            <p style="font-size: 16px; color: #333; margin-bottom: 20px;">Welcome to version 2026.6.5.2 🌍</p>
+            <p style="font-size: 16px; color: #333; margin-bottom: 20px;">Welcome to version 2026.6.6 🚀</p>
             
             <div style="background-color: #e8f4fd; border-left: 4px solid #007aff; padding: 12px; margin-bottom: 20px; border-radius: 4px; font-size: 14px; color: #333; text-align: left;">
-                🎉 <strong>Welcome Reddit & New Players!</strong> Paper Golf is completely free, runs offline, and is now tracking global stats live. Play at <a href="https://papergolf.app" style="color: #007aff; text-decoration: none; font-weight: bold;">papergolf.app</a>!
+                🎉 <strong>Welcome Reddit & New Players!</strong> Paper Golf is completely free, runs offline, and is tracked live. Play at <a href="https://papergolf.app" style="color: #007aff; text-decoration: none; font-weight: bold;">papergolf.app</a>!
             </div>
             
             <ul style="text-align: left; font-size: 15px; color: #333; margin-bottom: 25px; line-height: 1.6;">
-                <li>🌍 <b>The Global Pulse:</b> When you open the game, a live banner will drop down showing exactly how many holes the community has played today. You are not golfing alone!</li>
-                <li>🏆 <b>Hall of Fame Stats:</b> Open your Stats menu to see your personal lifetime holes completed, plus watch the massive all-time Global Community counter tick up in real-time!</li>
-                <li>📱 <b>Device Polish:</b> Clarified the "Offline Play" instructions for Android users (make sure you use the standalone Chrome app!) and fixed a visual glitch on the iOS Daily Leaderboard.</li>
+                <li>🎯 <b>Tactical Dashboard:</b> The bottom action menu has been completely rebuilt. Your dice roll is now anchored by a live Lie indicator and a visual Wind Gauge (with quick-read arrows like ↗️) so you can plan your shot at a glance.</li>
+                <li>🔥 <b>The Hype Bar:</b> The top navigation got a massive visual overhaul. Live community stats (active players and global holes) now sit cleanly on the left, perfectly balanced with your leaderboards and settings on the right.</li>
+                <li>📱 <b>Responsive Polish:</b> Under-the-hood UI upgrades ensure the game board, badges, and menus scale perfectly whether you're playing on a massive tablet or a smaller phone screen.</li>
             </ul>
             
             <button onclick="document.getElementById('whatsNewOverlay').style.display='none'; checkTutorial();" style="width: 100%; font-size: 18px;">Let's Golf!</button>
@@ -430,13 +458,11 @@ function updateHUD() {
     const scoresBtn = document.getElementById('viewScoresBtn');
     if (scoresBtn) {
         if (currentMode === 'casual') {
-            scoresBtn.style.opacity = '0.4';
+            scoresBtn.style.opacity = '0.3';
             scoresBtn.style.cursor = 'default';
-            scoresBtn.style.textDecoration = 'none';
         } else {
             scoresBtn.style.opacity = '1';
             scoresBtn.style.cursor = 'pointer';
-            scoresBtn.style.textDecoration = 'underline';
         }
     }
 }
@@ -801,10 +827,14 @@ function initializeCommunityStats() {
         }
     });
 
-    // B. Attach the LIVE listener to the Global Lifetime count for the Stats Menu
+    // Add the formatter
+    const compactFormatter = new Intl.NumberFormat('en-US', { notation: "compact", maximumFractionDigits: 1 });
+
+    // Update the live listener inside initializeCommunityStats()
     firebase.database().ref('paperGolf_stats/global_lifetime_holes').on('value', (snapshot) => {
         let globalCount = snapshot.val() || 0;
         document.getElementById('statGlobalHoles').innerText = formatLargeNumber(globalCount);
+        document.getElementById('global-holes').innerText = `🌎⛳️ ${compactFormatter.format(globalCount)}`;
     });
 
     // C. NEW: Attach the LIVE listener to the All-Time Random Crown
@@ -1210,6 +1240,58 @@ function renderScene() {
     }
 }
 
+function updateTacticalDashboard() {
+    // 1. Update Wind Gauge (Now with Arrows!)
+    let wx = currentWeather.windX;
+    let wy = currentWeather.windY;
+    let windStr = "CALM";
+    
+    if (wx !== 0 || wy !== 0) {
+        let arrow = "";
+        
+        // Map the grid coordinates to visual arrows
+        if (wy < 0 && wx === 0) arrow = "⬆️";       // North
+        else if (wy > 0 && wx === 0) arrow = "⬇️";  // South
+        else if (wy === 0 && wx > 0) arrow = "➡️";  // East
+        else if (wy === 0 && wx < 0) arrow = "⬅️";  // West
+        else if (wy < 0 && wx > 0) arrow = "↗️";     // North-East
+        else if (wy < 0 && wx < 0) arrow = "↖️";     // North-West
+        else if (wy > 0 && wx > 0) arrow = "↘️";     // South-East
+        else if (wy > 0 && wx < 0) arrow = "↙️";     // South-West
+
+        let speed = Math.max(Math.abs(wx), Math.abs(wy));
+        
+        // Output looks like: "↗️ 2"
+        windStr = `${arrow} ${speed}`;
+    }
+    document.getElementById('windValue').innerText = windStr;
+
+    // 2. Update Lie Badge
+    let sx = Math.floor(currentBallPos.x / TILE_SIZE);
+    let sy = Math.floor(currentBallPos.y / TILE_SIZE);
+    let terrain = gridData[sy] ? gridData[sy][sx] : TERRAIN.ROUGH;
+    
+    let badge = document.getElementById('lieBadge');
+    let val = document.getElementById('lieValue');
+    
+    // Clear old colors
+    badge.classList.remove('lie-fairway', 'lie-sand', 'lie-rough');
+
+    if (strokes === 0) {
+        badge.classList.add('lie-fairway');
+        val.innerText = "Tee (+1)";
+    } else if (terrain === TERRAIN.FAIRWAY) {
+        badge.classList.add('lie-fairway');
+        val.innerText = "Fairway (+1)";
+    } else if (terrain === TERRAIN.SAND) {
+        badge.classList.add('lie-sand');
+        val.innerText = "Sand (-1)";
+    } else {
+        badge.classList.add('lie-rough');
+        val.innerText = "Rough (0)";
+    }
+}
+
 rollBtn.addEventListener('click', () => {
     if (isHoleComplete) return;
     if (navigator.vibrate) navigator.vibrate(50);
@@ -1401,6 +1483,7 @@ function generateCourse() {
     
     updateRerollButton();
     renderScene();
+    updateTacticalDashboard();
     idleLoop();
 }
 
@@ -1603,6 +1686,7 @@ canvas.addEventListener('pointerdown', (e) => {
             canShoot = false; isPutting = false; rollBtn.disabled = false; puttBtn.disabled = false; currentRoll = 0; diceResult.innerText = '-';
             statusText.style.color = '#d9534f'; statusText.innerText = "Choose your shot type to continue.";
             updateRerollButton(); renderScene();
+            updateTacticalDashboard();
         }
     });
 }); // End of pointerdown event
@@ -1626,7 +1710,7 @@ function idleLoop() {
 document.addEventListener('DOMContentLoaded', () => { 
     resetGame(); 
     
-    const CURRENT_VERSION = '2026.6.5.2';
+    const CURRENT_VERSION = '2026.6.6';
     const lastSeenVersion = localStorage.getItem('paperGolfVersion');
     
     if (lastSeenVersion !== CURRENT_VERSION) {
