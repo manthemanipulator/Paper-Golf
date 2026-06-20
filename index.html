@@ -142,7 +142,16 @@
 
             <div style="position: relative;">
                 <button class="hamburger-btn" onclick="toggleMenu()">☰</button>
+                
+                <div id="popupMenu" style="position: absolute; top: 40px; right: 0; background: white; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); display: none; flex-direction: column; overflow: hidden; z-index: 2000; min-width: 190px; border: 1px solid #eee; white-space: nowrap;">
+                    <div onclick="toggleMenu(false); toggleRules(true)" style="padding: 15px; font-size: 16px; color: #333; font-weight: bold; border-bottom: 1px solid #f0f0f0; cursor: pointer;">📜 Rules</div>
+                    <div onclick="toggleMenu(false); toggleStats(true)" style="padding: 15px; font-size: 16px; color: #333; font-weight: bold; border-bottom: 1px solid #f0f0f0; cursor: pointer;">🏆 Stats & Achievements</div>
+                    <div onclick="toggleMenu(false); toggleOffline(true)" style="padding: 15px; font-size: 16px; color: #333; font-weight: bold; border-bottom: 1px solid #f0f0f0; cursor: pointer;">📱 Offline Play</div>
+                    <div onclick="toggleMenu(false); toggleRoadmap(true)" style="padding: 15px; font-size: 16px; color: #333; font-weight: bold; border-bottom: 1px solid #f0f0f0; cursor: pointer;">💡 Roadmap / Feedback</div>
+                    <div onclick="toggleMenu(false); toggleWhatsNew(true)" style="padding: 15px; font-size: 16px; color: #333; font-weight: bold; border-bottom: 1px solid #f0f0f0; cursor: pointer;">📦 What's New</div>
+                    <div onclick="toggleMenu(false); toggleAbout(true)" style="padding: 15px; font-size: 16px; color: #333; font-weight: bold; cursor: pointer;">ℹ️ About</div>
                 </div>
+            </div>
         </div>
     </nav>
 
@@ -345,7 +354,7 @@
         
         <h3 style="margin: 0 0 12px 0; font-size: 24px;">About</h3>
         <p style="margin: 0 0 12px 0; font-weight: bold; font-size: 18px;">Paper Golf</p>
-        <p style="margin: 0 0 12px 0; font-size: 14px; color: #666;">Version 2026.6.6</p>
+        <p style="margin: 0 0 12px 0; font-size: 14px; color: #666;">Version 2026.6.6.1</p>
         <div style="margin: 0 0 15px 0; font-size: 14px; color: #333;">
             🌍 <strong>Official Website:</strong> <span style="color: #007aff; font-weight: bold;">papergolf.app</span>
         </div>
@@ -385,7 +394,7 @@
     <div id="whatsNewOverlay" class="overlay" style="display: none; background: rgba(0,0,0,0.5); z-index: 3000;">
         <div class="modal-content" style="text-align: center;">
             <h2 style="margin-top: 0; color: #007aff; font-size: 28px;">App Updated!</h2>
-            <p style="font-size: 16px; color: #333; margin-bottom: 20px;">Welcome to version 2026.6.6 🚀</p>
+            <p style="font-size: 16px; color: #333; margin-bottom: 20px;">Welcome to version 2026.6.6.1 🚀</p>
             
             <div style="background-color: #e8f4fd; border-left: 4px solid #007aff; padding: 12px; margin-bottom: 20px; border-radius: 4px; font-size: 14px; color: #333; text-align: left;">
                 🎉 <strong>Welcome Reddit & New Players!</strong> Paper Golf is completely free, runs offline, and is tracked live. Play at <a href="https://papergolf.app" style="color: #007aff; text-decoration: none; font-weight: bold;">papergolf.app</a>!
@@ -1710,7 +1719,7 @@ function idleLoop() {
 document.addEventListener('DOMContentLoaded', () => { 
     resetGame(); 
     
-    const CURRENT_VERSION = '2026.6.6';
+    const CURRENT_VERSION = '2026.6.6.1';
     const lastSeenVersion = localStorage.getItem('paperGolfVersion');
     
     if (lastSeenVersion !== CURRENT_VERSION) {
