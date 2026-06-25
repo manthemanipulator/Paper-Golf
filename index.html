@@ -14,6 +14,7 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-analytics.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
 
     <style>
         /* --- 6.6 UI Upgrades --- */
@@ -340,7 +341,6 @@
         
         <h4 style="color: #2c3e50; margin-bottom: 10px;">🚧 The Road to 7.0 🚧</h4>
         <ul style="text-align: left; margin-bottom: 20px; font-size: 14px; color: #333; line-height: 1.5; padding-left: 20px;">
-            <li style="margin-bottom: 8px;"><b>v6.8 - The ID Update:</b> Laying the foundation for cloud saves. Your game will automatically generate a secure, invisible ID to start tracking your unique progress.</li>
             <li style="margin-bottom: 8px;"><b>v6.9 - Data Telemetry:</b> Upgrading the database so your offline and online stats are safely tied to your player ID.</li>
             <li style="margin-bottom: 8px;"><b>v7.0 - The Cloud Update:</b> The big one! Full cross-device account sync (Google/Apple) and rock-solid server infrastructure to permanently protect the leaderboards.</li>
         </ul>
@@ -360,7 +360,7 @@
         
         <h3 style="margin: 0 0 12px 0; font-size: 24px;">About</h3>
         <p style="margin: 0 0 12px 0; font-weight: bold; font-size: 18px;">Paper Golf</p>
-        <p style="margin: 0 0 12px 0; font-size: 14px; color: #666;">Version 2026.6.7.1</p>
+        <p style="margin: 0 0 12px 0; font-size: 14px; color: #666;">Version 2026.6.8</p>
         <div style="margin: 0 0 15px 0; font-size: 14px; color: #333;">
             🌍 <strong>Official Website:</strong> <span style="color: #007aff; font-weight: bold;">papergolf.app</span>
         </div>
@@ -525,6 +525,25 @@ const rtdb = firebase.database();
 const sessionId = Math.random().toString(36).substring(2, 15);
 const myUserRef = rtdb.ref('online_users/' + sessionId);
 const connectedRef = rtdb.ref('.info/connected');
+
+// ==========================================
+// VERSION 6.8: ANONYMOUS AUTHENTICATION
+// ==========================================
+let playerUID = null;
+
+// 1. Ask Firebase to log the browser in silently
+firebase.auth().signInAnonymously().catch((error) => {
+    console.error("Auth failed:", error.code, error.message);
+});
+
+// 2. Listen for the secure badge to be handed over
+firebase.auth().onAuthStateChanged((user) => {
+    if (user) {
+        playerUID = user.uid;
+        console.log("Logged in securely! Player UID:", playerUID);
+    }
+});
+// ==========================================
 
 connectedRef.on('value', (snap) => {
     if (snap.val() === true) {
@@ -1554,7 +1573,7 @@ function idleLoop() {
 document.addEventListener('DOMContentLoaded', () => { 
     resetGame(); 
     
-    const CURRENT_VERSION = '2026.6.7.1';
+    const CURRENT_VERSION = '2026.6.8';
     const lastSeenVersion = localStorage.getItem('paperGolfVersion');
     
     if (lastSeenVersion !== CURRENT_VERSION) {
