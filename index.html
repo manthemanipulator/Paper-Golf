@@ -341,8 +341,13 @@
         
         <h4 style="color: #2c3e50; margin-bottom: 10px;">🚧 The Road to 7.0 🚧</h4>
         <ul style="text-align: left; margin-bottom: 20px; font-size: 14px; color: #333; line-height: 1.5; padding-left: 20px;">
-            <li style="margin-bottom: 8px;"><b>✅ v6.9 - Data Telemetry:</b> (ACTIVE) The database is upgraded. Offline and online stats are now safely tied to your secure player ID.</li>
-            <li style="margin-bottom: 8px;"><b>v7.0 - The Cloud Update:</b> The big one! Full cross-device account sync (Google/Apple) and rock-solid server infrastructure to permanently protect the leaderboards.</li>
+            <li style="margin-bottom: 8px;"><b>🚧 v7.0 - The Cloud Update:</b> The big one!
+                <ul style="margin-top: 4px; padding-left: 15px; list-style-type: circle;">
+                    <li style="margin-bottom: 4px;"><b>Account Sync:</b> Google/Apple login to permanently protect and sync cross-device progress.</li>
+                    <li style="margin-bottom: 4px;"><b>Dark Theme:</b> A new slate-gray dark mode that follows system settings, complete with a manual override toggle.</li>
+                    <li style="margin-bottom: 4px;"><b>Leaderboard Overhaul:</b> A sleek "receding" Top 10 view, strict "first-in" tie-breakers, and a sticky banner showing your exact global rank.</li>
+                </ul>
+            </li>
         </ul>
         
         <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
@@ -360,7 +365,7 @@
         
         <h3 style="margin: 0 0 12px 0; font-size: 24px;">About</h3>
         <p style="margin: 0 0 12px 0; font-weight: bold; font-size: 18px;">Paper Golf</p>
-        <p style="margin: 0 0 12px 0; font-size: 14px; color: #666;">Version 2026.6.9</p>
+        <p style="margin: 0 0 12px 0; font-size: 14px; color: #666;">Version 2026.6.9.1</p>
         <div style="margin: 0 0 15px 0; font-size: 14px; color: #333;">
             🌍 <strong>Official Website:</strong> <span style="color: #007aff; font-weight: bold;">papergolf.app</span>
         </div>
@@ -400,7 +405,7 @@
     <div id="whatsNewOverlay" class="overlay" style="display: none; background: rgba(0,0,0,0.5); z-index: 3000;">
         <div class="modal-content" style="text-align: center;">
             <h2 style="margin-top: 0; color: #007aff; font-size: 28px;">App Updated!</h2>
-            <p style="font-size: 16px; color: #333; margin-bottom: 20px;">Welcome to version 2026.6.9 🚀</p>
+            <p style="font-size: 16px; color: #333; margin-bottom: 20px;">Welcome to version 2026.6.9.1 🚀</p>
             
             <div style="background-color: #e8f4fd; border-left: 4px solid #007aff; padding: 12px; margin-bottom: 20px; border-radius: 4px; font-size: 14px; color: #333; text-align: left;">
                 🎉 <strong>Welcome New Players!</strong> Paper Golf is completely free, runs offline, and is tracked live. Play at <a href="https://papergolf.app" style="color: #007aff; text-decoration: none; font-weight: bold;">papergolf.app</a>!
@@ -1575,7 +1580,7 @@ function idleLoop() {
 document.addEventListener('DOMContentLoaded', () => { 
     resetGame(); 
     
-    const CURRENT_VERSION = '2026.6.9';
+    const CURRENT_VERSION = '2026.6.9.1';
     const lastSeenVersion = localStorage.getItem('paperGolfVersion');
     
     if (lastSeenVersion !== CURRENT_VERSION) {
