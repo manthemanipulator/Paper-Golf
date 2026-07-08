@@ -903,13 +903,17 @@ function showLeaderboard() {
     const targetDate = (currentMode === 'daily' && datePicker.value) ? datePicker.value : new Date().toLocaleDateString('en-CA');
     const currentMonthYear = new Date().toLocaleString('default', { month: 'long', year: 'numeric' });
     
-    // 1. FETCH CONTEXTUAL PLAY COUNTS
+   // 1. FETCH CONTEXTUAL PLAY COUNTS
     if (currentMode === 'daily') {
         const statsRef = firebase.database().ref(`daily_stats/${targetDate}/daily`);
         statsRef.once('value').then((snap) => {
             const plays = snap.val() || 0;
             playsCountDisplay.innerHTML = `⛳️ ${plays} rounds completed today`;
+        }).catch((error) => {
+            console.error("Firebase Read Error:", error);
+            playsCountDisplay.innerHTML = `<span style="color: #ff3b30;">⚠️ Stats temporarily unavailable</span>`;
         });
+        
     } else if (currentMode === 'random') {
         const crownRef = firebase.database().ref('paperGolf_stats/all_time_random_crown');
         const monthlyRef = firebase.database().ref(`monthly_stats/${currentMonthYear}/random`);
@@ -925,12 +929,19 @@ function showLeaderboard() {
             displayHTML += `<span style="font-size: 14px; color: #4cd964;">⛳️ ${monthlyPlays} rounds completed this month</span>`;
             
             playsCountDisplay.innerHTML = displayHTML;
+        }).catch((error) => {
+            console.error("Firebase Read Error:", error);
+            playsCountDisplay.innerHTML = `<span style="color: #ff3b30;">⚠️ Stats temporarily unavailable</span>`;
         });
+        
     } else {
         const lifetimeRef = firebase.database().ref(`lifetime_stats/${currentMode}`);
         lifetimeRef.once('value').then((snap) => {
             const plays = snap.val() || 0;
             playsCountDisplay.innerHTML = `⛳️ ${plays} lifetime rounds completed`;
+        }).catch((error) => {
+            console.error("Firebase Read Error:", error);
+            playsCountDisplay.innerHTML = `<span style="color: #ff3b30;">⚠️ Stats temporarily unavailable</span>`;
         });
     }
     
