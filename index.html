@@ -702,7 +702,7 @@ db.enablePersistence().catch((err) => console.log("Offline mode failed: ", err.c
 
 function triggerVictorySequence() {
     const today = new Date().toLocaleDateString('en-CA');
-    const monthYear = new Date().toLocaleString('default', { month: 'long', year: 'numeric' }); 
+    const monthYear = getMonthYearString(); // <-- FIXED to use helper
     
     firebase.database().ref(`daily_stats/${today}/${currentMode}`).set(firebase.database.ServerValue.increment(1));
     firebase.database().ref(`lifetime_stats/${currentMode}`).set(firebase.database.ServerValue.increment(1));
@@ -809,7 +809,7 @@ function loadLocalHoleStats() {
 
 function saveScoreToCloud(initials, score) {
     const today = new Date().toLocaleDateString('en-CA');
-    const monthYear = new Date().toLocaleString('default', { month: 'long', year: 'numeric' });
+    const monthYear = getMonthYearString(); // <-- FIXED to use helper
 
     const payload = {
         initials: initials,
@@ -900,15 +900,15 @@ function showLeaderboard() {
     const list = document.getElementById('leaderboardList');
     const rankBanner = document.getElementById('userRankBanner');
     const playsCountDisplay = document.getElementById('dailyPlaysCount');
-    const currentMonthYear = getMonthYearString();
+    const currentMonthYear = getMonthYearString(); // Uses helper
     
     list.innerHTML = '<li>Loading...</li>';
     rankBanner.classList.add('hidden');
-    playsCountDisplay.innerHTML = 'Loading stats...'; // Clears out Flash-lite's stuck text
+    playsCountDisplay.innerHTML = 'Loading stats...'; 
     
     const datePicker = document.getElementById('historyDate');
     const targetDate = (currentMode === 'daily' && datePicker.value) ? datePicker.value : new Date().toLocaleDateString('en-CA');
-    const currentMonthYear = new Date().toLocaleString('default', { month: 'long', year: 'numeric' });
+    // Removed the duplicate 'const currentMonthYear' that was crashing the app!
     
    // 1. FETCH CONTEXTUAL PLAY COUNTS
     if (currentMode === 'daily') {
@@ -957,20 +957,18 @@ function showLeaderboard() {
         list.innerHTML = ''; 
         let count = 0;
         let myRank = null;
-        let myBestThisContext = null; // Tracks best score for THIS specific month/mode
+        let myBestThisContext = null; 
         let totalScoresInCategory = 0;
         
         querySnapshot.forEach((doc) => {
             const entry = doc.data();
             
-            // Filter to only the active context
             if (currentMode === 'daily' && (entry.mode !== 'daily' || entry.date !== targetDate)) return;
             if (currentMode === 'random' && (entry.mode !== 'random' || entry.monthYear !== currentMonthYear)) return;
             if (currentMode === 'casual' && entry.mode !== 'casual') return;
             
             totalScoresInCategory++;
             
-            // Because the list is ordered best-to-worst, the FIRST match is your monthly best!
             if (entry.uid === playerUID && !myRank) {
                 myRank = totalScoresInCategory;
                 myBestThisContext = entry.score;
@@ -981,11 +979,10 @@ function showLeaderboard() {
             
             const li = document.createElement('li');
             
-            // TRUE TERRACING: Shrink the physical footprint to prevent scrolling
-            let opacity = 1 - ((count - 1) * 0.08);          // Fades from 1.0 down to 0.28
-            let fontSize = 18 - (count - 1);                 // Shrinks text from 18px down to 9px
-            let padding = 10 - Math.floor((count - 1) * 0.5); // Shrinks padding from 10px down to ~6px
-            let bottomMargin = count === 1 ? "10px" : "4px";  // Tighter stacking for lower ranks
+            let opacity = 1 - ((count - 1) * 0.08);          
+            let fontSize = 18 - (count - 1);                 
+            let padding = 10 - Math.floor((count - 1) * 0.5); 
+            let bottomMargin = count === 1 ? "10px" : "4px";  
             
             li.style.opacity = opacity;
             li.style.fontSize = `${fontSize}px`;
@@ -997,7 +994,7 @@ function showLeaderboard() {
                 li.innerHTML = `🏆 <b>${entry.initials} ..... ${entry.score}</b> 🏆`;
                 li.style.color = '#d35400'; 
                 li.style.border = "2px solid #d35400";
-                li.style.fontSize = "18px"; // Keep #1 prominent
+                li.style.fontSize = "18px"; 
             } else {
                 li.textContent = `#${count} - ${entry.initials} ..... ${entry.score}`;
             }
@@ -1009,17 +1006,16 @@ function showLeaderboard() {
         // 3. POPULATE THE STICKY RANK BANNER
         if (currentMode !== 'casual') {
             if (myBestThisContext) {
-                // You have played this month
                 document.getElementById('userBestBannerScore').innerText = myBestThisContext;
                 document.getElementById('userRankText').innerText = `#${myRank} / ${totalScoresInCategory}`;
             } else {
-                // You haven't played this month yet
                 document.getElementById('userBestBannerScore').innerText = '--';
                 document.getElementById('userRankText').innerText = `Unranked`;
             }
             rankBanner.classList.remove('hidden');
         }
     });
+}
 
 function getTodayDateString() {
     const now = new Date();
