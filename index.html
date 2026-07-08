@@ -405,7 +405,7 @@
                 </div>
                 
                 <button id="playAgainBtn" style="width: 100%; max-width: 300px;">Play Again</button>
-                <button id="backToCasualBtn" class="btn-secondary" style="width: 100%; max-width: 300px;">Back to Casual</button>
+                <button id="backToCasualBtn" class="btn-secondary" style="width: 100%; max-width: 300px; margin-top: 10px;">Back to Casual</button>
             </div>
         </div>
     </div>
@@ -893,19 +893,22 @@ function showLeaderboard() {
     
     const list = document.getElementById('leaderboardList');
     const rankBanner = document.getElementById('userRankBanner');
+    const playsCountDisplay = document.getElementById('dailyPlaysCount');
+    
     list.innerHTML = '<li>Loading...</li>';
     rankBanner.classList.add('hidden');
+    playsCountDisplay.innerHTML = 'Loading stats...'; // Clears out Flash-lite's stuck text
     
     const datePicker = document.getElementById('historyDate');
     const targetDate = (currentMode === 'daily' && datePicker.value) ? datePicker.value : new Date().toLocaleDateString('en-CA');
     const currentMonthYear = new Date().toLocaleString('default', { month: 'long', year: 'numeric' });
     
-    // FETCH CONTEXTUAL PLAY COUNTS
+    // 1. FETCH CONTEXTUAL PLAY COUNTS
     if (currentMode === 'daily') {
         const statsRef = firebase.database().ref(`daily_stats/${targetDate}/daily`);
         statsRef.once('value').then((snap) => {
             const plays = snap.val() || 0;
-            document.getElementById('dailyPlaysCount').innerHTML = `⛳️ ${plays} rounds completed today`;
+            playsCountDisplay.innerHTML = `⛳️ ${plays} rounds completed today`;
         });
     } else if (currentMode === 'random') {
         const crownRef = firebase.database().ref('paperGolf_stats/all_time_random_crown');
@@ -921,17 +924,17 @@ function showLeaderboard() {
             }
             displayHTML += `<span style="font-size: 14px; color: #4cd964;">⛳️ ${monthlyPlays} rounds completed this month</span>`;
             
-            document.getElementById('dailyPlaysCount').innerHTML = displayHTML;
+            playsCountDisplay.innerHTML = displayHTML;
         });
     } else {
         const lifetimeRef = firebase.database().ref(`lifetime_stats/${currentMode}`);
         lifetimeRef.once('value').then((snap) => {
             const plays = snap.val() || 0;
-            document.getElementById('dailyPlaysCount').innerText = `⛳️ ${plays} lifetime rounds completed`;
+            playsCountDisplay.innerHTML = `⛳️ ${plays} lifetime rounds completed`;
         });
     }
     
-    // BUILD THE LEADERBOARD LIST
+    // 2. BUILD THE STATIC LEADERBOARD LIST
     db.collection("globalLeaderboard").orderBy("score", "asc").orderBy("timestamp", "asc").onSnapshot((querySnapshot) => {
         list.innerHTML = ''; 
         let count = 0;
@@ -955,6 +958,8 @@ function showLeaderboard() {
             
             const li = document.createElement('li');
             
+            // The bad scale/opacity code is COMPLETELY REMOVED here.
+            
             if (count === 1) {
                 li.innerHTML = `🏆 <b>${entry.initials} ..... ${entry.score}</b> 🏆`;
                 li.style.color = '#d35400'; 
@@ -967,7 +972,7 @@ function showLeaderboard() {
         
         if (count === 0) list.innerHTML = '<li>No scores yet!</li>';
         
-        // POPULATE THE RANK BANNER
+        // 3. POPULATE THE STICKY RANK BANNER
         if (currentMode !== 'casual' && localStats.bestScore) {
             document.getElementById('userBestBannerScore').innerText = localStats.bestScore;
             
