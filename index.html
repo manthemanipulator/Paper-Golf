@@ -170,6 +170,31 @@
         [data-theme="dark"] input[type="date"] {
             background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23eeeeee' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
         }
+
+        #leaderboardSection { 
+            position: relative; 
+            padding-bottom: 10px; 
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        #userRankBanner { 
+            width: 100%; 
+            max-width: 300px;
+            background: var(--accent-color); 
+            color: white; 
+            padding: 12px; 
+            border-radius: 8px; 
+            font-weight: bold; 
+            font-size: 14px; 
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2); 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            box-sizing: border-box;
+            margin-bottom: 20px;
+        }
     </style>
 </head>
 <body>
@@ -368,20 +393,19 @@
                 <button id="submitScoreBtn">Submit Score</button>
             </div>
             
-            <div id="leaderboardSection" class="hidden" style="position: relative; padding-bottom: 10px;">
-                <h3>TOP SCORES</h3>
+           <div id="leaderboardSection" class="hidden">
                                 
                 <input type="date" id="historyDate" style="font-size: 16px; margin-bottom: 15px; padding: 5px; border-radius: 5px; border: 1px solid var(--border-color); font-family: monospace; color: var(--text-color); background-color: var(--input-bg);">
                 
-                <ul class="leaderboard-list" id="leaderboardList" style="margin-bottom: 60px;"></ul>
+                <ul class="leaderboard-list" id="leaderboardList" style="width: 100%; max-width: 300px; margin-top: 0;"></ul>
                 
-                <div id="userRankBanner" class="hidden" style="position: sticky; bottom: 120px; left: 50%; transform: translateX(-50%); width: 95%; background: var(--accent-color); color: white; padding: 10px; border-radius: 8px; font-weight: bold; font-size: 14px; box-shadow: 0 -4px 10px rgba(0,0,0,0.2); display: flex; justify-content: space-between; align-items: center; box-sizing: border-box;">
+                <div id="userRankBanner" class="hidden">
                     <span>Your Best: <span id="userBestBannerScore">--</span></span>
                     <span style="font-size: 12px; opacity: 0.9;" id="userRankText">Unranked</span>
                 </div>
                 
-                <button id="playAgainBtn" style="margin-top: 20px;">Play Again</button>
-                <button id="backToCasualBtn" class="btn-secondary">Back to Casual</button>
+                <button id="playAgainBtn" style="width: 100%; max-width: 300px;">Play Again</button>
+                <button id="backToCasualBtn" class="btn-secondary" style="width: 100%; max-width: 300px;">Back to Casual</button>
             </div>
         </div>
     </div>
@@ -876,30 +900,29 @@ function showLeaderboard() {
     const targetDate = (currentMode === 'daily' && datePicker.value) ? datePicker.value : new Date().toLocaleDateString('en-CA');
     const currentMonthYear = new Date().toLocaleString('default', { month: 'long', year: 'numeric' });
     
+    // FETCH CONTEXTUAL PLAY COUNTS
     if (currentMode === 'daily') {
         const statsRef = firebase.database().ref(`daily_stats/${targetDate}/daily`);
         statsRef.once('value').then((snap) => {
             const plays = snap.val() || 0;
-            document.getElementById('dailyPlaysCount').innerText = `⛳️ ${plays} rounds completed today`;
+            document.getElementById('dailyPlaysCount').innerHTML = `⛳️ ${plays} rounds completed today`;
         });
     } else if (currentMode === 'random') {
-    const crownRef = firebase.database().ref('paperGolf_stats/all_time_random_crown');
-    const monthlyRef = firebase.database().ref(`monthly_stats/${currentMonthYear}/random`);
-    
-    Promise.all([crownRef.once('value'), monthlyRef.once('value')]).then(([crownSnap, monthlySnap]) => {
-        const crown = crownSnap.val();
-        const monthlyPlays = monthlySnap.val() || 0;
+        const crownRef = firebase.database().ref('paperGolf_stats/all_time_random_crown');
+        const monthlyRef = firebase.database().ref(`monthly_stats/${currentMonthYear}/random`);
         
-        let displayHTML = '';
-        if (crown) {
-            displayHTML += `👑 ALL-TIME RECORD: <span style="color:var(--accent-color);">${crown.initials} - ${crown.score}</span> 👑<br>`;
-        }
-        // This line now correctly shows the monthly total
-        displayHTML += `<span style="font-size: 14px; color: #4cd964;">⛳️ ${monthlyPlays} rounds completed this month</span>`;
-        
-        document.getElementById('dailyPlaysCount').innerHTML = displayHTML;
-    });
-
+        Promise.all([crownRef.once('value'), monthlyRef.once('value')]).then(([crownSnap, monthlySnap]) => {
+            const crown = crownSnap.val();
+            const monthlyPlays = monthlySnap.val() || 0;
+            
+            let displayHTML = '';
+            if (crown) {
+                displayHTML += `👑 ALL-TIME RECORD: <span style="color:var(--accent-color);">${crown.initials} - ${crown.score}</span> 👑<br>`;
+            }
+            displayHTML += `<span style="font-size: 14px; color: #4cd964;">⛳️ ${monthlyPlays} rounds completed this month</span>`;
+            
+            document.getElementById('dailyPlaysCount').innerHTML = displayHTML;
+        });
     } else {
         const lifetimeRef = firebase.database().ref(`lifetime_stats/${currentMode}`);
         lifetimeRef.once('value').then((snap) => {
@@ -908,6 +931,7 @@ function showLeaderboard() {
         });
     }
     
+    // BUILD THE LEADERBOARD LIST
     db.collection("globalLeaderboard").orderBy("score", "asc").orderBy("timestamp", "asc").onSnapshot((querySnapshot) => {
         list.innerHTML = ''; 
         let count = 0;
@@ -931,14 +955,6 @@ function showLeaderboard() {
             
             const li = document.createElement('li');
             
-            let scale = 1 - ((count - 1) * 0.035);
-            let opacity = 1 - ((count - 1) * 0.07);
-            
-            li.style.transform = `scale(${scale})`;
-            li.style.opacity = opacity;
-            li.style.transformOrigin = "top center";
-            li.style.marginBottom = "-5px";
-            
             if (count === 1) {
                 li.innerHTML = `🏆 <b>${entry.initials} ..... ${entry.score}</b> 🏆`;
                 li.style.color = '#d35400'; 
@@ -951,6 +967,7 @@ function showLeaderboard() {
         
         if (count === 0) list.innerHTML = '<li>No scores yet!</li>';
         
+        // POPULATE THE RANK BANNER
         if (currentMode !== 'casual' && localStats.bestScore) {
             document.getElementById('userBestBannerScore').innerText = localStats.bestScore;
             
