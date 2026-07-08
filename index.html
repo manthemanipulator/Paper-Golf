@@ -375,7 +375,7 @@
                 
                 <ul class="leaderboard-list" id="leaderboardList" style="margin-bottom: 60px;"></ul>
                 
-                <div id="userRankBanner" class="hidden" style="position: absolute; bottom: 120px; left: 50%; transform: translateX(-50%); width: 95%; background: var(--accent-color); color: white; padding: 10px; border-radius: 8px; font-weight: bold; font-size: 14px; box-shadow: 0 -4px 10px rgba(0,0,0,0.2); display: flex; justify-content: space-between; align-items: center; box-sizing: border-box;">
+                <div id="userRankBanner" class="hidden" style="position: sticky; bottom: 0px; left: 50%; transform: translateX(-50%); width: 95%; background: var(--accent-color); color: white; padding: 10px; border-radius: 8px; font-weight: bold; font-size: 14px; box-shadow: 0 -4px 10px rgba(0,0,0,0.2); display: flex; justify-content: space-between; align-items: center; box-sizing: border-box;">
                     <span>Your Best: <span id="userBestBannerScore">--</span></span>
                     <span style="font-size: 12px; opacity: 0.9;" id="userRankText">Unranked</span>
                 </div>
@@ -883,23 +883,23 @@ function showLeaderboard() {
             document.getElementById('dailyPlaysCount').innerText = `⛳️ ${plays} rounds completed today`;
         });
     } else if (currentMode === 'random') {
-        const crownRef = firebase.database().ref('paperGolf_stats/all_time_random_crown');
-        const monthlyRef = firebase.database().ref(`monthly_stats/${currentMonthYear}/random`);
+    const crownRef = firebase.database().ref('paperGolf_stats/all_time_random_crown');
+    const monthlyRef = firebase.database().ref(`monthly_stats/${currentMonthYear}/random`);
+    
+    Promise.all([crownRef.once('value'), monthlyRef.once('value')]).then(([crownSnap, monthlySnap]) => {
+        const crown = crownSnap.val();
+        const monthlyPlays = monthlySnap.val() || 0;
         
-        Promise.all([crownRef.once('value'), monthlyRef.once('value')]).then(([crownSnap, monthlySnap]) => {
-            const crown = crownSnap.val();
-            const monthlyPlays = monthlySnap.val() || 0;
-            
-            let displayHTML = '';
-            if (crown) {
-                displayHTML += `👑 ALL-TIME RECORD: <span style="color:var(--accent-color);">${crown.initials} - ${crown.score}</span> 👑<br>`;
-            } else {
-                displayHTML += `👑 ALL-TIME RECORD: None yet! 👑<br>`;
-            }
-            displayHTML += `<span style="font-size: 12px; color: #888;">🔥 ${monthlyPlays} attempts this month</span>`;
-            
-            document.getElementById('dailyPlaysCount').innerHTML = displayHTML;
-        });
+        let displayHTML = '';
+        if (crown) {
+            displayHTML += `👑 ALL-TIME RECORD: <span style="color:var(--accent-color);">${crown.initials} - ${crown.score}</span> 👑<br>`;
+        }
+        // This line now correctly shows the monthly total
+        displayHTML += `<span style="font-size: 14px; color: #4cd964;">⛳️ ${monthlyPlays} rounds completed this month</span>`;
+        
+        document.getElementById('dailyPlaysCount').innerHTML = displayHTML;
+    });
+
     } else {
         const lifetimeRef = firebase.database().ref(`lifetime_stats/${currentMode}`);
         lifetimeRef.once('value').then((snap) => {
