@@ -179,6 +179,8 @@
             align-items: center;
         }
         
+        .leaderboard-list { list-style: none; padding: 0; margin: 5px 0 10px 0; text-align: center; font-family: monospace; font-size: 18px; }
+        
         #userRankBanner { 
             width: 100%; 
             max-width: 300px;
@@ -193,7 +195,7 @@
             justify-content: space-between; 
             align-items: center; 
             box-sizing: border-box;
-            margin-bottom: 20px;
+            margin-bottom: 10px; /* Squeezed from 20px */
         }
     </style>
 </head>
@@ -382,10 +384,11 @@
     </div>
 
     <div id="leaderboardModal" class="overlay" style="background: rgba(0,0,0,0.95);">
-        <div class="modal-content" style="background: transparent; color: white; text-align: center; border: 2px solid white;">
-            <h2 id="modalTitle" style="margin-bottom: 5px;">ROUND COMPLETE!</h2>
-            <p id="dailyPlaysCount" style="font-size: 14px; color: #4cd964; margin-top: 0; margin-bottom: 15px; font-weight: bold;"></p>
-            <h3 id="finalScoreDisplay" style="margin-top: 0;">Final Score: 0</h3>
+        <!-- Reduced padding from 20px to 15px 10px -->
+        <div class="modal-content" style="background: transparent; color: white; text-align: center; border: 2px solid white; padding: 15px 10px; width: 100%; max-width: 360px;">
+            <h2 id="modalTitle" style="margin-top: 0; margin-bottom: 5px;">ROUND COMPLETE!</h2>
+            <p id="dailyPlaysCount" style="font-size: 14px; color: #4cd964; margin-top: 0; margin-bottom: 8px; font-weight: bold; line-height: 1.2;"></p>
+            <h3 id="finalScoreDisplay" style="margin-top: 0; margin-bottom: 10px;">Final Score: 0</h3>
             
             <div id="inputSection">
                 <p>Enter 3 initials for the leaderboard:</p>
@@ -979,10 +982,11 @@ function showLeaderboard() {
             
             const li = document.createElement('li');
             
+           // TRUE TERRACING: Shrink the physical footprint to prevent scrolling
             let opacity = 1 - ((count - 1) * 0.08);          
             let fontSize = 18 - (count - 1);                 
             let padding = 10 - Math.floor((count - 1) * 0.5); 
-            let bottomMargin = count === 1 ? "10px" : "4px";  
+            let bottomMargin = count === 1 ? "6px" : "2px";  // Squeezed even tighter
             
             li.style.opacity = opacity;
             li.style.fontSize = `${fontSize}px`;
