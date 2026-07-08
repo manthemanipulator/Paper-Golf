@@ -503,6 +503,12 @@
 
 <script>
 
+function getMonthYearString() {
+    const d = new Date();
+    // Force: "July 2026" (matches your screenshot text)
+    return d.toLocaleString('en-US', { month: 'long', year: 'numeric' });
+}
+
 function initializeTheme() {
     const savedTheme = localStorage.getItem('paperGolf_theme');
     const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -894,6 +900,7 @@ function showLeaderboard() {
     const list = document.getElementById('leaderboardList');
     const rankBanner = document.getElementById('userRankBanner');
     const playsCountDisplay = document.getElementById('dailyPlaysCount');
+    const currentMonthYear = getMonthYearString();
     
     list.innerHTML = '<li>Loading...</li>';
     rankBanner.classList.add('hidden');
@@ -945,23 +952,28 @@ function showLeaderboard() {
         });
     }
     
-    // 2. BUILD THE STATIC LEADERBOARD LIST
+    // 2. BUILD THE DYNAMIC LEADERBOARD LIST
     db.collection("globalLeaderboard").orderBy("score", "asc").orderBy("timestamp", "asc").onSnapshot((querySnapshot) => {
         list.innerHTML = ''; 
         let count = 0;
         let myRank = null;
+        let myBestThisContext = null; // Tracks best score for THIS specific month/mode
         let totalScoresInCategory = 0;
         
         querySnapshot.forEach((doc) => {
             const entry = doc.data();
+            
+            // Filter to only the active context
             if (currentMode === 'daily' && (entry.mode !== 'daily' || entry.date !== targetDate)) return;
             if (currentMode === 'random' && (entry.mode !== 'random' || entry.monthYear !== currentMonthYear)) return;
             if (currentMode === 'casual' && entry.mode !== 'casual') return;
             
             totalScoresInCategory++;
             
+            // Because the list is ordered best-to-worst, the FIRST match is your monthly best!
             if (entry.uid === playerUID && !myRank) {
                 myRank = totalScoresInCategory;
+                myBestThisContext = entry.score;
             }
             
             if (count >= 10) return;
@@ -969,12 +981,23 @@ function showLeaderboard() {
             
             const li = document.createElement('li');
             
-            // The bad scale/opacity code is COMPLETELY REMOVED here.
+            // TRUE TERRACING: Shrink the physical footprint to prevent scrolling
+            let opacity = 1 - ((count - 1) * 0.08);          // Fades from 1.0 down to 0.28
+            let fontSize = 18 - (count - 1);                 // Shrinks text from 18px down to 9px
+            let padding = 10 - Math.floor((count - 1) * 0.5); // Shrinks padding from 10px down to ~6px
+            let bottomMargin = count === 1 ? "10px" : "4px";  // Tighter stacking for lower ranks
+            
+            li.style.opacity = opacity;
+            li.style.fontSize = `${fontSize}px`;
+            li.style.padding = `${padding}px`;
+            li.style.marginBottom = bottomMargin;
+            li.style.lineHeight = "1.2";
             
             if (count === 1) {
                 li.innerHTML = `🏆 <b>${entry.initials} ..... ${entry.score}</b> 🏆`;
                 li.style.color = '#d35400'; 
                 li.style.border = "2px solid #d35400";
+                li.style.fontSize = "18px"; // Keep #1 prominent
             } else {
                 li.textContent = `#${count} - ${entry.initials} ..... ${entry.score}`;
             }
@@ -984,18 +1007,19 @@ function showLeaderboard() {
         if (count === 0) list.innerHTML = '<li>No scores yet!</li>';
         
         // 3. POPULATE THE STICKY RANK BANNER
-        if (currentMode !== 'casual' && localStats.bestScore) {
-            document.getElementById('userBestBannerScore').innerText = localStats.bestScore;
-            
-            if (myRank) {
+        if (currentMode !== 'casual') {
+            if (myBestThisContext) {
+                // You have played this month
+                document.getElementById('userBestBannerScore').innerText = myBestThisContext;
                 document.getElementById('userRankText').innerText = `#${myRank} / ${totalScoresInCategory}`;
             } else {
-                document.getElementById('userRankText').innerText = `Outside Top ${totalScoresInCategory}`;
+                // You haven't played this month yet
+                document.getElementById('userBestBannerScore').innerText = '--';
+                document.getElementById('userRankText').innerText = `Unranked`;
             }
             rankBanner.classList.remove('hidden');
         }
     });
-}
 
 function getTodayDateString() {
     const now = new Date();
