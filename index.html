@@ -705,7 +705,7 @@ db.enablePersistence().catch((err) => console.log("Offline mode failed: ", err.c
 
 function triggerVictorySequence() {
     const today = new Date().toLocaleDateString('en-CA');
-    const monthYear = getMonthYearString(); // <-- FIXED to use helper
+    const monthYear = getMonthYearString(); 
     
     firebase.database().ref(`daily_stats/${today}/${currentMode}`).set(firebase.database.ServerValue.increment(1));
     firebase.database().ref(`lifetime_stats/${currentMode}`).set(firebase.database.ServerValue.increment(1));
@@ -718,7 +718,11 @@ function triggerVictorySequence() {
     if (mulligans === 6) unlockAchievement('purist');
     
     document.getElementById('modalTitle').textContent = currentMode === 'daily' ? "DAILY COMPLETE!" : "ROUND COMPLETE!";
+    
+    // Make sure the final score is visible when the victory screen pops up
+    document.getElementById('finalScoreDisplay').style.display = 'block';
     document.getElementById('finalScoreDisplay').textContent = `Final Score: ${totalCampaignScore}`;
+    
     document.getElementById('inputSection').classList.remove('hidden');
     document.getElementById('leaderboardSection').classList.add('hidden');
     document.getElementById('initialsInput').value = '';
@@ -900,10 +904,13 @@ function showLeaderboard() {
     document.getElementById('inputSection').classList.add('hidden');
     document.getElementById('leaderboardSection').classList.remove('hidden');
     
+    // ADD THIS LINE: Hides the redundant score text when viewing the leaderboard
+    document.getElementById('finalScoreDisplay').style.display = 'none'; 
+    
     const list = document.getElementById('leaderboardList');
     const rankBanner = document.getElementById('userRankBanner');
     const playsCountDisplay = document.getElementById('dailyPlaysCount');
-    const currentMonthYear = getMonthYearString(); // Uses helper
+    const currentMonthYear = getMonthYearString(); 
     
     list.innerHTML = '<li>Loading...</li>';
     rankBanner.classList.add('hidden');
@@ -911,7 +918,6 @@ function showLeaderboard() {
     
     const datePicker = document.getElementById('historyDate');
     const targetDate = (currentMode === 'daily' && datePicker.value) ? datePicker.value : new Date().toLocaleDateString('en-CA');
-    // Removed the duplicate 'const currentMonthYear' that was crashing the app!
     
    // 1. FETCH CONTEXTUAL PLAY COUNTS
     if (currentMode === 'daily') {
@@ -934,7 +940,8 @@ function showLeaderboard() {
             
             let displayHTML = '';
             if (crown) {
-                displayHTML += `👑 ALL-TIME RECORD: <span style="color:var(--accent-color);">${crown.initials} - ${crown.score}</span> 👑<br>`;
+                // FIXED SPACING: Replaced <br> with a div that adds exactly 6px of breathing room
+                displayHTML += `<div style="margin-bottom: 6px;">👑 ALL-TIME RECORD: <span style="color:var(--accent-color);">${crown.initials} - ${crown.score}</span> 👑</div>`;
             }
             displayHTML += `<span style="font-size: 14px; color: #4cd964;">⛳️ ${monthlyPlays} rounds completed this month</span>`;
             
@@ -945,6 +952,7 @@ function showLeaderboard() {
         });
         
     } else {
+        // ... (Leave the rest of the function exactly as is)
         const lifetimeRef = firebase.database().ref(`lifetime_stats/${currentMode}`);
         lifetimeRef.once('value').then((snap) => {
             const plays = snap.val() || 0;
