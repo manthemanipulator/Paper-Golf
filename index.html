@@ -15,17 +15,38 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-analytics.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-functions.js"></script>
 
     <style>
-        /* --- 6.6 UI Upgrades --- */
+        :root {
+            --bg-color: #f0f2f5;
+            --text-color: #333333;
+            --modal-bg: #ffffff;
+            --accent-color: #007aff;
+            --border-color: #eee;
+            --input-bg: #ffffff;
+            --score-bg: #e8f4f8;
+        }
+
+        [data-theme="dark"] {
+            color-scheme: dark; /* Forces native browser popups (like calendars) into dark mode */
+            --bg-color: #1a1a1a;
+            --text-color: #eeeeee;
+            --modal-bg: #2c2c2c;
+            --accent-color: #4da3ff;
+            --border-color: #444444;
+            --input-bg: #3a3a3a;
+            --score-bg: #2c2c2c;
+        }
+
         .top-nav-bar { display: flex; justify-content: space-between; align-items: center; width: 100%; max-width: 500px; padding: 10px 15px; box-sizing: border-box; margin-bottom: 10px; }
         .nav-left { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
         .nav-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
         
         .live-stat { font-size: 14px; font-weight: bold; color: #8e8e93; transition: opacity 0.3s; }
-        .global-stat { font-size: 14px; font-weight: bold; color: #2c3e50; }
+        .global-stat { font-size: 14px; font-weight: bold; color: var(--text-color); transition: color 0.3s ease; }
         .leaderboard-icon { font-size: 20px; cursor: pointer; transition: opacity 0.2s; }
-        .hamburger-btn { font-size: 28px; background: none; border: none; color: #007aff; cursor: pointer; padding: 0; line-height: 1; }
+        .hamburger-btn { font-size: 28px; background: none; border: none; color: var(--accent-color); cursor: pointer; padding: 0; line-height: 1; transition: color 0.3s ease; }
 
         .tactical-dashboard { display: flex; justify-content: space-between; align-items: center; width: 100%; padding: 5px 0 15px 0; }
         .dashboard-badge { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 8px 10px; border-radius: 8px; min-width: 75px; height: 50px; box-sizing: border-box; }
@@ -35,93 +56,120 @@
         .lie-fairway { background-color: #e6f4ea; color: #1e8e3e; }
         .lie-sand { background-color: #fef7e0; color: #b06000; }
         .lie-rough { background-color: #e8f0fe; color: #1a73e8; }
-        .wind-gauge { background-color: #f0f0f0; color: #2c3e50; border: 1px solid #ddd; }
+        .wind-gauge { background-color: var(--input-bg); color: var(--text-color); border: 1px solid var(--border-color); transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease; }
 
-        html, body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; display: flex; flex-direction: column; align-items: center; background-color: #f0f2f5; margin: 0; padding: 15px; touch-action: manipulation; -webkit-user-select: none; user-select: none; }
+        html, body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+            display: flex; flex-direction: column; align-items: center; 
+            background-color: var(--bg-color); 
+            color: var(--text-color);
+            margin: 0; padding: 15px; touch-action: manipulation; -webkit-user-select: none; user-select: none; 
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
         .hidden { display: none !important; }
 
-        /* Dropdown Menu */
-        .mode-dropdown { background-color: #f0f0f0; color: #2c3e50; border: 2px solid #bdc3c7; border-radius: 20px; padding: 8px 35px 8px 15px; font-family: monospace; font-size: 16px; font-weight: bold; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.1); appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232c3e50' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e"); background-repeat: no-repeat; background-position: right 12px center; background-size: 16px; transition: all 0.2s ease; }
+        .mode-dropdown { background-color: var(--input-bg); color: var(--text-color); border: 2px solid var(--border-color); border-radius: 20px; padding: 8px 35px 8px 15px; font-family: monospace; font-size: 16px; font-weight: bold; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.1); appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232c3e50' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e"); background-repeat: no-repeat; background-position: right 12px center; background-size: 16px; transition: all 0.2s ease; }
         .mode-dropdown.random { background-color: #2ecc71; color: white; border-color: #27ae60; background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e"); }
         .mode-dropdown.daily { background-color: #3498db; color: white; border-color: #2980b9; background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e"); }
         
-        .rules-link { color: #007aff; text-decoration: underline; cursor: pointer; }
+        .rules-link { color: var(--accent-color); text-decoration: underline; cursor: pointer; }
         
-        .map-container { background-color: white; padding: 10px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 15px; }
+        .map-container { background-color: var(--modal-bg); padding: 10px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 15px; transition: background-color 0.3s ease; }
         canvas { background-color: #e9f5e9; border-radius: 5px; touch-action: none; max-width: 100%; height: auto; }
         
-        .controls-container { background-color: white; padding: 15px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 100%; max-width: 350px; box-sizing: border-box; text-align: center; }
+        .controls-container { background-color: var(--modal-bg); padding: 15px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 100%; max-width: 350px; box-sizing: border-box; text-align: center; transition: background-color 0.3s ease; }
         .btn-row { display: flex; justify-content: space-between; gap: 10px; margin-top: 15px; }
         button { flex: 1; padding: 12px 0; font-size: 16px; font-weight: bold; border: none; border-radius: 8px; color: white; cursor: pointer; transition: opacity 0.2s; }
         button:active { opacity: 0.8; }
         button:disabled { background-color: #bdc3c7 !important; cursor: not-allowed; }
         
-        .btn-roll { background-color: #007aff; }
+        .btn-roll { background-color: var(--accent-color); }
         .btn-putt { background-color: #ff9500; }
         .btn-reroll { background-color: #af52de; flex: 1.35; font-size: 14px; white-space: nowrap; }
             
-        .dice-display { font-size: 28px; font-weight: bold; font-family: monospace; background: #f0f0f0; padding: 10px 20px; border-radius: 10px; display: inline-block; margin: 10px 0; border: 2px solid #ddd; transition: transform 0.1s; }
+        .dice-display { font-size: 28px; font-weight: bold; font-family: monospace; background: var(--input-bg); color: var(--text-color); padding: 10px 20px; border-radius: 10px; display: inline-block; margin: 10px 0; border: 2px solid var(--border-color); transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease; }
         
-        /* Modals */
         .overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: none; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; color: white; text-align: center; padding: 20px; box-sizing: border-box; }
         .overlay h2 { font-size: 32px; margin-bottom: 10px; color: #4cd964; }
         .overlay p { font-size: 24px; margin-bottom: 30px; }
-        .overlay button { background-color: #007aff; padding: 15px 30px; font-size: 18px; margin-bottom: 15px; width: 80%; max-width: 300px; flex: none; }
+        .overlay button { background-color: var(--accent-color); padding: 15px 30px; font-size: 18px; margin-bottom: 15px; width: 80%; max-width: 300px; flex: none; }
         .overlay .btn-secondary { background-color: #8e8e93; }
         
-        .modal-content { background: white; color: black; padding: 20px; border-radius: 10px; max-width: 90%; max-height: 80vh; overflow-y: auto; text-align: left; position: relative; }
+        .modal-content { background: var(--modal-bg); color: var(--text-color); padding: 20px; border-radius: 10px; max-width: 90%; max-height: 80vh; overflow-y: auto; text-align: left; position: relative; transition: background-color 0.3s ease, color 0.3s ease; }
         .close-btn { position: absolute; top: 10px; right: 15px; font-size: 24px; font-weight: bold; cursor: pointer; color: #aaa; }
         
-        /* Leaderboard Input */
-        input[type="text"] { font-size: 24px; text-align: center; text-transform: uppercase; width: 100px; padding: 10px; margin: 15px 0; border: 2px solid #ccc; border-radius: 8px; }
+        input[type="text"] { font-size: 24px; text-align: center; text-transform: uppercase; width: 100px; padding: 10px; margin: 15px 0; border: 2px solid var(--border-color); border-radius: 8px; background: var(--input-bg); color: var(--text-color); transition: background-color 0.3s ease, color 0.3s ease; }
         .leaderboard-list { list-style: none; padding: 0; margin: 20px 0; text-align: center; font-family: monospace; font-size: 18px; }
-        .leaderboard-list li { margin: 10px 0; padding: 10px; background: #f8f9fa; border-radius: 5px; border: 1px solid #ddd; color: #2c3e50;}
+        .leaderboard-list li { margin: 10px 0; padding: 10px; background: var(--input-bg); border-radius: 5px; border: 1px solid var(--border-color); color: var(--text-color); transition: background-color 0.3s ease, color 0.3s ease;}
         
-        /* Update Toast */
         #updateToast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background-color: #34495e; color: white; padding: 12px 20px; border-radius: 30px; box-shadow: 0 4px 10px rgba(0,0,0,0.2); font-weight: bold; font-size: 14px; display: flex; gap: 15px; align-items: center; z-index: 9999; }
         #updateToast button { background-color: #2ecc71; padding: 5px 15px; margin: 0; width: auto; font-size: 14px; }
         
-        /* Enhanced Date Picker */
         input[type="date"] {
             -webkit-appearance: none;
             appearance: none;
-            background-color: white;
+            background-color: var(--input-bg);
+            color: var(--text-color);
             min-height: 1.2em;
             position: relative;
             cursor: pointer;
-            
-            /* The Custom Arrow from your Dropdown */
+            border: 1px solid var(--border-color);
+            transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
             background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232c3e50' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
             background-repeat: no-repeat;
             background-position: right 10px center;
             background-size: 16px;
-            padding-right: 30px !important; /* Keeps text from bleeding into the arrow */
+            padding-right: 30px !important; 
         }
 
-        /* The Invisible Hitbox Trick */
         input[type="date"]::-webkit-calendar-picker-indicator {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            opacity: 0; /* Hides the ugly default icon */
+            opacity: 0; 
             cursor: pointer;
         }
 
-        /* Achievements & Stats */
-        .ach-item { display: flex; align-items: center; padding: 12px 10px; border-bottom: 1px solid #eee; text-align: left; }
+        .ach-item { display: flex; align-items: center; padding: 12px 10px; border-bottom: 1px solid var(--border-color); text-align: left; transition: border-color 0.3s ease; }
         .ach-icon { font-size: 28px; margin-right: 15px; filter: grayscale(100%); opacity: 0.3; transition: all 0.3s; }
         .ach-text { flex-grow: 1; }
-        .ach-title { font-weight: bold; margin-bottom: 3px; font-size: 16px; color: #aaa; }
-        .ach-desc { font-size: 13px; color: #bbb; }
+        .ach-title { font-weight: bold; margin-bottom: 3px; font-size: 16px; color: #aaa; transition: color 0.3s ease; }
+        .ach-desc { font-size: 13px; color: #bbb; transition: color 0.3s ease; }
         
         .ach-item.unlocked .ach-icon { filter: grayscale(0%); opacity: 1; }
-        .ach-item.unlocked .ach-title { color: #2c3e50; }
+        .ach-item.unlocked .ach-title { color: var(--text-color); }
         .ach-item.unlocked .ach-desc { color: #666; }
         
         #achToast { position: fixed; top: -100px; left: 50%; transform: translateX(-50%); background-color: #2c3e50; color: white; padding: 12px 20px; border-radius: 30px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); display: flex; gap: 12px; align-items: center; z-index: 9999; transition: top 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55); width: 85%; max-width: 320px; text-align: left; }
         #achToast.show { top: 20px; }
+
+        #scoreboard {
+            background-color: var(--score-bg) !important;
+            color: var(--text-color) !important;
+            border: 1px solid var(--border-color);
+            transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+        }
+
+        [data-theme="dark"] [style*="color: #333"],
+        [data-theme="dark"] [style*="color: #2c3e50"],
+        [data-theme="dark"] [style*="color: #666"],
+        [data-theme="dark"] [style*="color: #555"] {
+            color: var(--text-color) !important;
+        }
+
+        [data-theme="dark"] [style*="border-top: 1px solid #eee"],
+        [data-theme="dark"] [style*="border-bottom: 1px solid #f0f0f0"] {
+            border-top-color: var(--border-color) !important;
+            border-bottom-color: var(--border-color) !important;
+        }
+
+        /* Flips the custom SVG dropdown arrows to light gray in dark mode */
+        [data-theme="dark"] .mode-dropdown:not(.random):not(.daily),
+        [data-theme="dark"] input[type="date"] {
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23eeeeee' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+        }
     </style>
 </head>
 <body>
@@ -144,13 +192,20 @@
             <div style="position: relative;">
                 <button class="hamburger-btn" onclick="toggleMenu()">☰</button>
                 
-                <div id="popupMenu" style="position: absolute; top: 40px; right: 0; background: white; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); display: none; flex-direction: column; overflow: hidden; z-index: 2000; min-width: 190px; border: 1px solid #eee; white-space: nowrap;">
-                    <div onclick="toggleMenu(false); toggleRules(true)" style="padding: 15px; font-size: 16px; color: #333; font-weight: bold; border-bottom: 1px solid #f0f0f0; cursor: pointer;">📜 Rules</div>
-                    <div onclick="toggleMenu(false); toggleStats(true)" style="padding: 15px; font-size: 16px; color: #333; font-weight: bold; border-bottom: 1px solid #f0f0f0; cursor: pointer;">🏆 Stats & Achievements</div>
-                    <div onclick="toggleMenu(false); toggleOffline(true)" style="padding: 15px; font-size: 16px; color: #333; font-weight: bold; border-bottom: 1px solid #f0f0f0; cursor: pointer;">📱 Offline Play</div>
-                    <div onclick="toggleMenu(false); toggleRoadmap(true)" style="padding: 15px; font-size: 16px; color: #333; font-weight: bold; border-bottom: 1px solid #f0f0f0; cursor: pointer;">💡 Roadmap / Feedback</div>
-                    <div onclick="toggleMenu(false); toggleWhatsNew(true)" style="padding: 15px; font-size: 16px; color: #333; font-weight: bold; border-bottom: 1px solid #f0f0f0; cursor: pointer;">📦 What's New</div>
-                    <div onclick="toggleMenu(false); toggleAbout(true)" style="padding: 15px; font-size: 16px; color: #333; font-weight: bold; cursor: pointer;">ℹ️ About</div>
+                <div id="popupMenu" style="position: absolute; top: 40px; right: 0; background: var(--modal-bg); border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); display: none; flex-direction: column; overflow: hidden; z-index: 2000; min-width: 190px; border: 1px solid var(--border-color); white-space: nowrap;">
+                    <div onclick="toggleTheme(); toggleMenu(false);" style="padding: 15px; font-size: 16px; color: var(--text-color); font-weight: bold; border-bottom: 1px solid var(--border-color); cursor: pointer; display: flex; justify-content: space-between;">
+                        <span>🌓 Theme</span>
+                    </div>
+                    <div onclick="toggleMenu(false); promptAccountSync();" style="padding: 15px; font-size: 16px; color: var(--text-color); font-weight: bold; border-bottom: 1px solid var(--border-color); cursor: pointer; display: flex; align-items: center; justify-content: space-between;">
+                        <span>☁️ Sync Account</span>
+                        <span id="syncStatusBadge" style="font-size: 10px; background: #ff3b30; color: white; padding: 2px 6px; border-radius: 10px;">Not Synced</span>
+                    </div>
+                    <div onclick="toggleMenu(false); toggleRules(true);" style="padding: 15px; font-size: 16px; color: var(--text-color); font-weight: bold; border-bottom: 1px solid var(--border-color); cursor: pointer;">📜 Rules</div>
+                    <div onclick="toggleMenu(false); toggleStats(true);" style="padding: 15px; font-size: 16px; color: var(--text-color); font-weight: bold; border-bottom: 1px solid var(--border-color); cursor: pointer;">🏆 Stats & Achievements</div>
+                    <div onclick="toggleMenu(false); toggleOffline(true);" style="padding: 15px; font-size: 16px; color: var(--text-color); font-weight: bold; border-bottom: 1px solid var(--border-color); cursor: pointer;">📱 Offline Play</div>
+                    <div onclick="toggleMenu(false); toggleRoadmap(true);" style="padding: 15px; font-size: 16px; color: var(--text-color); font-weight: bold; border-bottom: 1px solid var(--border-color); cursor: pointer;">💡 Roadmap / Feedback</div>
+                    <div onclick="toggleMenu(false); toggleWhatsNew(true);" style="padding: 15px; font-size: 16px; color: var(--text-color); font-weight: bold; border-bottom: 1px solid var(--border-color); cursor: pointer;">📦 What's New</div>
+                    <div onclick="toggleMenu(false); toggleAbout(true);" style="padding: 15px; font-size: 16px; color: var(--text-color); font-weight: bold; cursor: pointer;">ℹ️ About</div>
                 </div>
             </div>
         </div>
@@ -287,7 +342,7 @@
             <p style="font-size: 14px; color: #555; margin-top: 0; margin-bottom: 15px;">
                 Tap the <b>3 dots</b> in the top right corner, then tap <b>"Install App"</b> or <b>"Add to Home screen"</b>.
             </p>
-            <div style="background-color: #f8f9fa; border-left: 3px solid #ff9500; padding: 10px; font-size: 13px; color: #555;">
+            <div style="background-color: var(--input-bg); border-left: 3px solid #ff9500; padding: 10px; font-size: 13px; color: var(--text-color);">
                 <i><b>Note:</b> If you opened this link from inside another app, tap the menu and select "Open in Chrome" first!</i>
             </div>
             
@@ -313,12 +368,17 @@
                 <button id="submitScoreBtn">Submit Score</button>
             </div>
             
-            <div id="leaderboardSection" class="hidden">
+            <div id="leaderboardSection" class="hidden" style="position: relative; padding-bottom: 10px;">
                 <h3>TOP SCORES</h3>
                                 
-                <input type="date" id="historyDate" style="font-size: 16px; margin-bottom: 15px; padding: 5px; border-radius: 5px; border: 1px solid #ccc; font-family: monospace; color: #2c3e50;">
+                <input type="date" id="historyDate" style="font-size: 16px; margin-bottom: 15px; padding: 5px; border-radius: 5px; border: 1px solid var(--border-color); font-family: monospace; color: var(--text-color); background-color: var(--input-bg);">
                 
-                <ul class="leaderboard-list" id="leaderboardList"></ul>
+                <ul class="leaderboard-list" id="leaderboardList" style="margin-bottom: 60px;"></ul>
+                
+                <div id="userRankBanner" class="hidden" style="position: absolute; bottom: 120px; left: 50%; transform: translateX(-50%); width: 95%; background: var(--accent-color); color: white; padding: 10px; border-radius: 8px; font-weight: bold; font-size: 14px; box-shadow: 0 -4px 10px rgba(0,0,0,0.2); display: flex; justify-content: space-between; align-items: center; box-sizing: border-box;">
+                    <span>Your Best: <span id="userBestBannerScore">--</span></span>
+                    <span style="font-size: 12px; opacity: 0.9;" id="userRankText">Unranked</span>
+                </div>
                 
                 <button id="playAgainBtn" style="margin-top: 20px;">Play Again</button>
                 <button id="backToCasualBtn" class="btn-secondary">Back to Casual</button>
@@ -336,31 +396,32 @@
     </div>
 
     <div id="roadmapOverlay" class="overlay" style="display: none; background: rgba(0,0,0,0.5);">
-    <div class="modal-content">
-        <h3 style="margin-top:0;">Roadmap & Feedback</h3>
-        
-        <h4 style="color: #2c3e50; margin-bottom: 10px;">🚧 The Road to 7.0 🚧</h4>
-        <ul style="text-align: left; margin-bottom: 20px; font-size: 14px; color: #333; line-height: 1.5; padding-left: 20px;">
-            <li style="margin-bottom: 8px;"><b>✅ v6.9 - Data Telemetry:</b> (ACTIVE) The database is upgraded. Offline and online stats are now safely tied to your secure player ID.</li>
-            <li style="margin-bottom: 8px;"><b>v7.0 - The Cloud Update:</b> The big one! Full cross-device account sync (Google/Apple) and rock-solid server infrastructure to permanently protect the leaderboards.</li>
-        </ul>
-        
-        <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
-        
-        <p style="font-size: 14px; color: #333; margin-bottom: 15px;">Have an idea for a new feature? Having an issue or encountered a bug?</p>
-        
-        <a href="https://forms.gle/ufXp2BEkER7YdHd76" target="_blank" style="display: block; background-color: #007aff; color: white; text-decoration: none; font-weight: bold; padding: 12px; border-radius: 8px; text-align: center;">✍🏼 Let Me Know</a>
-        
-        <a href="https://discord.gg/N9fn28Aq6A" target="_blank" style="display: block; background-color: #5865F2; color: white; text-decoration: none; font-weight: bold; padding: 12px; border-radius: 8px; text-align: center; margin-top: 10px;">👾 Join the Discord</a>
+        <div class="modal-content">
+            <h3 style="margin-top:0;">Roadmap & Feedback</h3>
+            
+            <h4 style="color: #2c3e50; margin-bottom: 10px;">🚧 The Road Ahead 🚧</h4>
+            <ul style="text-align: left; margin-bottom: 20px; font-size: 14px; color: #333; line-height: 1.5; padding-left: 20px;">
+                <li style="margin-bottom: 8px;"><b>✅ v7.0 - The Cloud Update:</b> (COMPLETED) Server lockdown and permanent cross-device account sync.</li>
+                <li style="margin-bottom: 8px;"><b>🔜 v8.0 - The Customization Update:</b> Future ideas are coming soon! Add your feature requests in the Discord.</li>
+                <li style="margin-bottom: 8px;"><b>🔮 Future Expansion:</b> Multi-round weekend tournaments and brand new course hazards.</li>
+            </ul>
+            
+            <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
+            
+            <p style="font-size: 14px; color: #333; margin-bottom: 15px;">Have an idea for a new feature? Having an issue or encountered a bug?</p>
+            
+            <a href="https://forms.gle/ufXp2BEkER7YdHd76" target="_blank" style="display: block; background-color: #007aff; color: white; text-decoration: none; font-weight: bold; padding: 12px; border-radius: 8px; text-align: center;">✍🏼 Let Me Know</a>
+            
+            <a href="https://discord.gg/N9fn28Aq6A" target="_blank" style="display: block; background-color: #5865F2; color: white; text-decoration: none; font-weight: bold; padding: 12px; border-radius: 8px; text-align: center; margin-top: 10px;">👾 Join the Discord</a>
+        </div>
     </div>
-</div>
 
     <div id="aboutOverlay" class="overlay" style="display: none; background: rgba(0,0,0,0.5);">
     <div class="modal-content" style="text-align: left;">
         
         <h3 style="margin: 0 0 12px 0; font-size: 24px;">About</h3>
         <p style="margin: 0 0 12px 0; font-weight: bold; font-size: 18px;">Paper Golf</p>
-        <p style="margin: 0 0 12px 0; font-size: 14px; color: #666;">Version 2026.6.9</p>
+        <p style="margin: 0 0 12px 0; font-size: 14px; color: #666;">Version 2026.7.0</p>
         <div style="margin: 0 0 15px 0; font-size: 14px; color: #333;">
             🌍 <strong>Official Website:</strong> <span style="color: #007aff; font-weight: bold;">papergolf.app</span>
         </div>
@@ -400,16 +461,16 @@
     <div id="whatsNewOverlay" class="overlay" style="display: none; background: rgba(0,0,0,0.5); z-index: 3000;">
         <div class="modal-content" style="text-align: center;">
             <h2 style="margin-top: 0; color: #007aff; font-size: 28px;">App Updated!</h2>
-            <p style="font-size: 16px; color: #333; margin-bottom: 20px;">Welcome to version 2026.6.9 🚀</p>
+            <p style="font-size: 16px; color: #333; margin-bottom: 20px;">Welcome to version 2026.7.0 🚀</p>
             
-            <div style="background-color: #e8f4fd; border-left: 4px solid #007aff; padding: 12px; margin-bottom: 20px; border-radius: 4px; font-size: 14px; color: #333; text-align: left;">
+            <div style="background-color: var(--input-bg); border-left: 4px solid #007aff; padding: 12px; margin-bottom: 20px; border-radius: 4px; font-size: 14px; color: var(--text-color); text-align: left;">
                 🎉 <strong>Welcome New Players!</strong> Paper Golf is completely free, runs offline, and is tracked live. Play at <a href="https://papergolf.app" style="color: #007aff; text-decoration: none; font-weight: bold;">papergolf.app</a>!
             </div>
             
             <ul style="text-align: left; font-size: 15px; color: #333; margin-bottom: 25px; line-height: 1.6;">
-                <li>📡 <b>Data Telemetry:</b> Your offline and online scores are now securely tagged with your unique device ID. The Hall of Fame is officially preparing for account linking!</li>
-                <li>🔋 <b>Battery & Data Saver:</b> Completely rebuilt the background sync engine. The game now silently batches your offline progress and syncs it all at once, resulting in an 18x reduction in server traffic!</li>
-                <li>🛡️ <b>Almost There:</b> The database is now officially prepped and ready. Next stop: The massive v7.0 server migration and leaderboard lockdown!</li>
+                <li>☁️ <b>Cloud Account Sync:</b> The transition is complete! Link your Google account to permanently protect your stats and play seamlessly across all your devices.</li>
+                <li>🌓 <b>Dark Mode & UI Polish:</b> A sleek new dark theme that automatically matches your system settings, plus a completely redesigned Top 10 Leaderboard with a sticky personal rank banner!</li>
+                <li>🛡️ <b>Leaderboard Lockdown:</b> Client-side tampering is a thing of the past. Scores are now verified securely by our dedicated server functions, ensuring the Hall of Fame stays 100% fair and hacker-free.</li>
             </ul>
             
             <button onclick="document.getElementById('whatsNewOverlay').style.display='none'; checkTutorial();" style="width: 100%; font-size: 18px;">Let's Golf!</button>
@@ -417,12 +478,33 @@
     </div>
 
 <script>
-// ==========================================
-// 1. STATE VARIABLES
-// ==========================================
+
+function initializeTheme() {
+    const savedTheme = localStorage.getItem('paperGolf_theme');
+    const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+    if (savedTheme) {
+        document.documentElement.setAttribute('data-theme', savedTheme);
+    } else if (systemPrefersDark) {
+        document.documentElement.setAttribute('data-theme', 'dark');
+    } else {
+        document.documentElement.setAttribute('data-theme', 'light');
+    }
+}
+
+function toggleTheme() {
+    let currentTheme = document.documentElement.getAttribute('data-theme');
+    let newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    
+    document.documentElement.setAttribute('data-theme', newTheme);
+    localStorage.setItem('paperGolf_theme', newTheme);
+}
+
+initializeTheme();
+
 let currentMode = 'casual'; 
-let ballZOffset = 0; // Allows the ball to bounce in the air!
-let currentWeather = { windX: 1, windY: 0 }; // Defaults to blowing East
+let ballZOffset = 0; 
+let currentWeather = { windX: 1, windY: 0 }; 
 let totalCampaignScore = 0;
 let dailySeed = 1;
 let currentHole = 1, strokes = 0, mulligans = 6, currentRoll = 0, canShoot = false, isPutting = false, isHoleComplete = false, usedTeeOffReroll = false;
@@ -450,9 +532,6 @@ const statusText = document.getElementById('statusText');
 const canvas = document.getElementById('courseMap');
 const ctx = canvas.getContext('2d');
 
-// ==========================================
-// 2. HUD & MODE SWITCHING
-// ==========================================
 function updateHUD() {
     const uiHole = document.getElementById('uiHole');
     const uiStrokes = document.getElementById('uiStrokes');
@@ -505,9 +584,6 @@ function resetGame() {
     updateHUD();
 }
 
-// ==========================================
-// 3. CLOUD LEADERBOARD (FIREBASE)
-// ==========================================
 const firebaseConfig = {
     apiKey: "AIzaSyCpYT1A8wLcdpwxaThbVr3k-IdPvnPnHzw",
     authDomain: "paper-golf-e8364.firebaseapp.com",
@@ -526,24 +602,54 @@ const sessionId = Math.random().toString(36).substring(2, 15);
 const myUserRef = rtdb.ref('online_users/' + sessionId);
 const connectedRef = rtdb.ref('.info/connected');
 
-// ==========================================
-// VERSION 6.8: ANONYMOUS AUTHENTICATION
-// ==========================================
 let playerUID = null;
 
-// 1. Ask Firebase to log the browser in silently
 firebase.auth().signInAnonymously().catch((error) => {
     console.error("Auth failed:", error.code, error.message);
 });
 
-// 2. Listen for the secure badge to be handed over
 firebase.auth().onAuthStateChanged((user) => {
     if (user) {
         playerUID = user.uid;
         console.log("Logged in securely! Player UID:", playerUID);
+        
+        const syncBadge = document.getElementById('syncStatusBadge');
+        if (syncBadge) {
+            if (!user.isAnonymous) {
+                syncBadge.innerText = "Synced";
+                syncBadge.style.background = "#2ecc71";
+            } else {
+                syncBadge.innerText = "Not Synced";
+                syncBadge.style.background = "#ff3b30";
+            }
+        }
     }
 });
-// ==========================================
+
+function promptAccountSync() {
+    const user = firebase.auth().currentUser;
+    if (!user) {
+        alert("Waiting for server connection. Try again in a moment.");
+        return;
+    }
+    if (!user.isAnonymous) {
+        alert("Your account is already synced and protected in the cloud!");
+        return;
+    }
+
+    const provider = new firebase.auth.GoogleAuthProvider();
+    firebase.auth().currentUser.linkWithPopup(provider).then((result) => {
+        console.log("Account successfully upgraded and linked!", result.user.email);
+        alert("Success! Your progress is now permanently synced to your Google Account.");
+    }).catch((error) => {
+        console.error("Error linking account:", error);
+        if (error.code === 'auth/credential-already-in-use') {
+            alert("This Google account is already linked to another Paper Golf profile.");
+        } else {
+            alert("Failed to sync account: " + error.message);
+        }
+    });
+}
 
 connectedRef.on('value', (snap) => {
     if (snap.val() === true) {
@@ -566,12 +672,15 @@ db.enablePersistence().catch((err) => console.log("Offline mode failed: ", err.c
 
 function triggerVictorySequence() {
     const today = new Date().toLocaleDateString('en-CA');
+    const monthYear = new Date().toLocaleString('default', { month: 'long', year: 'numeric' }); 
+    
     firebase.database().ref(`daily_stats/${today}/${currentMode}`).set(firebase.database.ServerValue.increment(1));
     firebase.database().ref(`lifetime_stats/${currentMode}`).set(firebase.database.ServerValue.increment(1));
-    
+    firebase.database().ref(`monthly_stats/${monthYear}/${currentMode}`).set(firebase.database.ServerValue.increment(1)); 
+        
     if (!localStats.bestScore || totalCampaignScore < localStats.bestScore) localStats.bestScore = totalCampaignScore;
     saveStats();
-    syncOfflineHolesToDatabase(); // <--- 6.9 UPDATE: Sync happens once per round!
+    syncOfflineHolesToDatabase();
     unlockAchievement('ironman');
     if (mulligans === 6) unlockAchievement('purist');
     
@@ -647,8 +756,8 @@ function syncOfflineScoresToCloud() {
     if (offlineScores.length === 0) return; 
 
     offlineScores.forEach((payload) => {
-        payload.timestamp = firebase.firestore.FieldValue.serverTimestamp();
-        db.collection("globalLeaderboard").add(payload).then(() => {
+        const submitScoreSecure = firebase.functions().httpsCallable('submitScore');
+        submitScoreSecure(payload).then(() => {
             if (payload.mode === 'random') {
                 const crownRef = firebase.database().ref('paperGolf_stats/all_time_random_crown');
                 crownRef.once('value').then((snap) => {
@@ -673,7 +782,6 @@ function saveScoreToCloud(initials, score) {
     const monthYear = new Date().toLocaleString('default', { month: 'long', year: 'numeric' });
 
     const payload = {
-        uid: playerUID,       // <--- 6.9 UPDATE: The security link
         initials: initials,
         score: score,
         mode: currentMode,
@@ -687,27 +795,33 @@ function saveScoreToCloud(initials, score) {
         localStorage.setItem('paperGolf_offlineScores', JSON.stringify(offlineScores));
         document.getElementById('leaderboardList').innerHTML = `
             <li style="color: #e67e22; font-weight: bold; font-size: 16px;">📶 OFFLINE MODE</li>
-            <li style="font-size: 14px; color: #333;">Score securely saved to your local ledger! It will automatically upload to the Hall of Fame when you reach port.</li>
+            <li style="font-size: 14px; color: var(--text-color);">Score securely saved to your local ledger! It will automatically upload when you reach port.</li>
         `;
         return;
     }
 
-    payload.timestamp = firebase.firestore.FieldValue.serverTimestamp();
-
-    db.collection("globalLeaderboard").add(payload)
-      .then(() => {
-          if (currentMode === 'random') {
-              const crownRef = firebase.database().ref('paperGolf_stats/all_time_random_crown');
-              crownRef.once('value').then((snap) => {
-                  const currentCrown = snap.val();
-                  if (!currentCrown || score < currentCrown.score) {
-                      crownRef.set({ initials: initials, score: score, month: monthYear });
-                  }
-              }).then(() => showLeaderboard());
-          } else {
-              showLeaderboard();
-          }
-      });
+    const submitScoreSecure = firebase.functions().httpsCallable('submitScore');
+    
+    submitScoreSecure(payload)
+        .then((result) => {
+            console.log(result.data.message);
+            
+            if (currentMode === 'random') {
+                const crownRef = firebase.database().ref('paperGolf_stats/all_time_random_crown');
+                crownRef.once('value').then((snap) => {
+                    const currentCrown = snap.val();
+                    if (!currentCrown || score < currentCrown.score) {
+                        crownRef.set({ initials: initials, score: score, month: monthYear });
+                    }
+                }).then(() => showLeaderboard());
+            } else {
+                showLeaderboard();
+            }
+        })
+        .catch((error) => {
+            console.error("Server rejected score:", error.message);
+            document.getElementById('leaderboardList').innerHTML = `<li>Error: ${error.message}</li>`;
+        });
 }
 
 function saveStats() { localStorage.setItem('paperGolfStats', JSON.stringify(localStats)); renderStats(); }
@@ -754,7 +868,9 @@ function showLeaderboard() {
     document.getElementById('leaderboardSection').classList.remove('hidden');
     
     const list = document.getElementById('leaderboardList');
+    const rankBanner = document.getElementById('userRankBanner');
     list.innerHTML = '<li>Loading...</li>';
+    rankBanner.classList.add('hidden');
     
     const datePicker = document.getElementById('historyDate');
     const targetDate = (currentMode === 'daily' && datePicker.value) ? datePicker.value : new Date().toLocaleDateString('en-CA');
@@ -768,25 +884,35 @@ function showLeaderboard() {
         });
     } else if (currentMode === 'random') {
         const crownRef = firebase.database().ref('paperGolf_stats/all_time_random_crown');
-        crownRef.once('value').then((snap) => {
-            const crown = snap.val();
+        const monthlyRef = firebase.database().ref(`monthly_stats/${currentMonthYear}/random`);
+        
+        Promise.all([crownRef.once('value'), monthlyRef.once('value')]).then(([crownSnap, monthlySnap]) => {
+            const crown = crownSnap.val();
+            const monthlyPlays = monthlySnap.val() || 0;
+            
+            let displayHTML = '';
             if (crown) {
-                document.getElementById('dailyPlaysCount').innerHTML = `👑 ALL-TIME RECORD: <span style="color:white;">${crown.initials} - ${crown.score}</span> 👑`;
+                displayHTML += `👑 ALL-TIME RECORD: <span style="color:var(--accent-color);">${crown.initials} - ${crown.score}</span> 👑<br>`;
             } else {
-                document.getElementById('dailyPlaysCount').innerText = `👑 ALL-TIME RECORD: None yet! 👑`;
+                displayHTML += `👑 ALL-TIME RECORD: None yet! 👑<br>`;
             }
+            displayHTML += `<span style="font-size: 12px; color: #888;">🔥 ${monthlyPlays} attempts this month</span>`;
+            
+            document.getElementById('dailyPlaysCount').innerHTML = displayHTML;
         });
     } else {
         const lifetimeRef = firebase.database().ref(`lifetime_stats/${currentMode}`);
         lifetimeRef.once('value').then((snap) => {
-            const plays = val() || 0;
+            const plays = snap.val() || 0;
             document.getElementById('dailyPlaysCount').innerText = `⛳️ ${plays} lifetime rounds completed`;
         });
     }
     
-    db.collection("globalLeaderboard").orderBy("score", "asc").onSnapshot((querySnapshot) => {
+    db.collection("globalLeaderboard").orderBy("score", "asc").orderBy("timestamp", "asc").onSnapshot((querySnapshot) => {
         list.innerHTML = ''; 
         let count = 0;
+        let myRank = null;
+        let totalScoresInCategory = 0;
         
         querySnapshot.forEach((doc) => {
             const entry = doc.data();
@@ -794,20 +920,47 @@ function showLeaderboard() {
             if (currentMode === 'random' && (entry.mode !== 'random' || entry.monthYear !== currentMonthYear)) return;
             if (currentMode === 'casual' && entry.mode !== 'casual') return;
             
-            if (count >= 5) return;
+            totalScoresInCategory++;
+            
+            if (entry.uid === playerUID && !myRank) {
+                myRank = totalScoresInCategory;
+            }
+            
+            if (count >= 10) return;
             count++;
             
             const li = document.createElement('li');
+            
+            let scale = 1 - ((count - 1) * 0.035);
+            let opacity = 1 - ((count - 1) * 0.07);
+            
+            li.style.transform = `scale(${scale})`;
+            li.style.opacity = opacity;
+            li.style.transformOrigin = "top center";
+            li.style.marginBottom = "-5px";
+            
             if (count === 1) {
-                li.textContent = `🏆 ${entry.initials} ..... ${entry.score} 🏆`;
-                li.style.fontWeight = '900';
+                li.innerHTML = `🏆 <b>${entry.initials} ..... ${entry.score}</b> 🏆`;
                 li.style.color = '#d35400'; 
+                li.style.border = "2px solid #d35400";
             } else {
-                li.textContent = `${entry.initials} ..... ${entry.score}`;
+                li.textContent = `#${count} - ${entry.initials} ..... ${entry.score}`;
             }
             list.appendChild(li);
         });
+        
         if (count === 0) list.innerHTML = '<li>No scores yet!</li>';
+        
+        if (currentMode !== 'casual' && localStats.bestScore) {
+            document.getElementById('userBestBannerScore').innerText = localStats.bestScore;
+            
+            if (myRank) {
+                document.getElementById('userRankText').innerText = `#${myRank} / ${totalScoresInCategory}`;
+            } else {
+                document.getElementById('userRankText').innerText = `Outside Top ${totalScoresInCategory}`;
+            }
+            rankBanner.classList.remove('hidden');
+        }
     });
 }
 
@@ -881,9 +1034,6 @@ document.getElementById('backToCasualBtn')?.addEventListener('click', () => {
     resetGame();
 });
 
-// ==========================================
-// 4. CORE ENGINE & MAP GENERATION
-// ==========================================
 function getRand() {
     if (currentMode === 'daily') {
         let t = dailySeed += 0x6D2B79F5;
@@ -1360,14 +1510,11 @@ function playLandingAnimation(x, y, terrain, sankIt, callback) {
         return;
     }
 
-    // --- 6.7.1 HOTFIX: Grounded Rolls ---
-    // If we are putting or just tapping it 1 space, skip the bounce!
     if (isPutting || currentRoll === 1) {
         ballZOffset = 0; 
         callback();
         return;
     }
-    // ------------------------------------
 
     let hopTime = 0, hopDuration = 15, bounceHeight = 12; 
 
@@ -1534,7 +1681,7 @@ canvas.addEventListener('pointerdown', (e) => {
             if (strokes <= 6 && hitSandThisHole) unlockAchievement('sand');
             saveStats();
 
-            incrementLocalHoles(); // 6.9 UPDATE: Removed the sync trigger here!
+            incrementLocalHoles(); 
             
             if (currentMode === 'casual') {
                 statusText.style.color = '#5cb85c'; statusText.innerText = "Hole completed!";
@@ -1569,13 +1716,10 @@ function idleLoop() {
     }
 }
 
-// ==========================================
-// 5. BOOT SEQUENCE & PWA UPDATER
-// ==========================================
 document.addEventListener('DOMContentLoaded', () => { 
     resetGame(); 
     
-    const CURRENT_VERSION = '2026.6.9';
+    const CURRENT_VERSION = '2026.7.0';
     const lastSeenVersion = localStorage.getItem('paperGolfVersion');
     
     if (lastSeenVersion !== CURRENT_VERSION) {
@@ -1594,9 +1738,6 @@ window.addEventListener('online', () => {
     syncOfflineScoresToCloud();
 });
 
-// ==========================================
-// VERSION 6.9: BACKGROUND SYNC LISTENER
-// ==========================================
 document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') {
         syncOfflineHolesToDatabase();
