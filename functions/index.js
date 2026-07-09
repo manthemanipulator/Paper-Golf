@@ -1,4 +1,11 @@
-const functions = require('firebase-functions/v1');
+// submitScore was originally deployed as a 2nd-gen function — keep it on the
+// v2 import explicitly. The Discord bots below were deployed as 1st-gen, so
+// they stay on the v1 import. Mixing v1/v2 in one file is fine; redeploying
+// an existing function under a *different* generation than it's already
+// running as is what breaks ("Cannot set CPU on the functions X because they
+// are GCF gen 1").
+const { onCall, HttpsError } = require('firebase-functions/v2/https');
+const functionsV1 = require('firebase-functions/v1');
 const admin = require('firebase-admin');
 const fetch = require('node-fetch');
 
@@ -25,11 +32,11 @@ function getServerMonthYearString() {
 // verified auth UID. Also owns the all-time "random mode" crown update —
 // clients are no longer allowed to write either of these directly.
 // ==========================================
-exports.submitScore = functions.https.onCall(async (request) => {
+exports.submitScore = onCall(async (request) => {
 
     // 1. Check for the automatically verified Auth Token
     if (!request.auth) {
-        throw new functions.https.HttpsError('unauthenticated', 'You must be logged in to submit a score.');
+        throw new HttpsError('unauthenticated', 'You must be logged in to submit a score.');
     }
 
     // 2. Extract your payload from request.data (ignore date/monthYear/uid — those are
@@ -38,13 +45,13 @@ exports.submitScore = functions.https.onCall(async (request) => {
 
     // 3. Validate the data
     if (typeof score !== 'number' || !Number.isFinite(score) || !Number.isInteger(score) || score < 18) {
-        throw new functions.https.HttpsError('invalid-argument', 'Score is mathematically impossible.');
+        throw new HttpsError('invalid-argument', 'Score is mathematically impossible.');
     }
     if (typeof initials !== 'string' || !/^[A-Za-z]{3}$/.test(initials)) {
-        throw new functions.https.HttpsError('invalid-argument', 'Initials must be exactly 3 letters.');
+        throw new HttpsError('invalid-argument', 'Initials must be exactly 3 letters.');
     }
     if (typeof mode !== 'string' || !VALID_MODES.includes(mode)) {
-        throw new functions.https.HttpsError('invalid-argument', 'Invalid game mode.');
+        throw new HttpsError('invalid-argument', 'Invalid game mode.');
     }
 
     const uid = request.auth.uid;
@@ -103,7 +110,7 @@ exports.submitScore = functions.https.onCall(async (request) => {
 // ==========================================
 // BOT 1: THE LIVE SCORE TRACKER (Unchanged)
 // ==========================================
-exports.sendScoreToDiscord = functions.firestore
+exports.sendScoreToDiscord = functionsV1.firestore
     .document('globalLeaderboard/{docId}')
     .onCreate(async (snap, context) => {
         const newScore = snap.data();
@@ -138,7 +145,7 @@ exports.sendScoreToDiscord = functions.firestore
 // ==========================================
 // BOT 2: THE DAILY RECAP (Runs every day at 8:00 PM PT)
 // ==========================================
-exports.dailyRecapToDiscord = functions.pubsub
+exports.dailyRecapToDiscord = functionsV1.pubsub
     .schedule('every day 20:00') // 24-hour time format
     .timeZone('America/Los_Angeles') // Set to Pacific Time
     .onRun(async (context) => {
