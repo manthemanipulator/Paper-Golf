@@ -314,16 +314,9 @@ function syncOfflineScoresToCloud() {
 
     offlineScores.forEach((payload) => {
         const submitScoreSecure = firebase.functions().httpsCallable('submitScore');
-        submitScoreSecure(payload).then(() => {
-            if (payload.mode === 'random') {
-                const crownRef = firebase.database().ref('paperGolf_stats/all_time_random_crown');
-                crownRef.once('value').then((snap) => {
-                    const currentCrown = snap.val();
-                    if (!currentCrown || payload.score < currentCrown.score) {
-                        crownRef.set({ initials: payload.initials, score: payload.score, month: payload.monthYear });
-                    }
-                });
-            }
+        // The Cloud Function now owns the all-time crown update too — nothing left to do here.
+        submitScoreSecure(payload).catch((error) => {
+            console.error("Failed to sync offline score:", error.message);
         });
     });
     localStorage.setItem('paperGolf_offlineScores', JSON.stringify([]));
@@ -371,18 +364,8 @@ function saveScoreToCloud(initials, score) {
     submitScoreSecure(payload)
         .then((result) => {
             console.log(result.data.message);
-            
-            if (currentMode === 'random') {
-                const crownRef = firebase.database().ref('paperGolf_stats/all_time_random_crown');
-                crownRef.once('value').then((snap) => {
-                    const currentCrown = snap.val();
-                    if (!currentCrown || score < currentCrown.score) {
-                        crownRef.set({ initials: initials, score: score, month: monthYear });
-                    }
-                }).then(() => showLeaderboard());
-            } else {
-                showLeaderboard();
-            }
+            // The Cloud Function updates the all-time crown itself now, so just refresh the view.
+            showLeaderboard();
         })
         .catch((error) => {
             console.error("Server rejected score:", error.message);
