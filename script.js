@@ -309,17 +309,23 @@ function syncOfflineHolesToDatabase() {
 function syncOfflineScoresToCloud() {
     if (!navigator.onLine) return;
 
-    let offlineScores = JSON.parse(localStorage.getItem('paperGolf_offlineScores')) || [];
-    if (offlineScores.length === 0) return; 
+    const offlineScores = JSON.parse(localStorage.getItem('paperGolf_offlineScores')) || [];
+    if (offlineScores.length === 0) return;
 
-    offlineScores.forEach((payload) => {
-        const submitScoreSecure = firebase.functions().httpsCallable('submitScore');
-        // The Cloud Function now owns the all-time crown update too — nothing left to do here.
-        submitScoreSecure(payload).catch((error) => {
-            console.error("Failed to sync offline score:", error.message);
+    const submitScoreSecure = firebase.functions().httpsCallable('submitScore');
+    // The Cloud Function owns the all-time crown update too — nothing left to do here on success.
+
+    // Wait to see which submissions actually succeeded before touching the queue —
+    // clearing it up front meant any score that failed mid-sync (dropped connection,
+    // server rejection, etc.) was lost for good instead of being retried.
+    Promise.allSettled(offlineScores.map((payload) => submitScoreSecure(payload)))
+        .then((results) => {
+            const stillPending = offlineScores.filter((_, i) => results[i].status === 'rejected');
+            if (stillPending.length > 0) {
+                console.error(`Failed to sync ${stillPending.length} offline score(s); will retry next time.`);
+            }
+            localStorage.setItem('paperGolf_offlineScores', JSON.stringify(stillPending));
         });
-    });
-    localStorage.setItem('paperGolf_offlineScores', JSON.stringify([]));
 }
 
 function loadLocalHoleStats() {
