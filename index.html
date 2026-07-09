@@ -1563,6 +1563,11 @@ function playLandingAnimation(x, y, terrain, sankIt, callback) {
         let frames = 0;
         let maxFrames = (isThud || isTree) ? 20 : 30; 
 
+        function unlockAchievement(id) {
+    console.log("Achievement triggered: " + id);
+    // This gives JavaScript a safe place to land so it doesn't panic and crash!
+}
+
         function particleLoop() {
             frames++;
             if (frames < maxFrames) {
