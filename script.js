@@ -119,6 +119,16 @@ const firebaseConfig = {
 };
 
 if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+
+// App Check: proves requests to Firestore/RTDB/Functions are coming from this
+// real, deployed app rather than a script someone wrote against the exposed
+// firebaseConfig above. Get a reCAPTCHA v3 site key from Firebase Console >
+// App Check > Apps > (register this web app) > reCAPTCHA v3, then paste it below.
+firebase.appCheck().activate(
+    '6LdkDUstAAAAANxJu8CI8c8eODvhv1qaT2spnzEn',
+    true // isTokenAutoRefreshEnabled
+);
+
 const analytics = firebase.analytics();
 const db = firebase.firestore();
 const rtdb = firebase.database();
