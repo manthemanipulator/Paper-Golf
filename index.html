@@ -821,7 +821,7 @@ function loadLocalHoleStats() {
 
 function saveScoreToCloud(initials, score) {
     const today = new Date().toLocaleDateString('en-CA');
-    const monthYear = getMonthYearString(); // <-- FIXED to use helper
+    const monthYear = getMonthYearString(); 
 
     const payload = {
         initials: initials,
@@ -842,28 +842,41 @@ function saveScoreToCloud(initials, score) {
         return;
     }
 
-    const submitScoreSecure = firebase.functions().httpsCallable('submitScore');
-    
-    submitScoreSecure(payload)
-        .then((result) => {
-            console.log(result.data.message);
-            
-            if (currentMode === 'random') {
-                const crownRef = firebase.database().ref('paperGolf_stats/all_time_random_crown');
-                crownRef.once('value').then((snap) => {
-                    const currentCrown = snap.val();
-                    if (!currentCrown || score < currentCrown.score) {
-                        crownRef.set({ initials: initials, score: score, month: monthYear });
-                    }
-                }).then(() => showLeaderboard());
-            } else {
-                showLeaderboard();
-            }
-        })
-        .catch((error) => {
-            console.error("Server rejected score:", error.message);
-            document.getElementById('leaderboardList').innerHTML = `<li>Error: ${error.message}</li>`;
-        });
+    const currentUser = firebase.auth().currentUser;
+
+    if (!currentUser) {
+        document.getElementById('leaderboardList').innerHTML = '<li>Re-establishing secure connection...</li>';
+        firebase.auth().signInAnonymously().then(() => saveScoreToCloud(initials, score));
+        return;
+    }
+
+    // THE FIX: Force the browser to explicitly fetch a fresh Auth Token right before sending
+    currentUser.getIdToken(true).then(() => {
+        const submitScoreSecure = firebase.functions().httpsCallable('submitScore');
+        
+        submitScoreSecure(payload)
+            .then((result) => {
+                console.log(result.data.message);
+                
+                if (currentMode === 'random') {
+                    const crownRef = firebase.database().ref('paperGolf_stats/all_time_random_crown');
+                    crownRef.once('value').then((snap) => {
+                        const currentCrown = snap.val();
+                        if (!currentCrown || score < currentCrown.score) {
+                            crownRef.set({ initials: initials, score: score, month: monthYear });
+                        }
+                    }).then(() => showLeaderboard());
+                } else {
+                    showLeaderboard();
+                }
+            })
+            .catch((error) => {
+                console.error("Server rejected score:", error.message);
+                document.getElementById('leaderboardList').innerHTML = `<li>Error: ${error.message}</li>`;
+            });
+    }).catch((error) => {
+        document.getElementById('leaderboardList').innerHTML = `<li>Token Refresh Failed: ${error.message}</li>`;
+    });
 }
 
 function saveStats() { localStorage.setItem('paperGolfStats', JSON.stringify(localStats)); renderStats(); }
