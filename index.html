@@ -850,8 +850,12 @@ function saveScoreToCloud(initials, score) {
         return;
     }
 
-    // THE FIX: Force the browser to explicitly fetch a fresh Auth Token right before sending
-    currentUser.getIdToken(true).then(() => {
+    // THE SMUGGLER FIX: Grab the token and put it INSIDE the payload
+    currentUser.getIdToken(true).then((token) => {
+        
+        // Attach the token directly into the data packet to bypass Safari's header stripping
+        payload.clientToken = token;
+        
         const submitScoreSecure = firebase.functions().httpsCallable('submitScore');
         
         submitScoreSecure(payload)
