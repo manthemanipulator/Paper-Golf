@@ -138,6 +138,21 @@ const connectedRef = rtdb.ref('.info/connected');
 
 let playerUID = null;
 
+// The RTDB socket can report "connected" before signInAnonymously() resolves,
+// so writing presence data as soon as we connect used to race with auth —
+// harmless when online_users was world-writable, but it now needs auth != null,
+// so an early write loses the race and gets rejected. Only register presence
+// once we're both connected AND signed in.
+let rtdbConnected = false;
+let isAuthed = false;
+
+function tryRegisterPresence() {
+    if (rtdbConnected && isAuthed) {
+        myUserRef.set(true);
+        myUserRef.onDisconnect().remove();
+    }
+}
+
 firebase.auth().signInAnonymously()
     .then(() => {
         console.log("Silent login successful.");
@@ -150,8 +165,10 @@ firebase.auth().signInAnonymously()
 firebase.auth().onAuthStateChanged((user) => {
     if (user) {
         playerUID = user.uid;
+        isAuthed = true;
+        tryRegisterPresence();
         console.log("Logged in securely! Player UID:", playerUID);
-        
+
         const syncBadge = document.getElementById('syncStatusBadge');
         if (syncBadge) {
             if (!user.isAnonymous) {
@@ -162,6 +179,8 @@ firebase.auth().onAuthStateChanged((user) => {
                 syncBadge.style.background = "#ff3b30";
             }
         }
+    } else {
+        isAuthed = false;
     }
 });
 
@@ -191,10 +210,8 @@ function promptAccountSync() {
 }
 
 connectedRef.on('value', (snap) => {
-    if (snap.val() === true) {
-        myUserRef.set(true);
-        myUserRef.onDisconnect().remove();
-    }
+    rtdbConnected = snap.val() === true;
+    tryRegisterPresence();
 });
 
 const allUsersRef = rtdb.ref('online_users');
