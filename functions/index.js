@@ -2,9 +2,102 @@ const functions = require('firebase-functions/v1');
 const admin = require('firebase-admin');
 const fetch = require('node-fetch');
 
-// This wakes up the Admin SDK so we can read the database
 admin.initializeApp();
 const db = admin.firestore();
+
+const VALID_MODES = ['daily', 'random'];
+
+// Server-authoritative date helpers — never trust date/monthYear from the client,
+// or anyone could submit a score into any day's or month's bucket they want.
+function getServerDateString() {
+    // "YYYY-MM-DD", same shape as the client's toLocaleDateString('en-CA')
+    return new Date().toLocaleDateString('en-CA', { timeZone: 'UTC' });
+}
+
+function getServerMonthYearString() {
+    // "July 2026", same shape as the client's getMonthYearString()
+    return new Date().toLocaleString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+}
+
+// ==========================================
+// SCORE SUBMISSION
+// Validates and writes scores from the client, keyed to the caller's own
+// verified auth UID. Also owns the all-time "random mode" crown update —
+// clients are no longer allowed to write either of these directly.
+// ==========================================
+exports.submitScore = functions.https.onCall(async (request) => {
+
+    // 1. Check for the automatically verified Auth Token
+    if (!request.auth) {
+        throw new functions.https.HttpsError('unauthenticated', 'You must be logged in to submit a score.');
+    }
+
+    // 2. Extract your payload from request.data (ignore date/monthYear/uid — those are
+    //    derived below from the server, not taken from the caller)
+    const { initials, score, mode } = request.data;
+
+    // 3. Validate the data
+    if (typeof score !== 'number' || !Number.isFinite(score) || !Number.isInteger(score) || score < 18) {
+        throw new functions.https.HttpsError('invalid-argument', 'Score is mathematically impossible.');
+    }
+    if (typeof initials !== 'string' || !/^[A-Za-z]{3}$/.test(initials)) {
+        throw new functions.https.HttpsError('invalid-argument', 'Initials must be exactly 3 letters.');
+    }
+    if (typeof mode !== 'string' || !VALID_MODES.includes(mode)) {
+        throw new functions.https.HttpsError('invalid-argument', 'Invalid game mode.');
+    }
+
+    const uid = request.auth.uid;
+    const cleanInitials = initials.toUpperCase();
+    const date = mode === 'daily' ? getServerDateString() : null;
+    const monthYear = mode === 'random' ? getServerMonthYearString() : null;
+
+    const leaderboardRef = db.collection("globalLeaderboard");
+
+    // 4. Keep only this player's best score per mode/bucket instead of piling up
+    //    a new leaderboard row every time they submit.
+    let existingQuery = leaderboardRef.where('uid', '==', uid).where('mode', '==', mode);
+    existingQuery = mode === 'daily'
+        ? existingQuery.where('date', '==', date)
+        : existingQuery.where('monthYear', '==', monthYear);
+
+    const existingSnap = await existingQuery.limit(1).get();
+
+    // 5. Write to the database securely
+    const payload = {
+        uid,                    // Grabs the verified Auth ID
+        initials: cleanInitials,
+        score,
+        mode,
+        timestamp: admin.firestore.FieldValue.serverTimestamp()
+    };
+    if (mode === 'daily') payload.date = date;
+    if (mode === 'random') payload.monthYear = monthYear;
+
+    if (!existingSnap.empty) {
+        const existingDoc = existingSnap.docs[0];
+        if (score < existingDoc.data().score) {
+            // Lower score is better in golf — replace their old entry with the new best
+            await existingDoc.ref.set(payload);
+        }
+        // else: not an improvement, leave their existing entry alone
+    } else {
+        await leaderboardRef.add(payload);
+    }
+
+    // 6. Update the all-time "random mode" crown here, server-side, using the Admin SDK.
+    //    The RTDB rules block clients from writing this path directly now.
+    if (mode === 'random') {
+        const crownRef = admin.database().ref('paperGolf_stats/all_time_random_crown');
+        const crownSnap = await crownRef.once('value');
+        const currentCrown = crownSnap.val();
+        if (!currentCrown || score < currentCrown.score) {
+            await crownRef.set({ initials: cleanInitials, score, month: monthYear });
+        }
+    }
+
+    return { success: true, message: "Score secured and verified." };
+});
 
 
 // ==========================================
@@ -54,7 +147,7 @@ exports.dailyRecapToDiscord = functions.pubsub
         try {
             // Grab the entire leaderboard
             const snapshot = await db.collection('globalLeaderboard').get();
-            
+
             let lifetimeRounds = 0;
             let todayRounds = 0;
 
@@ -65,9 +158,9 @@ exports.dailyRecapToDiscord = functions.pubsub
             // Crunch the numbers
             snapshot.forEach(doc => {
                 lifetimeRounds++;
-                
+
                 // Read Google's hidden server timestamp of when the score was created
-                const createTime = doc.createTime.toDate(); 
+                const createTime = doc.createTime.toDate();
                 if (createTime >= midnight) {
                     todayRounds++;
                 }
@@ -86,7 +179,7 @@ exports.dailyRecapToDiscord = functions.pubsub
                     fields: [
                         { name: "🏌️ Rounds Played Today", value: `**${todayRounds}**`, inline: true },
                         { name: "⛳️ Holes Played Today", value: `**${todayHoles}**`, inline: true },
-                        { name: "\u200B", value: "\u200B", inline: false }, // Blank line spacer
+                        { name: "​", value: "​", inline: false }, // Blank line spacer
                         { name: "🌎 Lifetime Rounds", value: `**${lifetimeRounds}**`, inline: true },
                         { name: "♾️ Lifetime Holes", value: `**${lifetimeHoles}**`, inline: true }
                     ],
