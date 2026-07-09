@@ -823,10 +823,17 @@ function saveScoreToCloud(initials, score) {
     const today = new Date().toLocaleDateString('en-CA');
     const monthYear = getMonthYearString(); 
 
-    // 1. Check for offline mode first
+    const payload = {
+        initials: initials,
+        score: score,
+        mode: currentMode,
+        date: currentMode === 'daily' ? today : null,
+        monthYear: currentMode === 'random' ? monthYear : null
+    };
+
     if (!navigator.onLine) {
         let offlineScores = JSON.parse(localStorage.getItem('paperGolf_offlineScores')) || [];
-        offlineScores.push({ initials, score, mode: currentMode, date: today, monthYear });
+        offlineScores.push(payload);
         localStorage.setItem('paperGolf_offlineScores', JSON.stringify(offlineScores));
         document.getElementById('leaderboardList').innerHTML = `
             <li style="color: #e67e22; font-weight: bold; font-size: 16px;">📶 OFFLINE MODE</li>
@@ -835,10 +842,8 @@ function saveScoreToCloud(initials, score) {
         return;
     }
 
-    const currentUser = firebase.auth().currentUser;
-
-    // 2. If no user session exists, silently grab one and try again
-    if (!currentUser) {
+    // Fallback: Ensure the browser hasn't dropped the background session
+    if (!firebase.auth().currentUser) {
         document.getElementById('leaderboardList').innerHTML = '<li>Re-establishing secure connection...</li>';
         firebase.auth().signInAnonymously()
             .then(() => saveScoreToCloud(initials, score))
@@ -846,66 +851,28 @@ function saveScoreToCloud(initials, score) {
         return;
     }
 
-    // 3. Force the browser to grab a fresh token
-    currentUser.getIdToken(true).then((token) => {
-        
-        if (!token) {
-            alert("CLIENT ERROR: The browser refused to generate a token!");
-            return;
-        }
-
-        // 4. Create a BRAND NEW secure object to guarantee the token is locked inside
-        const securePayload = {
-            initials: initials,
-            score: score,
-            mode: currentMode,
-            date: currentMode === 'daily' ? today : null,
-            monthYear: currentMode === 'random' ? monthYear : null,
-            clientToken: token // <-- THE SMUGGLED TOKEN
-        };
-
-        // 5. THE DYE TEST: This will pop up and prove the token is actually attached!
-        alert("Token secured! Sending payload to server...");
-
-        const submitScoreSecure = firebase.functions().httpsCallable('submitScore');
-        
-        submitScoreSecure(securePayload)
-            .then((result) => {
-                console.log(result.data.message);
-                if (currentMode === 'random') {
-                    const crownRef = firebase.database().ref('paperGolf_stats/all_time_random_crown');
-                    crownRef.once('value').then((snap) => {
-                        const currentCrown = snap.val();
-                        if (!currentCrown || score < currentCrown.score) {
-                            crownRef.set({ initials: initials, score: score, month: monthYear });
-                        }
-                    }).then(() => showLeaderboard());
-                } else {
-                    showLeaderboard();
-                }
-            })
-            .catch((error) => {
-                console.error("Server rejected score:", error.message);
-                document.getElementById('leaderboardList').innerHTML = `<li>Error: ${error.message}</li>`;
-            });
-
-    }).catch((error) => {
-        document.getElementById('leaderboardList').innerHTML = `<li>Token Refresh Failed: ${error.message}</li>`;
-    });
-}
-
-function saveStats() { localStorage.setItem('paperGolfStats', JSON.stringify(localStats)); renderStats(); }
-
-function unlockAchievement(id) {
-    if (!localStats.unlocked.includes(id)) {
-        localStats.unlocked.push(id);
-        saveStats();
-        const toast = document.getElementById('achToast');
-        toast.innerHTML = `<span style="font-size: 32px;">${ACHIEVEMENTS[id].icon}</span> <div><div style="font-size:12px; color:#aaa; text-transform:uppercase;">Achievement Unlocked</div><div style="font-size:16px;">${ACHIEVEMENTS[id].title}</div></div>`;
-        toast.classList.add('show');
-        if (navigator.vibrate) navigator.vibrate([100, 50, 100, 50, 100]); 
-        setTimeout(() => toast.classList.remove('show'), 4000);
-    }
+    const submitScoreSecure = firebase.functions().httpsCallable('submitScore');
+    
+    submitScoreSecure(payload)
+        .then((result) => {
+            console.log(result.data.message);
+            
+            if (currentMode === 'random') {
+                const crownRef = firebase.database().ref('paperGolf_stats/all_time_random_crown');
+                crownRef.once('value').then((snap) => {
+                    const currentCrown = snap.val();
+                    if (!currentCrown || score < currentCrown.score) {
+                        crownRef.set({ initials: initials, score: score, month: monthYear });
+                    }
+                }).then(() => showLeaderboard());
+            } else {
+                showLeaderboard();
+            }
+        })
+        .catch((error) => {
+            console.error("Server rejected score:", error.message);
+            document.getElementById('leaderboardList').innerHTML = `<li>Error: ${error.message}</li>`;
+        });
 }
 
 function toggleStats(show) {
