@@ -117,8 +117,13 @@ exports.submitScore = onCall(async (request) => {
 // ==========================================
 exports.sendScoreToDiscord = functionsV1.firestore
     .document('globalLeaderboard/{docId}')
-    .onCreate(async (snap, context) => {
-        const newScore = snap.data();
+    .onWrite(async (change, context) => {
+        // Fires on brand-new scores AND on personal-best overwrites — submitScore's
+        // dedup logic only ever updates an existing doc when the new score actually
+        // beats the old one, so every update here is a genuine improvement worth
+        // announcing. Just skip deletions, since there's no score to post then.
+        if (!change.after.exists) return;
+        const newScore = change.after.data();
         const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
 
         const discordPayload = {

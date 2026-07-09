@@ -153,6 +153,14 @@ function tryRegisterPresence() {
     }
 }
 
+// Same race applies to every other authenticated RTDB write scattered through
+// this file (stat increments, offline-hole sync) — they were all firing
+// immediately with no guarantee sign-in had actually completed yet. Anything
+// that needs auth should do `authReady.then(() => { ... })` instead of writing
+// straight away.
+let authReadyResolve;
+const authReady = new Promise((resolve) => { authReadyResolve = resolve; });
+
 firebase.auth().signInAnonymously()
     .then(() => {
         console.log("Silent login successful.");
@@ -167,6 +175,7 @@ firebase.auth().onAuthStateChanged((user) => {
         playerUID = user.uid;
         isAuthed = true;
         tryRegisterPresence();
+        authReadyResolve();
         console.log("Logged in securely! Player UID:", playerUID);
 
         const syncBadge = document.getElementById('syncStatusBadge');
@@ -252,12 +261,17 @@ function unlockAchievement(id) {
 
 function triggerVictorySequence() {
     const today = new Date().toLocaleDateString('en-CA');
-    const monthYear = getMonthYearString(); 
-    
-    firebase.database().ref(`daily_stats/${today}/${currentMode}`).set(firebase.database.ServerValue.increment(1));
-    firebase.database().ref(`lifetime_stats/${currentMode}`).set(firebase.database.ServerValue.increment(1));
-    firebase.database().ref(`monthly_stats/${monthYear}/${currentMode}`).set(firebase.database.ServerValue.increment(1)); 
-        
+    const monthYear = getMonthYearString();
+
+    // Wait for anonymous sign-in to actually finish before writing — these paths
+    // require auth != null, and firing immediately used to lose that race on
+    // slower connections (cold loads on mobile, in particular).
+    authReady.then(() => {
+        firebase.database().ref(`daily_stats/${today}/${currentMode}`).set(firebase.database.ServerValue.increment(1));
+        firebase.database().ref(`lifetime_stats/${currentMode}`).set(firebase.database.ServerValue.increment(1));
+        firebase.database().ref(`monthly_stats/${monthYear}/${currentMode}`).set(firebase.database.ServerValue.increment(1));
+    });
+
     if (!localStats.bestScore || totalCampaignScore < localStats.bestScore) localStats.bestScore = totalCampaignScore;
     saveStats();
     syncOfflineHolesToDatabase();
@@ -319,18 +333,20 @@ function syncOfflineHolesToDatabase() {
     let unsynced = parseInt(localStorage.getItem('paperGolf_unsyncedHoles')) || 0;
     if (unsynced === 0) return; 
 
-    const todayStr = getTodayDateString();
-    const bulkIncrement = firebase.database.ServerValue.increment(unsynced);
-    const updates = {};
-    updates[`paperGolf_stats/daily_holes/${todayStr}`] = bulkIncrement;
-    updates['paperGolf_stats/global_lifetime_holes'] = bulkIncrement;
-    
-    firebase.database().ref().update(updates)
-        .then(() => {
-            console.log(`Successfully dropped ${unsynced} offline holes onto the server!`);
-            localStorage.setItem('paperGolf_unsyncedHoles', 0); 
-        })
-        .catch((error) => console.error("Firebase Sync FAILED.", error));
+    authReady.then(() => {
+        const todayStr = getTodayDateString();
+        const bulkIncrement = firebase.database.ServerValue.increment(unsynced);
+        const updates = {};
+        updates[`paperGolf_stats/daily_holes/${todayStr}`] = bulkIncrement;
+        updates['paperGolf_stats/global_lifetime_holes'] = bulkIncrement;
+
+        firebase.database().ref().update(updates)
+            .then(() => {
+                console.log(`Successfully dropped ${unsynced} offline holes onto the server!`);
+                localStorage.setItem('paperGolf_unsyncedHoles', 0);
+            })
+            .catch((error) => console.error("Firebase Sync FAILED.", error));
+    });
 }
 
 function syncOfflineScoresToCloud() {

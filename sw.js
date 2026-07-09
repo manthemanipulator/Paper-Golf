@@ -14,6 +14,14 @@ self.addEventListener('install', event => {
 });
 
 self.addEventListener('fetch', event => {
+    // The Cache API only supports GET requests — POSTs (like the submitScore
+    // callable function hitting Cloud Functions) would throw on cache.put().
+    // Let anything non-GET (or cross-origin, e.g. Firebase/Firestore calls)
+    // just go straight to the network, uncached.
+    if (event.request.method !== 'GET') {
+        return;
+    }
+
     event.respondWith(
         caches.open(CACHE_NAME).then(cache => {
             return cache.match(event.request).then(cachedResponse => {
