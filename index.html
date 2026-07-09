@@ -619,7 +619,7 @@ function resetGame() {
 
 const firebaseConfig = {
     apiKey: "AIzaSyCpYT1A8wLcdpwxaThbVr3k-IdPvnPnHzw",
-    authDomain: "papergolf.app", // Matches your URL exactly!
+    authDomain: "paper-golf-e8364.firebaseapp.com",
     projectId: "paper-golf-e8364",
     storageBucket: "paper-golf-e8364.firebasestorage.app",
     messagingSenderId: "601427965342",
@@ -637,9 +637,14 @@ const connectedRef = rtdb.ref('.info/connected');
 
 let playerUID = null;
 
-firebase.auth().signInAnonymously().catch((error) => {
-    console.error("Auth failed:", error.code, error.message);
-});
+firebase.auth().signInAnonymously()
+    .then(() => {
+        console.log("Silent login successful.");
+    })
+    .catch((error) => {
+        // This will pop up on your iPhone the second you open the app if it fails!
+        alert("STARTUP AUTH FAILED: " + error.message);
+    });
 
 firebase.auth().onAuthStateChanged((user) => {
     if (user) {
