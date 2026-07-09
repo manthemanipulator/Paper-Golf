@@ -133,7 +133,7 @@ function resetGame() {
 
 const firebaseConfig = {
     apiKey: "AIzaSyCpYT1A8wLcdpwxaThbVr3k-IdPvnPnHzw",
-    authDomain: "paper-golf-e8364.firebaseapp.com",
+    authDomain: "auth.papergolf.app",
     projectId: "paper-golf-e8364",
     storageBucket: "paper-golf-e8364.firebasestorage.app",
     messagingSenderId: "601427965342",
