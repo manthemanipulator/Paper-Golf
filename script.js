@@ -1,18 +1,30 @@
 function getMonthYearString() {
     const d = new Date();
     // Force: "July 2026" (matches your screenshot text)
-    // UTC to match the Cloud Function's getServerMonthYearString() — the server
-    // is what actually stamps each score's monthYear, so the client has to bucket
-    // dates the same way or it'll query for a month that doesn't match what got stored.
-    return d.toLocaleString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+    // Local time on purpose — the server now buckets each score's monthYear using
+    // the timezone the client reports (see getUserTimeZone()), so the client's own
+    // "what month is it right now for me" needs to match that same local clock.
+    return d.toLocaleString('en-US', { month: 'long', year: 'numeric' });
 }
 
 function getUTCDateString() {
-    // "YYYY-MM-DD" in UTC — matches the Cloud Function's getServerDateString().
-    // Anything that needs to match a score's server-assigned `date` field (or
-    // read/write the same day-bucketed RTDB path) should use this instead of a
-    // local-timezone date, or it'll drift out of sync for part of every day.
-    return new Date().toLocaleDateString('en-CA', { timeZone: 'UTC' });
+    // "YYYY-MM-DD" in the browser's local timezone. Named for its earlier UTC-only
+    // version, but now local on purpose — see getMonthYearString() above for why.
+    // The server buckets each score's `date` using the timezone reported via
+    // getUserTimeZone(), so the client needs to match that same local clock too.
+    return new Date().toLocaleDateString('en-CA');
+}
+
+function getUserTimeZone() {
+    // IANA zone name, e.g. "America/Los_Angeles" — sent with every score so the
+    // Cloud Function can bucket "today"/"this month" by the player's actual local
+    // midnight instead of a single global UTC cutoff. The server treats this as a
+    // hint, not a trusted fact — see functions/index.js for the fallback/validation.
+    try {
+        return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+    } catch (e) {
+        return 'UTC';
+    }
 }
 
 function initializeTheme() {
@@ -396,7 +408,8 @@ function saveScoreToCloud(initials, score) {
         score: score,
         mode: currentMode,
         date: currentMode === 'daily' ? today : null,
-        monthYear: currentMode === 'random' ? monthYear : null
+        monthYear: currentMode === 'random' ? monthYear : null,
+        timezone: getUserTimeZone()
     };
 
     if (!navigator.onLine) {

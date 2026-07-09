@@ -19,16 +19,32 @@ const db = getFirestore();
 
 const VALID_MODES = ['daily', 'random'];
 
-// Server-authoritative date helpers — never trust date/monthYear from the client,
-// or anyone could submit a score into any day's or month's bucket they want.
-function getServerDateString() {
-    // "YYYY-MM-DD", same shape as the client's toLocaleDateString('en-CA')
-    return new Date().toLocaleDateString('en-CA', { timeZone: 'UTC' });
+// Server-authoritative date helpers — never trust a raw date/monthYear string from
+// the client, or anyone could submit a score into any day's or month's bucket they
+// want. We DO accept a client-reported IANA timezone (e.g. "America/Los_Angeles") so
+// "daily" resets at each player's own local midnight instead of one global UTC
+// cutoff — that's a deliberate, lower-stakes trust call: a spoofed timezone can only
+// shift which day-bucket a player's OWN score lands in (letting them replay the
+// daily mode slightly more than once per real day), it can't forge a score value,
+// touch another player's data, or affect the crown record.
+function isValidTimeZone(tz) {
+    if (typeof tz !== 'string' || !tz) return false;
+    try {
+        Intl.DateTimeFormat(undefined, { timeZone: tz });
+        return true;
+    } catch (e) {
+        return false;
+    }
 }
 
-function getServerMonthYearString() {
+function getServerDateString(timeZone) {
+    // "YYYY-MM-DD", same shape as the client's toLocaleDateString('en-CA')
+    return new Date().toLocaleDateString('en-CA', { timeZone });
+}
+
+function getServerMonthYearString(timeZone) {
     // "July 2026", same shape as the client's getMonthYearString()
-    return new Date().toLocaleString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+    return new Date().toLocaleString('en-US', { month: 'long', year: 'numeric', timeZone });
 }
 
 // ==========================================
@@ -44,9 +60,11 @@ exports.submitScore = onCall(async (request) => {
         throw new HttpsError('unauthenticated', 'You must be logged in to submit a score.');
     }
 
-    // 2. Extract your payload from request.data (ignore date/monthYear/uid — those are
-    //    derived below from the server, not taken from the caller)
-    const { initials, score, mode } = request.data;
+    // 2. Extract your payload from request.data (ignore the client's raw date/monthYear/uid
+    //    — those are derived below from the server. `timezone` is the one exception: it's
+    //    just a hint used to pick which local-midnight the date gets bucketed into, not
+    //    trusted as the date itself.)
+    const { initials, score, mode, timezone } = request.data;
 
     // 3. Validate the data
     if (typeof score !== 'number' || !Number.isFinite(score) || !Number.isInteger(score) || score < 18) {
@@ -61,8 +79,11 @@ exports.submitScore = onCall(async (request) => {
 
     const uid = request.auth.uid;
     const cleanInitials = initials.toUpperCase();
-    const date = mode === 'daily' ? getServerDateString() : null;
-    const monthYear = mode === 'random' ? getServerMonthYearString() : null;
+    // Fall back to UTC for anything malformed/missing rather than rejecting the
+    // submission outright — worst case someone's daily just buckets by UTC that round.
+    const safeTimeZone = isValidTimeZone(timezone) ? timezone : 'UTC';
+    const date = mode === 'daily' ? getServerDateString(safeTimeZone) : null;
+    const monthYear = mode === 'random' ? getServerMonthYearString(safeTimeZone) : null;
 
     const leaderboardRef = db.collection("globalLeaderboard");
 
