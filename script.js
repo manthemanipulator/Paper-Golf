@@ -1,7 +1,18 @@
 function getMonthYearString() {
     const d = new Date();
     // Force: "July 2026" (matches your screenshot text)
-    return d.toLocaleString('en-US', { month: 'long', year: 'numeric' });
+    // UTC to match the Cloud Function's getServerMonthYearString() — the server
+    // is what actually stamps each score's monthYear, so the client has to bucket
+    // dates the same way or it'll query for a month that doesn't match what got stored.
+    return d.toLocaleString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+}
+
+function getUTCDateString() {
+    // "YYYY-MM-DD" in UTC — matches the Cloud Function's getServerDateString().
+    // Anything that needs to match a score's server-assigned `date` field (or
+    // read/write the same day-bucketed RTDB path) should use this instead of a
+    // local-timezone date, or it'll drift out of sync for part of every day.
+    return new Date().toLocaleDateString('en-CA', { timeZone: 'UTC' });
 }
 
 function initializeTheme() {
@@ -260,7 +271,7 @@ function unlockAchievement(id) {
 }
 
 function triggerVictorySequence() {
-    const today = new Date().toLocaleDateString('en-CA');
+    const today = getUTCDateString();
     const monthYear = getMonthYearString();
 
     // Wait for anonymous sign-in to actually finish before writing — these paths
@@ -377,8 +388,8 @@ function loadLocalHoleStats() {
 }
 
 function saveScoreToCloud(initials, score) {
-    const today = new Date().toLocaleDateString('en-CA');
-    const monthYear = getMonthYearString(); 
+    const today = getUTCDateString();
+    const monthYear = getMonthYearString();
 
     const payload = {
         initials: initials,
@@ -464,7 +475,7 @@ function showLeaderboard() {
     playsCountDisplay.innerHTML = 'Loading stats...'; 
     
     const datePicker = document.getElementById('historyDate');
-    const targetDate = (currentMode === 'daily' && datePicker.value) ? datePicker.value : new Date().toLocaleDateString('en-CA');
+    const targetDate = (currentMode === 'daily' && datePicker.value) ? datePicker.value : getUTCDateString();
     
    // 1. FETCH CONTEXTUAL PLAY COUNTS
     if (currentMode === 'daily') {
@@ -626,7 +637,7 @@ document.getElementById('viewScoresBtn')?.addEventListener('click', () => {
     const datePicker = document.getElementById('historyDate');
     if (currentMode === 'daily') {
         datePicker.style.display = 'inline-block';
-        datePicker.value = new Date().toLocaleDateString('en-CA'); 
+        datePicker.value = getUTCDateString();
     } else if (currentMode === 'random') {
         const currentMonth = new Date().toLocaleString('default', { month: 'long' });
         document.getElementById('modalTitle').textContent = `${currentMonth.toUpperCase()} LEADERBOARD`;
