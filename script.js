@@ -386,7 +386,17 @@ function syncOfflineScoresToCloud() {
     // server rejection, etc.) was lost for good instead of being retried.
     Promise.allSettled(offlineScores.map((payload) => submitScoreSecure(payload)))
         .then((results) => {
-            const stillPending = offlineScores.filter((_, i) => results[i].status === 'rejected');
+            const stillPending = offlineScores.filter((_, i) => {
+                if (results[i].status === 'fulfilled') return false; // synced, drop it
+
+                // A genuine server rejection (bad score/initials/mode) will never
+                // succeed no matter how many times we retry it — drop it rather than
+                // let a corrupted entry sit in the queue forever. Anything else
+                // (dropped connection, timeout, etc.) stays queued for next time.
+                const err = results[i].reason;
+                const serverActuallyRejectedIt = err && (err.code === 'functions/invalid-argument' || err.code === 'functions/unauthenticated');
+                return !serverActuallyRejectedIt;
+            });
             if (stillPending.length > 0) {
                 console.error(`Failed to sync ${stillPending.length} offline score(s); will retry next time.`);
             }
@@ -409,7 +419,13 @@ function saveScoreToCloud(initials, score) {
         mode: currentMode,
         date: currentMode === 'daily' ? today : null,
         monthYear: currentMode === 'random' ? monthYear : null,
-        timezone: getUserTimeZone()
+        timezone: getUserTimeZone(),
+        // Captured now, at the moment the round actually finished — not when this
+        // payload eventually reaches the server. That distinction matters for
+        // offline play: if this sits in the queue for a few days before syncing,
+        // the server uses this to bucket the score under the day it was actually
+        // played, not the day the phone finally got signal back.
+        playedAt: new Date().toISOString()
     };
 
     if (!navigator.onLine) {
@@ -423,17 +439,34 @@ function saveScoreToCloud(initials, score) {
         return;
     }
 
+    // Small helper so both failure paths below can fall back to the same offline
+    // queue that the `!navigator.onLine` branch above uses.
+    const queueForLaterSync = () => {
+        let offlineScores = JSON.parse(localStorage.getItem('paperGolf_offlineScores')) || [];
+        offlineScores.push(payload);
+        localStorage.setItem('paperGolf_offlineScores', JSON.stringify(offlineScores));
+        document.getElementById('leaderboardList').innerHTML = `
+            <li style="color: #e67e22; font-weight: bold; font-size: 16px;">📶 CONNECTION ISSUE</li>
+            <li style="font-size: 14px; color: var(--text-color);">Score securely saved! It will upload later.</li>
+        `;
+    };
+
     // Fallback: Ensure the browser hasn't dropped the background session
     if (!firebase.auth().currentUser) {
         document.getElementById('leaderboardList').innerHTML = '<li>Re-establishing secure connection...</li>';
         firebase.auth().signInAnonymously()
             .then(() => saveScoreToCloud(initials, score))
-            .catch(err => document.getElementById('leaderboardList').innerHTML = `<li>Auth Error: ${err.message}</li>`);
+            // Couldn't even re-authenticate — almost certainly a connectivity problem,
+            // not a real auth issue. Don't lose the round over it.
+            .catch(err => {
+                console.error("Auth error while submitting:", err.message);
+                queueForLaterSync();
+            });
         return;
     }
 
     const submitScoreSecure = firebase.functions().httpsCallable('submitScore');
-    
+
     submitScoreSecure(payload)
         .then((result) => {
             console.log(result.data.message);
@@ -441,8 +474,23 @@ function saveScoreToCloud(initials, score) {
             showLeaderboard();
         })
         .catch((error) => {
-            console.error("Server rejected score:", error.message);
-            document.getElementById('leaderboardList').innerHTML = `<li>Error: ${error.message}</li>`;
+            console.error("Score submission failed:", error.code, error.message);
+
+            // Only these two mean the server actually looked at the request and said
+            // no — resubmitting the exact same payload won't change that, so surface
+            // it. Everything else (unavailable, deadline-exceeded, internal, or the
+            // request never reaching the server at all) is what you get from a flaky
+            // or fake-looking connection — navigator.onLine reports "online" plenty
+            // of times when there's no real path to the internet (boat wifi with no
+            // uplink, a cell signal that's technically connected but too weak to
+            // complete a request, etc). Queue it instead of throwing the round away.
+            const serverActuallyRejectedIt = error.code === 'functions/invalid-argument' || error.code === 'functions/unauthenticated';
+
+            if (serverActuallyRejectedIt) {
+                document.getElementById('leaderboardList').innerHTML = `<li>Error: ${error.message}</li>`;
+            } else {
+                queueForLaterSync();
+            }
         });
 }
 

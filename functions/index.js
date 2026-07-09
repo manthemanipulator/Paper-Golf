@@ -37,14 +37,36 @@ function isValidTimeZone(tz) {
     }
 }
 
-function getServerDateString(timeZone) {
+function getServerDateString(timeZone, atDate) {
     // "YYYY-MM-DD", same shape as the client's toLocaleDateString('en-CA')
-    return new Date().toLocaleDateString('en-CA', { timeZone });
+    return atDate.toLocaleDateString('en-CA', { timeZone });
 }
 
-function getServerMonthYearString(timeZone) {
+function getServerMonthYearString(timeZone, atDate) {
     // "July 2026", same shape as the client's getMonthYearString()
-    return new Date().toLocaleString('en-US', { month: 'long', year: 'numeric', timeZone });
+    return atDate.toLocaleString('en-US', { month: 'long', year: 'numeric', timeZone });
+}
+
+// Offline play support: a score queued while offline can sync days later, and it
+// should land on the day it was actually PLAYED, not the day the request finally
+// reached the server. We accept a client-reported `playedAt` timestamp for this —
+// same category of trust as the timezone above, just extended to "when" as well as
+// "which zone." Bounded so a spoofed timestamp can only reach so far: it can't be in
+// the future, and can't reach back further than a generous offline-trip window.
+const MAX_OFFLINE_BACKDATE_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+
+function resolvePlayedAtDate(playedAt) {
+    if (typeof playedAt !== 'string') return new Date();
+    const parsed = new Date(playedAt);
+    if (isNaN(parsed.getTime())) return new Date();
+
+    const now = Date.now();
+    if (parsed.getTime() > now || parsed.getTime() < now - MAX_OFFLINE_BACKDATE_MS) {
+        // Outside the trusted window (future-dated, or implausibly old) — ignore it
+        // and just use the time the server actually received the request.
+        return new Date();
+    }
+    return parsed;
 }
 
 // ==========================================
@@ -61,10 +83,10 @@ exports.submitScore = onCall(async (request) => {
     }
 
     // 2. Extract your payload from request.data (ignore the client's raw date/monthYear/uid
-    //    — those are derived below from the server. `timezone` is the one exception: it's
-    //    just a hint used to pick which local-midnight the date gets bucketed into, not
-    //    trusted as the date itself.)
-    const { initials, score, mode, timezone } = request.data;
+    //    — those are derived below from the server. `timezone` and `playedAt` are the
+    //    exceptions: they're hints used to pick which local-midnight the date gets
+    //    bucketed into, not trusted as the date itself — see resolvePlayedAtDate().)
+    const { initials, score, mode, timezone, playedAt } = request.data;
 
     // 3. Validate the data
     if (typeof score !== 'number' || !Number.isFinite(score) || !Number.isInteger(score) || score < 18) {
@@ -82,8 +104,9 @@ exports.submitScore = onCall(async (request) => {
     // Fall back to UTC for anything malformed/missing rather than rejecting the
     // submission outright — worst case someone's daily just buckets by UTC that round.
     const safeTimeZone = isValidTimeZone(timezone) ? timezone : 'UTC';
-    const date = mode === 'daily' ? getServerDateString(safeTimeZone) : null;
-    const monthYear = mode === 'random' ? getServerMonthYearString(safeTimeZone) : null;
+    const effectivePlayDate = resolvePlayedAtDate(playedAt);
+    const date = mode === 'daily' ? getServerDateString(safeTimeZone, effectivePlayDate) : null;
+    const monthYear = mode === 'random' ? getServerMonthYearString(safeTimeZone, effectivePlayDate) : null;
 
     const leaderboardRef = db.collection("globalLeaderboard");
 
