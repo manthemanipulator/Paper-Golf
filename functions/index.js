@@ -6,11 +6,16 @@
 // are GCF gen 1").
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const functionsV1 = require('firebase-functions/v1');
-const admin = require('firebase-admin');
+// firebase-admin v14 removed the old namespaced API (admin.firestore(),
+// admin.database(), admin.firestore.FieldValue) — everything now comes from
+// these modular imports instead.
+const { initializeApp } = require('firebase-admin/app');
+const { getFirestore, FieldValue } = require('firebase-admin/firestore');
+const { getDatabase } = require('firebase-admin/database');
 const fetch = require('node-fetch');
 
-admin.initializeApp();
-const db = admin.firestore();
+initializeApp();
+const db = getFirestore();
 
 const VALID_MODES = ['daily', 'random'];
 
@@ -76,7 +81,7 @@ exports.submitScore = onCall(async (request) => {
         initials: cleanInitials,
         score,
         mode,
-        timestamp: admin.firestore.FieldValue.serverTimestamp()
+        timestamp: FieldValue.serverTimestamp()
     };
     if (mode === 'daily') payload.date = date;
     if (mode === 'random') payload.monthYear = monthYear;
@@ -95,7 +100,7 @@ exports.submitScore = onCall(async (request) => {
     // 6. Update the all-time "random mode" crown here, server-side, using the Admin SDK.
     //    The RTDB rules block clients from writing this path directly now.
     if (mode === 'random') {
-        const crownRef = admin.database().ref('paperGolf_stats/all_time_random_crown');
+        const crownRef = getDatabase().ref('paperGolf_stats/all_time_random_crown');
         const crownSnap = await crownRef.once('value');
         const currentCrown = crownSnap.val();
         if (!currentCrown || score < currentCrown.score) {
