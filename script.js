@@ -1,0 +1,1375 @@
+function getMonthYearString() {
+    const d = new Date();
+    // Force: "July 2026" (matches your screenshot text)
+    return d.toLocaleString('en-US', { month: 'long', year: 'numeric' });
+}
+
+function initializeTheme() {
+    const savedTheme = localStorage.getItem('paperGolf_theme');
+    const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+    if (savedTheme) {
+        document.documentElement.setAttribute('data-theme', savedTheme);
+    } else if (systemPrefersDark) {
+        document.documentElement.setAttribute('data-theme', 'dark');
+    } else {
+        document.documentElement.setAttribute('data-theme', 'light');
+    }
+}
+
+function toggleTheme() {
+    let currentTheme = document.documentElement.getAttribute('data-theme');
+    let newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    
+    document.documentElement.setAttribute('data-theme', newTheme);
+    localStorage.setItem('paperGolf_theme', newTheme);
+}
+
+initializeTheme();
+
+let currentMode = 'casual'; 
+let ballZOffset = 0; 
+let currentWeather = { windX: 1, windY: 0 }; 
+let totalCampaignScore = 0;
+let dailySeed = 1;
+let currentHole = 1, strokes = 0, mulligans = 6, currentRoll = 0, canShoot = false, isPutting = false, isHoleComplete = false, usedTeeOffReroll = false;
+let currentBallPos = { x: 0, y: 0 }, holePos = { x: 0, y: 0 }, gridData = [], validTargets = [], clickableTargets = [], particles = [], trail = [], leaves = [];
+let hitSandThisHole = false;
+let localStats = JSON.parse(localStorage.getItem('paperGolfStats')) || { bestScore: null, birdies: 0, eagles: 0, unlocked: [] };
+
+const ACHIEVEMENTS = {
+    'birdie': { icon: '🐤', title: 'First Birdie', desc: 'Finish a hole in 5 strokes or less.' },
+    'eagle': { icon: '🦅', title: 'Eagle Eye', desc: 'Finish a hole in 4 strokes or less.' },
+    'sand': { icon: '🏖️', title: 'The Sandman', desc: 'Save Par (6) or better after hitting sand.' },
+    'ironman': { icon: '🏅', title: 'Ironman', desc: 'Complete a full 18-hole round.' },
+    'purist': { icon: '✨', title: 'Purist', desc: 'Finish 18 holes with ZERO mulligans used.' }
+};
+const TILE_SIZE = 20, COLS = 15, ROWS = 20;
+const TERRAIN = { ROUGH: 0, FAIRWAY: 1, SAND: 2, WATER: 3, TREE: 4 };
+const COLORS = { [TERRAIN.ROUGH]: '#e9f5e9', [TERRAIN.FAIRWAY]: '#90ee90', [TERRAIN.SAND]: '#f5deb3', [TERRAIN.WATER]: '#4682b4', [TERRAIN.TREE]: '#228b22', dot: 'rgba(0, 0, 0, 0.15)' };
+
+const modeSelect = document.getElementById('modeSelect');
+const rollBtn = document.getElementById('rollBtn');
+const puttBtn = document.getElementById('puttBtn');
+const rerollBtn = document.getElementById('rerollBtn');
+const diceResult = document.getElementById('diceResult');
+const statusText = document.getElementById('statusText');
+const canvas = document.getElementById('courseMap');
+const ctx = canvas.getContext('2d');
+
+function updateHUD() {
+    const uiHole = document.getElementById('uiHole');
+    const uiStrokes = document.getElementById('uiStrokes');
+    const uiMulls = document.getElementById('uiMulls');
+    const uiTotal = document.getElementById('uiTotal');
+    
+    if (uiStrokes) uiStrokes.textContent = `Strokes: ${strokes}`; 
+    if (uiMulls) uiMulls.textContent = `Mulls: ${mulligans}`;
+
+    if (currentMode === 'casual') {
+        if (uiHole) uiHole.textContent = `Hole: ${currentHole}`;
+        if (uiTotal) uiTotal.classList.add('hidden');
+    } else {
+        if (uiHole) uiHole.textContent = `Hole: ${currentHole}/18`;
+        if (uiTotal) uiTotal.textContent = ` | Total: ${totalCampaignScore}`;
+        if (uiTotal) uiTotal.classList.remove('hidden');
+    }
+
+    const scoresBtn = document.getElementById('viewScoresBtn');
+    if (scoresBtn) {
+        if (currentMode === 'casual') {
+            scoresBtn.style.opacity = '0.3';
+            scoresBtn.style.cursor = 'default';
+        } else {
+            scoresBtn.style.opacity = '1';
+            scoresBtn.style.cursor = 'pointer';
+        }
+    }
+}
+
+modeSelect.addEventListener('change', (e) => {
+    currentMode = e.target.value;
+    if (currentMode === 'casual') modeSelect.className = "mode-dropdown";
+    else if (currentMode === 'random') modeSelect.className = "mode-dropdown random";
+    else if (currentMode === 'daily') modeSelect.className = "mode-dropdown daily";
+    resetGame();
+});
+
+function resetGame() {
+    currentHole = 1;
+    totalCampaignScore = 0;
+    strokes = 0;
+    mulligans = 6;
+    isHoleComplete = false;
+    
+    document.getElementById('victoryOverlay').style.display = 'none';
+    document.getElementById('leaderboardModal').style.display = 'none';
+    
+    generateCourse(); 
+    updateHUD();
+}
+
+const firebaseConfig = {
+    apiKey: "AIzaSyCpYT1A8wLcdpwxaThbVr3k-IdPvnPnHzw",
+    authDomain: "paper-golf-e8364.firebaseapp.com",
+    projectId: "paper-golf-e8364",
+    storageBucket: "paper-golf-e8364.firebasestorage.app",
+    messagingSenderId: "601427965342",
+    appId: "1:601427965342:web:e2d36957d6dcf2ebf3d28f",
+    measurementId: "G-DZT902BEM3"
+};
+
+if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+const analytics = firebase.analytics();
+const db = firebase.firestore();
+const rtdb = firebase.database();
+const sessionId = Math.random().toString(36).substring(2, 15);
+const myUserRef = rtdb.ref('online_users/' + sessionId);
+const connectedRef = rtdb.ref('.info/connected');
+
+let playerUID = null;
+
+firebase.auth().signInAnonymously()
+    .then(() => {
+        console.log("Silent login successful.");
+    })
+    .catch((error) => {
+        // This will pop up on your iPhone the second you open the app if it fails!
+        alert("STARTUP AUTH FAILED: " + error.message);
+    });
+
+firebase.auth().onAuthStateChanged((user) => {
+    if (user) {
+        playerUID = user.uid;
+        console.log("Logged in securely! Player UID:", playerUID);
+        
+        const syncBadge = document.getElementById('syncStatusBadge');
+        if (syncBadge) {
+            if (!user.isAnonymous) {
+                syncBadge.innerText = "Synced";
+                syncBadge.style.background = "#2ecc71";
+            } else {
+                syncBadge.innerText = "Not Synced";
+                syncBadge.style.background = "#ff3b30";
+            }
+        }
+    }
+});
+
+function promptAccountSync() {
+    const user = firebase.auth().currentUser;
+    if (!user) {
+        alert("Waiting for server connection. Try again in a moment.");
+        return;
+    }
+    if (!user.isAnonymous) {
+        alert("Your account is already synced and protected in the cloud!");
+        return;
+    }
+
+    const provider = new firebase.auth.GoogleAuthProvider();
+    firebase.auth().currentUser.linkWithPopup(provider).then((result) => {
+        console.log("Account successfully upgraded and linked!", result.user.email);
+        alert("Success! Your progress is now permanently synced to your Google Account.");
+    }).catch((error) => {
+        console.error("Error linking account:", error);
+        if (error.code === 'auth/credential-already-in-use') {
+            alert("This Google account is already linked to another Paper Golf profile.");
+        } else {
+            alert("Failed to sync account: " + error.message);
+        }
+    });
+}
+
+connectedRef.on('value', (snap) => {
+    if (snap.val() === true) {
+        myUserRef.set(true);
+        myUserRef.onDisconnect().remove();
+    }
+});
+
+const allUsersRef = rtdb.ref('online_users');
+allUsersRef.on('value', (snap) => {
+    const count = snap.numChildren();
+    const countDisplay = document.getElementById('playerCount');
+    if (countDisplay) {
+        countDisplay.innerText = `👤 ${count}`;
+        countDisplay.style.opacity = '0.5';
+        setTimeout(() => countDisplay.style.opacity = '1', 150);
+    }
+});
+db.enablePersistence().catch((err) => console.log("Offline mode failed: ", err.code));
+
+function saveStats() {
+    localStorage.setItem('paperGolfStats', JSON.stringify(localStats));
+}
+
+function unlockAchievement(id) {
+    if (localStats.unlocked.includes(id)) return;
+    localStats.unlocked.push(id);
+    saveStats();
+
+    const ach = ACHIEVEMENTS[id];
+    const toast = document.getElementById('achToast');
+    if (!ach || !toast) return;
+
+    toast.innerHTML = `
+        <span style="font-size: 24px;">${ach.icon}</span>
+        <span>
+            <div style="font-weight: bold; font-size: 14px;">Achievement Unlocked!</div>
+            <div style="font-size: 13px; opacity: 0.85;">${ach.title}</div>
+        </span>
+    `;
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 3000);
+}
+
+function triggerVictorySequence() {
+    const today = new Date().toLocaleDateString('en-CA');
+    const monthYear = getMonthYearString(); 
+    
+    firebase.database().ref(`daily_stats/${today}/${currentMode}`).set(firebase.database.ServerValue.increment(1));
+    firebase.database().ref(`lifetime_stats/${currentMode}`).set(firebase.database.ServerValue.increment(1));
+    firebase.database().ref(`monthly_stats/${monthYear}/${currentMode}`).set(firebase.database.ServerValue.increment(1)); 
+        
+    if (!localStats.bestScore || totalCampaignScore < localStats.bestScore) localStats.bestScore = totalCampaignScore;
+    saveStats();
+    syncOfflineHolesToDatabase();
+    unlockAchievement('ironman');
+    if (mulligans === 6) unlockAchievement('purist');
+    
+    document.getElementById('modalTitle').textContent = currentMode === 'daily' ? "DAILY COMPLETE!" : "ROUND COMPLETE!";
+    
+    // Make sure the final score is visible when the victory screen pops up
+    document.getElementById('finalScoreDisplay').style.display = 'block';
+    document.getElementById('finalScoreDisplay').textContent = `Final Score: ${totalCampaignScore}`;
+    
+    document.getElementById('inputSection').classList.remove('hidden');
+    document.getElementById('leaderboardSection').classList.add('hidden');
+    document.getElementById('initialsInput').value = '';
+    document.getElementById('leaderboardModal').style.display = 'flex';
+}
+
+document.getElementById('submitScoreBtn')?.addEventListener('click', () => {
+    const initials = document.getElementById('initialsInput').value.trim().toUpperCase();
+    if (initials.length !== 3) { alert("Please enter exactly 3 initials."); return; }
+    document.getElementById('inputSection').classList.add('hidden');
+    document.getElementById('leaderboardSection').classList.remove('hidden');
+    document.getElementById('leaderboardList').innerHTML = '<li>Uploading score...</li>';
+    saveScoreToCloud(initials, totalCampaignScore);
+});
+
+function formatLargeNumber(num) {
+    if (num > 9999999) {
+        return (num / 1000000).toFixed(1) + 'M';
+    }
+    return num.toLocaleString();
+}
+
+function triggerDailyPulseToast(dailyHoleCount) {
+    const toast = document.getElementById('dailyPulseToast');
+    document.getElementById('dailyPulseText').innerText = formatLargeNumber(dailyHoleCount);
+    toast.style.display = 'block';
+    setTimeout(() => { toast.style.top = '30px'; }, 100);
+    setTimeout(() => { 
+        toast.style.top = '-100px'; 
+        setTimeout(() => { toast.style.display = 'none'; }, 600); 
+    }, 4500);
+}
+
+function incrementLocalHoles() {
+    let currentLocalHoles = parseInt(localStorage.getItem('paperGolf_lifetimeHoles')) || 0;
+    currentLocalHoles++;
+    localStorage.setItem('paperGolf_lifetimeHoles', currentLocalHoles);
+    document.getElementById('statLocalHoles').innerText = formatLargeNumber(currentLocalHoles);
+
+    let unsynced = parseInt(localStorage.getItem('paperGolf_unsyncedHoles')) || 0;
+    unsynced++;
+    localStorage.setItem('paperGolf_unsyncedHoles', unsynced);
+}
+
+function syncOfflineHolesToDatabase() {
+    if (!navigator.onLine) return; 
+    let unsynced = parseInt(localStorage.getItem('paperGolf_unsyncedHoles')) || 0;
+    if (unsynced === 0) return; 
+
+    const todayStr = getTodayDateString();
+    const bulkIncrement = firebase.database.ServerValue.increment(unsynced);
+    const updates = {};
+    updates[`paperGolf_stats/daily_holes/${todayStr}`] = bulkIncrement;
+    updates['paperGolf_stats/global_lifetime_holes'] = bulkIncrement;
+    
+    firebase.database().ref().update(updates)
+        .then(() => {
+            console.log(`Successfully dropped ${unsynced} offline holes onto the server!`);
+            localStorage.setItem('paperGolf_unsyncedHoles', 0); 
+        })
+        .catch((error) => console.error("Firebase Sync FAILED.", error));
+}
+
+function syncOfflineScoresToCloud() {
+    if (!navigator.onLine) return;
+
+    let offlineScores = JSON.parse(localStorage.getItem('paperGolf_offlineScores')) || [];
+    if (offlineScores.length === 0) return; 
+
+    offlineScores.forEach((payload) => {
+        const submitScoreSecure = firebase.functions().httpsCallable('submitScore');
+        submitScoreSecure(payload).then(() => {
+            if (payload.mode === 'random') {
+                const crownRef = firebase.database().ref('paperGolf_stats/all_time_random_crown');
+                crownRef.once('value').then((snap) => {
+                    const currentCrown = snap.val();
+                    if (!currentCrown || payload.score < currentCrown.score) {
+                        crownRef.set({ initials: payload.initials, score: payload.score, month: payload.monthYear });
+                    }
+                });
+            }
+        });
+    });
+    localStorage.setItem('paperGolf_offlineScores', JSON.stringify([]));
+}
+
+function loadLocalHoleStats() {
+    let currentLocalHoles = parseInt(localStorage.getItem('paperGolf_lifetimeHoles')) || 0;
+    document.getElementById('statLocalHoles').innerText = formatLargeNumber(currentLocalHoles);
+}
+
+function saveScoreToCloud(initials, score) {
+    const today = new Date().toLocaleDateString('en-CA');
+    const monthYear = getMonthYearString(); 
+
+    const payload = {
+        initials: initials,
+        score: score,
+        mode: currentMode,
+        date: currentMode === 'daily' ? today : null,
+        monthYear: currentMode === 'random' ? monthYear : null
+    };
+
+    if (!navigator.onLine) {
+        let offlineScores = JSON.parse(localStorage.getItem('paperGolf_offlineScores')) || [];
+        offlineScores.push(payload);
+        localStorage.setItem('paperGolf_offlineScores', JSON.stringify(offlineScores));
+        document.getElementById('leaderboardList').innerHTML = `
+            <li style="color: #e67e22; font-weight: bold; font-size: 16px;">📶 OFFLINE MODE</li>
+            <li style="font-size: 14px; color: var(--text-color);">Score securely saved! It will upload later.</li>
+        `;
+        return;
+    }
+
+    // Fallback: Ensure the browser hasn't dropped the background session
+    if (!firebase.auth().currentUser) {
+        document.getElementById('leaderboardList').innerHTML = '<li>Re-establishing secure connection...</li>';
+        firebase.auth().signInAnonymously()
+            .then(() => saveScoreToCloud(initials, score))
+            .catch(err => document.getElementById('leaderboardList').innerHTML = `<li>Auth Error: ${err.message}</li>`);
+        return;
+    }
+
+    const submitScoreSecure = firebase.functions().httpsCallable('submitScore');
+    
+    submitScoreSecure(payload)
+        .then((result) => {
+            console.log(result.data.message);
+            
+            if (currentMode === 'random') {
+                const crownRef = firebase.database().ref('paperGolf_stats/all_time_random_crown');
+                crownRef.once('value').then((snap) => {
+                    const currentCrown = snap.val();
+                    if (!currentCrown || score < currentCrown.score) {
+                        crownRef.set({ initials: initials, score: score, month: monthYear });
+                    }
+                }).then(() => showLeaderboard());
+            } else {
+                showLeaderboard();
+            }
+        })
+        .catch((error) => {
+            console.error("Server rejected score:", error.message);
+            document.getElementById('leaderboardList').innerHTML = `<li>Error: ${error.message}</li>`;
+        });
+}
+
+function toggleStats(show) {
+    document.getElementById('statsOverlay').style.display = show ? "flex" : "none";
+    if (show) renderStats();
+}
+
+function renderStats() {
+    document.getElementById('statBest').innerText = localStats.bestScore || '--';
+    document.getElementById('statBirdies').innerText = localStats.birdies;
+    document.getElementById('statEagles').innerText = localStats.eagles;
+    
+    let html = '';
+    for (const [id, ach] of Object.entries(ACHIEVEMENTS)) {
+        const isUnlocked = localStats.unlocked.includes(id);
+        html += `
+        <div class="ach-item ${isUnlocked ? 'unlocked' : ''}">
+            <div class="ach-icon">${isUnlocked ? ach.icon : '🔒'}</div>
+            <div class="ach-text">
+                <div class="ach-title">${isUnlocked ? ach.title : '???'}</div>
+                <div class="ach-desc">${isUnlocked ? ach.desc : 'Keep playing to unlock.'}</div>
+            </div>
+        </div>`;
+    }
+    document.getElementById('achievementsList').innerHTML = html;
+}
+
+function showLeaderboard() {
+    document.getElementById('inputSection').classList.add('hidden');
+    document.getElementById('leaderboardSection').classList.remove('hidden');
+    
+    // ADD THIS LINE: Hides the redundant score text when viewing the leaderboard
+    document.getElementById('finalScoreDisplay').style.display = 'none'; 
+    
+    const list = document.getElementById('leaderboardList');
+    const rankBanner = document.getElementById('userRankBanner');
+    const playsCountDisplay = document.getElementById('dailyPlaysCount');
+    const currentMonthYear = getMonthYearString(); 
+    
+    list.innerHTML = '<li>Loading...</li>';
+    rankBanner.classList.add('hidden');
+    playsCountDisplay.innerHTML = 'Loading stats...'; 
+    
+    const datePicker = document.getElementById('historyDate');
+    const targetDate = (currentMode === 'daily' && datePicker.value) ? datePicker.value : new Date().toLocaleDateString('en-CA');
+    
+   // 1. FETCH CONTEXTUAL PLAY COUNTS
+    if (currentMode === 'daily') {
+        const statsRef = firebase.database().ref(`daily_stats/${targetDate}/daily`);
+        statsRef.once('value').then((snap) => {
+            const plays = snap.val() || 0;
+            playsCountDisplay.innerHTML = `⛳️ ${plays} rounds completed today`;
+        }).catch((error) => {
+            console.error("Firebase Read Error:", error);
+            playsCountDisplay.innerHTML = `<span style="color: #ff3b30;">⚠️ Stats temporarily unavailable</span>`;
+        });
+        
+    } else if (currentMode === 'random') {
+        const crownRef = firebase.database().ref('paperGolf_stats/all_time_random_crown');
+        const monthlyRef = firebase.database().ref(`monthly_stats/${currentMonthYear}/random`);
+        
+        Promise.all([crownRef.once('value'), monthlyRef.once('value')]).then(([crownSnap, monthlySnap]) => {
+            const crown = crownSnap.val();
+            const monthlyPlays = monthlySnap.val() || 0;
+            
+            let displayHTML = '';
+            if (crown) {
+                // FIXED SPACING: Replaced <br> with a div that adds exactly 6px of breathing room
+                displayHTML += `<div style="margin-bottom: 6px;">👑 ALL-TIME RECORD: <span style="color:var(--accent-color);">${crown.initials} - ${crown.score}</span> 👑</div>`;
+            }
+            displayHTML += `<span style="font-size: 14px; color: #4cd964;">⛳️ ${monthlyPlays} rounds completed this month</span>`;
+            
+            playsCountDisplay.innerHTML = displayHTML;
+        }).catch((error) => {
+            console.error("Firebase Read Error:", error);
+            playsCountDisplay.innerHTML = `<span style="color: #ff3b30;">⚠️ Stats temporarily unavailable</span>`;
+        });
+        
+    } else {
+        // ... (Leave the rest of the function exactly as is)
+        const lifetimeRef = firebase.database().ref(`lifetime_stats/${currentMode}`);
+        lifetimeRef.once('value').then((snap) => {
+            const plays = snap.val() || 0;
+            playsCountDisplay.innerHTML = `⛳️ ${plays} lifetime rounds completed`;
+        }).catch((error) => {
+            console.error("Firebase Read Error:", error);
+            playsCountDisplay.innerHTML = `<span style="color: #ff3b30;">⚠️ Stats temporarily unavailable</span>`;
+        });
+    }
+    
+    // 2. BUILD THE DYNAMIC LEADERBOARD LIST
+    db.collection("globalLeaderboard").orderBy("score", "asc").orderBy("timestamp", "asc").onSnapshot((querySnapshot) => {
+        list.innerHTML = ''; 
+        let count = 0;
+        let myRank = null;
+        let myBestThisContext = null; 
+        let totalScoresInCategory = 0;
+        
+        querySnapshot.forEach((doc) => {
+            const entry = doc.data();
+            
+            if (currentMode === 'daily' && (entry.mode !== 'daily' || entry.date !== targetDate)) return;
+            if (currentMode === 'random' && (entry.mode !== 'random' || entry.monthYear !== currentMonthYear)) return;
+            if (currentMode === 'casual' && entry.mode !== 'casual') return;
+            
+            totalScoresInCategory++;
+            
+            if (entry.uid === playerUID && !myRank) {
+                myRank = totalScoresInCategory;
+                myBestThisContext = entry.score;
+            }
+            
+            if (count >= 10) return;
+            count++;
+            
+            const li = document.createElement('li');
+            
+           // TRUE TERRACING: Shrink the physical footprint to prevent scrolling
+            let opacity = 1 - ((count - 1) * 0.08);          
+            let fontSize = 18 - (count - 1);                 
+            let padding = 10 - Math.floor((count - 1) * 0.5); 
+            let bottomMargin = count === 1 ? "6px" : "2px";  // Squeezed even tighter
+            
+            li.style.opacity = opacity;
+            li.style.fontSize = `${fontSize}px`;
+            li.style.padding = `${padding}px`;
+            li.style.marginBottom = bottomMargin;
+            li.style.lineHeight = "1.2";
+            
+            if (count === 1) {
+                li.innerHTML = `🏆 <b>${entry.initials} ..... ${entry.score}</b> 🏆`;
+                li.style.color = '#d35400'; 
+                li.style.border = "2px solid #d35400";
+                li.style.fontSize = "18px"; 
+            } else {
+                li.textContent = `#${count} - ${entry.initials} ..... ${entry.score}`;
+            }
+            list.appendChild(li);
+        });
+        
+        if (count === 0) list.innerHTML = '<li>No scores yet!</li>';
+        
+        // 3. POPULATE THE STICKY RANK BANNER
+        if (currentMode !== 'casual') {
+            if (myBestThisContext) {
+                document.getElementById('userBestBannerScore').innerText = myBestThisContext;
+                document.getElementById('userRankText').innerText = `#${myRank} / ${totalScoresInCategory}`;
+            } else {
+                document.getElementById('userBestBannerScore').innerText = '--';
+                document.getElementById('userRankText').innerText = `Unranked`;
+            }
+            rankBanner.classList.remove('hidden');
+        }
+    });
+}
+
+function getTodayDateString() {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return `${year}_${month}_${day}`;
+}
+
+function initializeCommunityStats() {
+    const todayStr = getTodayDateString();
+    firebase.database().ref(`paperGolf_stats/daily_holes/${todayStr}`).once('value').then((snapshot) => {
+        let dailyCount = snapshot.val() || 0;
+        if (dailyCount > 0) triggerDailyPulseToast(dailyCount);
+    });
+
+    const compactFormatter = new Intl.NumberFormat('en-US', { notation: "compact", maximumFractionDigits: 1 });
+    firebase.database().ref('paperGolf_stats/global_lifetime_holes').on('value', (snapshot) => {
+        let globalCount = snapshot.val() || 0;
+        document.getElementById('statGlobalHoles').innerText = formatLargeNumber(globalCount);
+        document.getElementById('global-holes').innerText = `🌎⛳️ ${compactFormatter.format(globalCount)}`;
+    });
+
+    firebase.database().ref('paperGolf_stats/all_time_random_crown').on('value', (snapshot) => {
+        const crown = snapshot.val();
+        const crownDisplay = document.getElementById('statAllTimeCrown');
+        if (crownDisplay) {
+            if (crown) {
+                crownDisplay.innerHTML = `<span style="font-weight: bold; font-size: 22px;">${crown.score}</span> by <b>${crown.initials}</b><br><span style="font-size: 12px; color: #888;">(${crown.month})</span>`;
+            } else {
+                crownDisplay.innerText = "None yet!";
+            }
+        }
+    });
+}
+
+loadLocalHoleStats();
+initializeCommunityStats();
+
+document.getElementById('historyDate')?.addEventListener('change', showLeaderboard);
+
+document.getElementById('viewScoresBtn')?.addEventListener('click', () => {
+    if (currentMode === 'casual') return; 
+    document.getElementById('modalTitle').textContent = currentMode === 'daily' ? "DAILY LEADERBOARD" : "ALL-TIME TOP 5";
+    
+    const datePicker = document.getElementById('historyDate');
+    if (currentMode === 'daily') {
+        datePicker.style.display = 'inline-block';
+        datePicker.value = new Date().toLocaleDateString('en-CA'); 
+    } else if (currentMode === 'random') {
+        const currentMonth = new Date().toLocaleString('default', { month: 'long' });
+        document.getElementById('modalTitle').textContent = `${currentMonth.toUpperCase()} LEADERBOARD`;
+        datePicker.style.display = 'none';
+    } else {
+        datePicker.style.display = 'none';
+    }
+    
+    document.getElementById('inputSection').classList.add('hidden');
+    document.getElementById('leaderboardSection').classList.remove('hidden');
+    document.getElementById('leaderboardModal').style.display = 'flex';
+    showLeaderboard();
+});
+
+document.getElementById('playAgainBtn')?.addEventListener('click', resetGame);
+document.getElementById('backToCasualBtn')?.addEventListener('click', () => {
+    currentMode = 'casual';
+    modeSelect.value = 'casual';
+    modeSelect.className = "mode-dropdown";
+    resetGame();
+});
+
+function getRand() {
+    if (currentMode === 'daily') {
+        let t = dailySeed += 0x6D2B79F5;
+        t = Math.imul(t ^ t >>> 15, t | 1);
+        t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+        return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    }
+    return Math.random();
+}
+
+function getSeededShotRand(baseSeed, holeNum, strokeNum) {
+    if (currentMode !== 'daily') return Math.random();
+    let h = baseSeed + (holeNum * 1337) + (strokeNum * 73); 
+    h = Math.imul(h ^ h >>> 15, h | 1);
+    h ^= h + Math.imul(h ^ h >>> 7, h | 61);
+    return ((h ^ h >>> 14) >>> 0) / 4294967296;
+}
+
+function updateWeatherForStroke() {
+    let weatherRoll = getSeededShotRand(dailySeed, currentHole, strokes);
+    let wX = 0;
+    let wY = 0;
+
+    if (weatherRoll > 0.20) { 
+        let isHeavy = (weatherRoll * 10) % 1 > 0.60; 
+        let strength = isHeavy ? 2 : 1;
+
+        let dirRandX = (weatherRoll * 100) % 1;
+        let dirRandY = (weatherRoll * 1000) % 1;
+
+        wX = (Math.floor(dirRandX * 3) - 1) * strength;
+        wY = (Math.floor(dirRandY * 3) - 1) * strength;
+
+        if (wX === 0 && wY === 0) {
+            wX = dirRandX > 0.5 ? 1 : -1;
+        }
+    }
+
+    currentWeather = { windX: wX, windY: wY };
+    
+    leaves = [];
+    if (currentWeather.windX !== 0 || currentWeather.windY !== 0) {
+        let maxWind = Math.max(Math.abs(currentWeather.windX), Math.abs(currentWeather.windY));
+        let numLeaves = maxWind === 2 ? 15 : 6; 
+        for(let i=0; i<numLeaves; i++) {
+            leaves.push({
+                x: Math.random() * (COLS * TILE_SIZE),
+                y: Math.random() * (ROWS * TILE_SIZE),
+                speedX: (Math.random() * 1.5 + 0.5) * currentWeather.windX, 
+                speedY: (Math.random() * 1.5 + 0.5) * currentWeather.windY, 
+                wobble: Math.random() * Math.PI * 2
+            });
+        }
+    }
+
+    updateTacticalDashboard();
+    renderScene(); 
+}
+
+function toggleRules(forceState) { 
+    const overlay = document.getElementById('rulesOverlay');
+    overlay.style.display = (typeof forceState === 'boolean') ? (forceState ? 'flex' : 'none') : (overlay.style.display === 'flex' ? 'none' : 'flex');
+}
+
+function toggleOffline(show) {
+    document.getElementById('offlineOverlay').style.display = show ? "flex" : "none";
+}
+
+function updateRerollButton() {
+    if (!canShoot || isPutting || isHoleComplete) { rerollBtn.disabled = true; rerollBtn.innerText = "Re-roll"; return; }
+    if (strokes === 0 && !usedTeeOffReroll) { rerollBtn.disabled = false; rerollBtn.innerText = "Free Re-roll"; }
+    else if (mulligans > 0) { rerollBtn.disabled = false; rerollBtn.innerText = `Mulligan (${mulligans})`; }
+    else { rerollBtn.disabled = true; rerollBtn.innerText = "0 Mulligans"; }
+}
+
+function calculateValidTargets() {
+    validTargets = [];
+    clickableTargets = []; 
+    if (!canShoot || isHoleComplete) return;
+
+    let sx = Math.floor(currentBallPos.x / TILE_SIZE), sy = Math.floor(currentBallPos.y / TILE_SIZE);
+    let startingTerrain = gridData[sy][sx];
+    let eff = currentRoll;
+
+    if (startingTerrain === TERRAIN.FAIRWAY) eff += 1;
+    else if (startingTerrain === TERRAIN.SAND) eff = Math.max(1, currentRoll - 1);
+    if (isPutting) eff = 1;
+
+    statusText.style.color = isPutting ? '#ff9500' : '#5cb85c';
+    let modText = isPutting ? "" : (startingTerrain === TERRAIN.FAIRWAY ? " (+1 Fairway)" : (startingTerrain === TERRAIN.SAND ? " (-1 Sand)" : ""));
+    statusText.innerText = isPutting ? "Tap a glowing dot to putt." : `Required distance: ${eff}${modText}`;
+
+    let compX = (currentRoll === 1 || isPutting) ? 0 : -currentWeather.windX; 
+    let compY = (currentRoll === 1 || isPutting) ? 0 : -currentWeather.windY;
+
+    const directions = [{dx: 1, dy: 0}, {dx: -1, dy: 0}, {dx: 0, dy: 1}, {dx: 0, dy: -1}, {dx: 1, dy: 1}, {dx: -1, dy: -1}, {dx: 1, dy: -1}, {dx: -1, dy: 1}];
+    
+    for (let dir of directions) {
+        let pathBlocked = false;
+        for (let i = 1; i <= eff; i++) {
+            let tx = sx + dir.dx * i, ty = sy + dir.dy * i;
+            if (tx < 0 || tx >= COLS || ty < 0 || ty >= ROWS) { pathBlocked = true; break; }
+            let terrain = gridData[ty][tx];
+            if (i < eff && terrain === TERRAIN.TREE && startingTerrain !== TERRAIN.FAIRWAY) { pathBlocked = true; break; }
+            if (i === eff && (terrain === TERRAIN.WATER || terrain === TERRAIN.TREE)) { pathBlocked = true; break; }
+        }
+        
+        let baseX = sx + dir.dx * eff;
+        let baseY = sy + dir.dy * eff;
+
+        if (baseX >= 0 && baseX < COLS && baseY >= 0 && baseY < ROWS) {
+            validTargets.push({x: baseX, y: baseY, blocked: pathBlocked});
+            clickableTargets.push({x: baseX, y: baseY, blocked: pathBlocked});
+
+            if (!pathBlocked) {
+                let windFactorX = (eff === 1) ? 0 : currentWeather.windX;
+                let windFactorY = (eff === 1) ? 0 : currentWeather.windY;
+                
+                let maxSteps = Math.max(Math.abs(windFactorX), Math.abs(windFactorY));
+                if (maxSteps > 0) {
+                    let stepX = windFactorX === 0 ? 0 : Math.sign(windFactorX);
+                    let stepY = windFactorY === 0 ? 0 : Math.sign(windFactorY);
+                    
+                    for (let w = -maxSteps; w <= maxSteps; w++) {
+                        if (w === 0) continue; 
+                        let cx = baseX + (stepX * w);
+                        let cy = baseY + (stepY * w);
+                        if (cx >= 0 && cx < COLS && cy >= 0 && cy < ROWS) {
+                            clickableTargets.push({x: cx, y: cy, blocked: false});
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    let hasSafeMove = validTargets.some(t => !t.blocked);
+    if (!hasSafeMove && !isHoleComplete) {
+        if (strokes === 0) {
+            statusText.style.color = '#ff9500';
+            statusText.innerText = "Blocked off the tee! Roll again for free.";
+            canShoot = false; rollBtn.disabled = false; puttBtn.disabled = false;
+        } else {
+            statusText.style.color = '#d9534f';
+            statusText.innerText = "Blocked! Unplayable lie (+1 Stroke). Roll again.";
+            strokes++; updateHUD();
+            updateWeatherForStroke(); 
+            canShoot = false; rollBtn.disabled = false; puttBtn.disabled = false;
+            if (navigator.vibrate) navigator.vibrate([50, 100, 50]);
+        }
+    }
+}
+
+function renderScene() { 
+    if (gridData.length === 0) return; 
+
+    ctx.clearRect(0,0,canvas.width, canvas.height);
+    for(let y=0; y<ROWS; y++) {
+        for(let x=0; x<COLS; x++) {
+            let tile = gridData[y][x];
+            if(tile === TERRAIN.TREE) {
+                ctx.fillStyle = COLORS[TERRAIN.ROUGH]; ctx.fillRect(x*TILE_SIZE, y*TILE_SIZE, TILE_SIZE, TILE_SIZE);
+                ctx.fillStyle = COLORS[TERRAIN.TREE]; ctx.beginPath(); ctx.moveTo(x*TILE_SIZE + TILE_SIZE/2, y*TILE_SIZE + 4); ctx.lineTo(x*TILE_SIZE + TILE_SIZE - 4, y*TILE_SIZE + TILE_SIZE - 4); ctx.lineTo(x*TILE_SIZE + 4, y*TILE_SIZE + TILE_SIZE - 4); ctx.fill();
+            } else if (tile === TERRAIN.WATER) {
+                ctx.fillStyle = COLORS[TERRAIN.WATER]; 
+                ctx.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+
+                let time = Date.now() / 800;
+                let driftX = time * 10 * currentWeather.windX;
+                let driftY = time * 10 * currentWeather.windY;
+
+                let localOffset1 = x * 4 + y * 6;
+                let localOffset2 = x * 4 + y * 6 + 10;
+                let wrap = (val, max) => ((val % max) + max) % max;
+
+                let rx1 = wrap(driftX + localOffset1, TILE_SIZE);
+                let ry1 = wrap(driftY + localOffset1, TILE_SIZE);
+                let rx2 = wrap(driftX + localOffset2, TILE_SIZE);
+                let ry2 = wrap(driftY + localOffset2, TILE_SIZE);
+
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)'; 
+                ctx.lineWidth = 1.5;
+                ctx.beginPath(); ctx.arc(x * TILE_SIZE + rx1, y * TILE_SIZE + ry1, 3, 0, Math.PI); ctx.stroke();
+                ctx.beginPath(); ctx.arc(x * TILE_SIZE + rx2, y * TILE_SIZE + ry2, 3, 0, Math.PI); ctx.stroke();
+            } else {
+                ctx.fillStyle = COLORS[tile]; ctx.fillRect(x*TILE_SIZE, y*TILE_SIZE, TILE_SIZE, TILE_SIZE); 
+            }
+        }
+    }
+    ctx.fillStyle = COLORS.dot;
+    for(let y=0; y<ROWS; y++) for(let x=0; x<COLS; x++) { ctx.beginPath(); ctx.arc(x*TILE_SIZE + TILE_SIZE/2, y*TILE_SIZE + TILE_SIZE/2, 1.5, 0, Math.PI*2); ctx.fill(); }
+    
+    ctx.fillStyle = 'black'; ctx.beginPath(); ctx.arc(holePos.x, holePos.y, 7, 0, Math.PI*2); ctx.fill();
+
+    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2; ctx.beginPath();
+    ctx.moveTo(holePos.x, holePos.y); 
+    ctx.lineTo(holePos.x, holePos.y - 18); 
+    ctx.stroke();
+
+    let flagDir = currentWeather.windX < 0 ? -1 : 1; 
+    let windStrength = Math.abs(currentWeather.windX);
+    let flagLength = 10 + (windStrength === 2 ? 8 : 0);
+    
+    ctx.fillStyle = '#ff3b30'; ctx.beginPath();
+    ctx.moveTo(holePos.x, holePos.y - 18); 
+    ctx.lineTo(holePos.x + (flagLength * flagDir), holePos.y - 13); 
+    ctx.lineTo(holePos.x, holePos.y - 8); 
+    ctx.fill();
+
+    if (canShoot && validTargets.length > 0) {
+        let baseRadius = 6; 
+        let time = (Date.now() % 1500) / 1500; 
+        let pulseRadius = baseRadius * time;   
+        let pulseOpacity = 1 - time;            
+
+        for (let t of validTargets) {
+            let centerX = t.x * TILE_SIZE + TILE_SIZE / 2;
+            let centerY = t.y * TILE_SIZE + TILE_SIZE / 2;
+            let targetColor = t.blocked ? '#ff3b30' : '#ff9500'; 
+
+            ctx.globalAlpha = 0.9; ctx.beginPath(); ctx.arc(centerX, centerY, baseRadius, 0, Math.PI * 2);
+            ctx.strokeStyle = 'rgba(0,0,0,0.6)'; ctx.lineWidth = 4; ctx.stroke();
+            ctx.strokeStyle = targetColor; ctx.lineWidth = 2.5; ctx.stroke();
+            ctx.globalAlpha = pulseOpacity; ctx.beginPath(); ctx.arc(centerX, centerY, pulseRadius, 0, Math.PI * 2);
+            ctx.fillStyle = targetColor; ctx.fill(); 
+        }
+        ctx.globalAlpha = 1.0;
+    }
+
+    if (trail.length > 0) {
+        trail.forEach((pos, index) => {
+            let scale = (index + 1) / trail.length; 
+            ctx.globalAlpha = scale * 0.6; 
+            ctx.fillStyle = '#007aff'; ctx.beginPath();
+            ctx.arc(pos.x, pos.y, 4.5 * scale, 0, Math.PI * 2); ctx.fill();
+        });
+        ctx.globalAlpha = 1.0; 
+    }
+
+    if (ballZOffset > 0) {
+        ctx.fillStyle = 'rgba(0,0,0,0.2)'; ctx.beginPath();
+        let shadowSize = Math.max(1, 5 - (ballZOffset * 0.15)); 
+        ctx.ellipse(currentBallPos.x, currentBallPos.y + 2, shadowSize, shadowSize * 0.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    ctx.beginPath(); 
+    ctx.arc(currentBallPos.x, currentBallPos.y - ballZOffset, 5, 0, Math.PI*2); 
+    ctx.fillStyle='white'; ctx.fill(); 
+    ctx.strokeStyle=strokes===0?'black':'red'; ctx.lineWidth=2; ctx.stroke();
+
+    if (currentWeather.windX !== 0 || currentWeather.windY !== 0) {
+        ctx.fillStyle = '#228b22'; 
+        for (let l of leaves) {
+            l.wobble += 0.05;
+            let wobbleOffset = Math.sin(l.wobble) * 1.5;
+            ctx.fillRect(l.x + wobbleOffset, l.y + wobbleOffset, 3, 3); 
+            l.x += l.speedX; l.y += l.speedY;
+            if (l.speedX > 0 && l.x > COLS * TILE_SIZE) l.x = -5;
+            if (l.speedX < 0 && l.x < 0) l.x = COLS * TILE_SIZE + 5;
+            if (l.speedY > 0 && l.y > ROWS * TILE_SIZE) l.y = -5;
+            if (l.speedY < 0 && l.y < 0) l.y = ROWS * TILE_SIZE + 5;
+        }
+    }
+    drawParticles();
+}
+
+function updateTacticalDashboard() {
+    let wx = currentWeather.windX;
+    let wy = currentWeather.windY;
+    let windStr = "CALM";
+    
+    if (wx !== 0 || wy !== 0) {
+        let arrow = "";
+        if (wy < 0 && wx === 0) arrow = "⬆️";
+        else if (wy > 0 && wx === 0) arrow = "⬇️";
+        else if (wy === 0 && wx > 0) arrow = "➡️";
+        else if (wy === 0 && wx < 0) arrow = "⬅️";
+        else if (wy < 0 && wx > 0) arrow = "↗️";
+        else if (wy < 0 && wx < 0) arrow = "↖️";
+        else if (wy > 0 && wx > 0) arrow = "↘️";
+        else if (wy > 0 && wx < 0) arrow = "↙️";
+
+        let speed = Math.max(Math.abs(wx), Math.abs(wy));
+        windStr = `${arrow} ${speed}`;
+    }
+    document.getElementById('windValue').innerText = windStr;
+
+    let sx = Math.floor(currentBallPos.x / TILE_SIZE);
+    let sy = Math.floor(currentBallPos.y / TILE_SIZE);
+    let terrain = gridData[sy] ? gridData[sy][sx] : TERRAIN.ROUGH;
+    
+    let badge = document.getElementById('lieBadge');
+    let val = document.getElementById('lieValue');
+    
+    badge.classList.remove('lie-fairway', 'lie-sand', 'lie-rough');
+
+    if (strokes === 0) {
+        badge.classList.add('lie-fairway'); val.innerText = "Tee (+1)";
+    } else if (terrain === TERRAIN.FAIRWAY) {
+        badge.classList.add('lie-fairway'); val.innerText = "Fairway (+1)";
+    } else if (terrain === TERRAIN.SAND) {
+        badge.classList.add('lie-sand'); val.innerText = "Sand (-1)";
+    } else {
+        badge.classList.add('lie-rough'); val.innerText = "Rough (0)";
+    }
+}
+
+rollBtn.addEventListener('click', () => {
+    if (isHoleComplete) return;
+    if (navigator.vibrate) navigator.vibrate(50);
+    
+    rollBtn.disabled = true; puttBtn.disabled = true; rerollBtn.disabled = true; 
+    canShoot = false; validTargets = []; renderScene();
+
+    let flashes = 0;
+    let suspense = setInterval(() => {
+        diceResult.innerText = Math.floor(Math.random() * 6) + 1; 
+        flashes++;
+        if (flashes > 10) { 
+            clearInterval(suspense);
+            currentRoll = Math.floor(Math.random() * 6) + 1; 
+            diceResult.innerText = currentRoll; 
+            canShoot = true; isPutting = false; 
+            calculateValidTargets(); updateRerollButton(); renderScene(); idleLoop(); 
+        }
+    }, 50); 
+});
+
+puttBtn.addEventListener('click', () => {
+    if (isHoleComplete) return;
+    if (navigator.vibrate) navigator.vibrate(30);
+    
+    rollBtn.disabled = true; puttBtn.disabled = true; rerollBtn.disabled = true;
+    currentRoll = 1; diceResult.innerText = 'P'; canShoot = true; isPutting = true; 
+    calculateValidTargets(); updateRerollButton(); renderScene(); idleLoop(); 
+});
+
+rerollBtn.addEventListener('click', () => {
+    if (strokes !== 0 && mulligans <= 0) return; 
+    
+    if (strokes === 0 && !usedTeeOffReroll) { usedTeeOffReroll = true; } 
+    else { mulligans--; updateHUD(); }
+    
+    rerollBtn.disabled = true; canShoot = false; validTargets = []; renderScene();
+    
+    let flashes = 0;
+    let suspense = setInterval(() => {
+        diceResult.innerText = Math.floor(Math.random() * 6) + 1; 
+        flashes++;
+        if (flashes > 10) { 
+            clearInterval(suspense);
+            currentRoll = Math.floor(Math.random() * 6) + 1; 
+            diceResult.innerText = currentRoll; canShoot = true; isPutting = false; 
+            calculateValidTargets(); renderScene(); idleLoop(); 
+        }
+    }, 50);
+});
+
+document.getElementById('nextHoleBtn')?.addEventListener('click', () => {
+    currentHole++; strokes = 0; isHoleComplete = false;
+    document.getElementById('victoryOverlay').style.display = 'none';
+    generateCourse(); updateHUD();
+});
+
+function generateCourse() {
+    if (currentMode === 'daily') {
+        const d = new Date();
+        dailySeed = d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate() + (currentHole * 1000000);
+    }
+
+    updateWeatherForStroke();
+    console.log(`Hole ${currentHole} Wind: X=${currentWeather.windX}, Y=${currentWeather.windY}`);
+
+    gridData = Array.from({length: ROWS}, () => Array(COLS).fill(TERRAIN.ROUGH));
+    let startGridX = Math.floor(COLS / 2) + Math.floor(getRand() * 5 - 2), startGridY = ROWS - 3;
+    let holeGridX = Math.floor(COLS / 2) + Math.floor(getRand() * 9 - 4), holeGridY = 2;
+
+    function drawFairwayBlob(cx, cy) {
+        let blobs = Math.floor(getRand() * 2) + 1; 
+        for(let b=0; b<blobs; b++) {
+            let bx = cx + Math.floor(getRand() * 3 - 1), by = cy + Math.floor(getRand() * 3 - 1);
+            let bw = Math.floor(getRand() * 2) + 2, bh = Math.floor(getRand() * 2) + 2; 
+            for(let y=by; y<by+bh; y++) for(let x=bx; x<bx+bw; x++) if(y>=0 && y<ROWS && x>=0 && x<COLS) gridData[y][x] = TERRAIN.FAIRWAY;
+        }
+    }
+    drawFairwayBlob(startGridX - 1, startGridY - 1); drawFairwayBlob(holeGridX - 1, holeGridY - 1);
+
+    let numIslands = Math.floor(getRand() * 3) + 2; 
+    for(let i = 1; i <= numIslands; i++) drawFairwayBlob(Math.floor(startGridX + i * ((holeGridX - startGridX) / (numIslands + 1)) + (getRand() * 6 - 3)), Math.floor(startGridY - i * ((startGridY - holeGridY) / (numIslands + 1))));
+
+    for(let i = 0; i < 12; i++) {
+        let type = getRand() > 0.5 ? TERRAIN.WATER : TERRAIN.SAND;
+        let hx = Math.floor(getRand() * (COLS - 2)), hy = Math.floor(getRand() * (ROWS - 3));
+        if (Math.max(Math.abs(hx - holeGridX), Math.abs(hy - holeGridY)) > 2 && Math.max(Math.abs(hx - startGridX), Math.abs(hy - startGridY)) > 2) {
+            for(let fy=hy; fy<hy+2; fy++) for(let fx=hx; fx<hx+2; fx++) if(gridData[fy] && gridData[fy][fx] !== undefined) gridData[fy][fx] = type;
+        }
+    }
+
+    for(let i = 0; i < 35; i++) {
+        let tx = Math.floor(getRand() * COLS), ty = Math.floor(getRand() * ROWS);
+        if (Math.abs(tx - startGridX) > 1 && Math.abs(ty - startGridY) > 1 && Math.abs(tx - holeGridX) > 1 && Math.abs(ty - holeGridY) > 1) {
+            if(gridData[ty] && gridData[ty][tx] === TERRAIN.ROUGH) gridData[ty][tx] = TERRAIN.TREE;
+        }
+    }
+
+    gridData[holeGridY][holeGridX] = TERRAIN.FAIRWAY; gridData[startGridY][startGridX] = TERRAIN.FAIRWAY;
+    holePos = { x: holeGridX * TILE_SIZE + TILE_SIZE/2, y: holeGridY * TILE_SIZE + TILE_SIZE/2 };
+    currentBallPos = { x: startGridX * TILE_SIZE + TILE_SIZE/2, y: startGridY * TILE_SIZE + TILE_SIZE/2 };
+
+    canShoot=false; isPutting=false; rollBtn.disabled=false; puttBtn.disabled=false; currentRoll=0; diceResult.innerText='-';
+    validTargets = []; statusText.style.color = '#d9534f'; statusText.innerText = "Choose your shot type to start!";
+    usedTeeOffReroll=false; isHoleComplete=false; 
+    hitSandThisHole = false;
+    
+    updateRerollButton(); renderScene(); updateTacticalDashboard(); idleLoop();
+}
+
+function createParticles(x, y, colorPalette) {
+    for(let i=0; i<25; i++) {
+        particles.push({
+            x: x, y: y,
+            vx: (Math.random() - 0.5) * 10, vy: (Math.random() - 0.5) * 10,
+            life: 1.0, color: colorPalette[Math.floor(Math.random() * colorPalette.length)]
+        });
+    }
+}
+
+function drawParticles() {
+    for(let i = particles.length - 1; i >= 0; i--) {
+        let p = particles[i];
+        p.x += p.vx; p.y += p.vy; p.life -= 0.04;
+        if(p.life <= 0) { particles.splice(i, 1); continue; }
+        ctx.globalAlpha = p.life; ctx.fillStyle = p.color;
+        ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, Math.PI*2); ctx.fill();
+    }
+    ctx.globalAlpha = 1.0;
+}
+
+function playLandingAnimation(x, y, terrain, sankIt, callback) {
+    currentBallPos = { x: x, y: y }; 
+
+    let isSplash = (terrain === TERRAIN.WATER);
+    let isTree = (terrain === TERRAIN.TREE);
+    let isThud = (terrain === TERRAIN.SAND);
+
+    if (sankIt || isSplash || isThud || isTree) {
+        if (sankIt) {
+            createParticles(x, y, ['#f1c40f', '#e74c3c', '#3498db', '#2ecc71', '#9b59b6']);
+            if (navigator.vibrate) navigator.vibrate([100, 50, 100]); 
+        } else if (isSplash) {
+            createParticles(x, y, ['#85c1e9', '#3498db', '#2980b9', '#ffffff']);
+            if (navigator.vibrate) navigator.vibrate(100);
+        } else if (isTree) {
+            createParticles(x, y, ['#2ecc71', '#27ae60', '#228b22', '#82e0aa']);
+            if (navigator.vibrate) navigator.vibrate([30, 30]);
+        } else if (isThud) {
+            createParticles(x, y, ['#f5deb3', '#d2b48c', '#e6c280']);
+            if (navigator.vibrate) navigator.vibrate([50, 50]);
+        }
+
+        let frames = 0;
+        let maxFrames = (isThud || isTree) ? 20 : 30; 
+
+        function particleLoop() {
+            frames++;
+            if (frames < maxFrames) {
+                requestAnimationFrame(particleLoop);
+            } else {
+                callback();
+            }
+        }
+        particleLoop();
+        return;
+    }
+
+    if (isPutting || currentRoll === 1) {
+        ballZOffset = 0; 
+        callback();
+        return;
+    }
+
+    let hopTime = 0, hopDuration = 15, bounceHeight = 12; 
+
+    function hopLoop() {
+        hopTime++;
+        let progress = hopTime / hopDuration;
+        ballZOffset = Math.sin(progress * Math.PI) * bounceHeight;
+
+        if (hopTime < hopDuration) {
+            requestAnimationFrame(hopLoop);
+        } else {
+            ballZOffset = 0; callback(); 
+        }
+    }
+    hopLoop(); 
+}
+
+function playShotAnimation(aimX, aimY, finalX, finalY, sankIt, callback) {
+    let startX = currentBallPos.x, startY = currentBallPos.y, t = 0; 
+    
+    function animLoop() {
+        trail.push({ x: currentBallPos.x, y: currentBallPos.y });
+        if (trail.length > 10) trail.shift(); 
+        t += 0.05; if (t > 1) t = 1;
+        let invT = 1 - t;
+        currentBallPos.x = (invT * invT * startX) + (2 * invT * t * aimX) + (t * t * finalX);
+        currentBallPos.y = (invT * invT * startY) + (2 * invT * t * aimY) + (t * t * finalY);
+
+        renderScene();
+
+        if (t < 1) {
+            requestAnimationFrame(animLoop);
+        } else {
+            trail = []; 
+            let gridX = Math.max(0, Math.min(Math.floor(finalX / TILE_SIZE), COLS - 1));
+            let gridY = Math.max(0, Math.min(Math.floor(finalY / TILE_SIZE), ROWS - 1));
+            let landingTerrain = gridData[gridY][gridX];
+            playLandingAnimation(finalX, finalY, landingTerrain, sankIt, callback); 
+        }
+    }
+    animLoop(); 
+}
+
+canvas.addEventListener('pointerdown', (e) => {
+    if(!canShoot || isHoleComplete) return;
+    
+    const r = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / r.width;
+    const scaleY = canvas.height / r.height;
+    const clickX = (e.clientX - r.left) * scaleX;
+    const clickY = (e.clientY - r.top) * scaleY;
+    
+    let closestTarget = null, minDistance = Infinity, magneticRadius = TILE_SIZE * 1.5; 
+
+    for (let t of clickableTargets) { 
+        let targetCenterX = t.x * TILE_SIZE + TILE_SIZE / 2;
+        let targetCenterY = t.y * TILE_SIZE + TILE_SIZE / 2;
+        let dist = Math.hypot(clickX - targetCenterX, clickY - targetCenterY);
+
+        if (dist < minDistance && dist <= magneticRadius) {
+            minDistance = dist; closestTarget = t;
+        }
+    }
+
+    if (!closestTarget) { 
+        document.getElementById('warningOverlay').style.display = 'flex';
+        if (navigator.vibrate) navigator.vibrate([50, 50, 50]); 
+        return; 
+    }
+
+    const tx = closestTarget.x, ty = closestTarget.y;
+    const gx = tx * TILE_SIZE + TILE_SIZE / 2, gy = ty * TILE_SIZE + TILE_SIZE / 2;
+    const sx = Math.floor(currentBallPos.x / TILE_SIZE), sy = Math.floor(currentBallPos.y / TILE_SIZE);
+    const hx = Math.floor(holePos.x / TILE_SIZE), hy = Math.floor(holePos.y / TILE_SIZE);
+
+    strokes++; updateHUD();
+    if (gridData[ty] && gridData[ty][tx] === TERRAIN.SAND) hitSandThisHole = true;
+    
+    validTargets = []; clickableTargets = []; renderScene();
+
+    const dx = tx - sx, dy = ty - sy;
+    const dist = Math.max(Math.abs(dx), Math.abs(dy));
+    const stepX = dist === 0 ? 0 : dx / dist, stepY = dist === 0 ? 0 : dy / dist;
+
+    let sankIt = false;
+    for (let i = 1; i <= dist; i++) {
+        if (sx + (stepX * i) === hx && sy + (stepY * i) === hy) {
+            let overshoot = dist - i;
+            if (overshoot === 0 || overshoot === 1) sankIt = true; 
+            break; 
+        }
+    }
+    
+    let startingTerrain = gridData[sy][sx];
+    let eff = currentRoll;
+    if (startingTerrain === TERRAIN.FAIRWAY) eff += 1;
+    else if (startingTerrain === TERRAIN.SAND) eff = Math.max(1, currentRoll - 1);
+    if (isPutting) eff = 1;
+
+    let windShiftX = (eff === 1) ? 0 : currentWeather.windX;
+    let windShiftY = (eff === 1) ? 0 : currentWeather.windY;
+
+    let landingGridX = tx + windShiftX, landingGridY = ty + windShiftY;
+
+    if (landingGridX === hx && landingGridY === hy) { sankIt = true; } 
+    else if (sankIt && (Math.abs(landingGridX - hx) > 1 || Math.abs(landingGridY - hy) > 1 || (landingGridX !== hx && landingGridY !== hy))) {
+        sankIt = false;
+    }
+
+    let isHazard = false, safeX = landingGridX, safeY = landingGridY;
+
+    if (landingGridX < 0 || landingGridX >= COLS || landingGridY < 0 || landingGridY >= ROWS) {
+        isHazard = true; 
+    } else {
+        let terrain = gridData[landingGridY][landingGridX];
+        if (terrain === TERRAIN.WATER || terrain === TERRAIN.TREE) { isHazard = true; }
+    }
+
+    if (isHazard) {
+        sankIt = false; 
+        let foundSafe = false;
+        let searchDirs = [
+            {dx: windShiftX === 0 ? 0 : -Math.sign(windShiftX), dy: windShiftY === 0 ? 0 : -Math.sign(windShiftY)},
+            {dx: 0, dy: 1}, {dx: 0, dy: -1}, {dx: 1, dy: 0}, {dx: -1, dy: 0},
+            {dx: 1, dy: 1}, {dx: -1, dy: -1}, {dx: 1, dy: -1}, {dx: -1, dy: 1}
+        ];
+        
+        for (let sd of searchDirs) {
+            let checkX = landingGridX + sd.dx, checkY = landingGridY + sd.dy;
+            if (checkX >= 0 && checkX < COLS && checkY >= 0 && checkY < ROWS) {
+                let t = gridData[checkY][checkX];
+                if (t !== TERRAIN.WATER && t !== TERRAIN.TREE) {
+                    safeX = checkX; safeY = checkY; foundSafe = true; break;
+                }
+            }
+        }
+        if (!foundSafe) { safeX = sx; safeY = sy; }
+    }
+
+    let baseAimX = sankIt ? holePos.x : tx * TILE_SIZE + TILE_SIZE / 2;
+    let baseAimY = sankIt ? holePos.y : ty * TILE_SIZE + TILE_SIZE / 2;
+    let animTargetX = sankIt ? holePos.x : landingGridX * TILE_SIZE + TILE_SIZE / 2;
+    let animTargetY = sankIt ? holePos.y : landingGridY * TILE_SIZE + TILE_SIZE / 2;
+    
+    animTargetX = Math.max(0, Math.min(animTargetX, COLS * TILE_SIZE));
+    animTargetY = Math.max(0, Math.min(animTargetY, ROWS * TILE_SIZE));
+
+    playShotAnimation(baseAimX, baseAimY, animTargetX, animTargetY, sankIt, () => {
+        if (isHazard) {
+            strokes++; updateHUD();
+            currentBallPos = { x: safeX * TILE_SIZE + TILE_SIZE / 2, y: safeY * TILE_SIZE + TILE_SIZE / 2 };
+            document.getElementById('hazardOverlay').style.display = 'flex';
+            if (navigator.vibrate) navigator.vibrate([100, 50, 100, 50, 100]);
+            
+            canShoot = false; isPutting = false; rollBtn.disabled = false; puttBtn.disabled = false; currentRoll = 0; diceResult.innerText = '-';
+            statusText.style.color = '#d9534f'; statusText.innerText = "Penalty! Choose your shot type to continue.";
+            updateWeatherForStroke(); updateRerollButton();
+            
+        } else if (sankIt) {
+            isHoleComplete = true; canShoot = false; rollBtn.disabled = true; puttBtn.disabled = true; rerollBtn.disabled = true;
+            
+            if (strokes <= 5) { localStats.birdies++; unlockAchievement('birdie'); }
+            if (strokes <= 4) { localStats.eagles++; unlockAchievement('eagle'); }
+            if (strokes <= 6 && hitSandThisHole) unlockAchievement('sand');
+            saveStats();
+
+            incrementLocalHoles(); 
+            
+            if (currentMode === 'casual') {
+                statusText.style.color = '#5cb85c'; statusText.innerText = "Hole completed!";
+                document.getElementById('victoryOverlay').style.display = 'flex';
+                document.getElementById('finalScoreText').innerText = `Score: ${strokes}`;
+            } else {
+                totalCampaignScore += strokes;
+                statusText.style.color = '#5cb85c'; statusText.innerText = `Hole ${currentHole} Complete! (Score: ${strokes})`;
+                updateHUD();
+                setTimeout(() => {
+                    if (currentHole >= 18) triggerVictorySequence();
+                    else { currentHole++; strokes = 0; generateCourse(); updateHUD(); }
+                }, 1500);
+            }
+        } else {
+            canShoot = false; isPutting = false; rollBtn.disabled = false; puttBtn.disabled = false; currentRoll = 0; diceResult.innerText = '-';
+            statusText.style.color = '#d9534f'; statusText.innerText = "Choose your shot type to continue.";
+            updateWeatherForStroke(); updateRerollButton();
+        }
+    });
+});
+
+let engineRunning = false;
+function idleLoop() {
+    if (!engineRunning) {
+        engineRunning = true;
+        function continuousRender() {
+            renderScene();
+            requestAnimationFrame(continuousRender);
+        }
+        continuousRender(); 
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => { 
+    resetGame(); 
+    
+    const CURRENT_VERSION = '2026.7.0';
+    const lastSeenVersion = localStorage.getItem('paperGolfVersion');
+    
+    if (lastSeenVersion !== CURRENT_VERSION) {
+        document.getElementById('whatsNewOverlay').style.display = 'flex';
+        localStorage.setItem('paperGolfVersion', CURRENT_VERSION);
+    } else {
+        checkTutorial();
+    }
+});
+
+syncOfflineHolesToDatabase();
+syncOfflineScoresToCloud();
+
+window.addEventListener('online', () => {
+    syncOfflineHolesToDatabase();
+    syncOfflineScoresToCloud();
+});
+
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+        syncOfflineHolesToDatabase();
+    }
+});
+
+function checkTutorial() {
+    const hideTutorial = localStorage.getItem('hideTutorial');
+    if (hideTutorial !== 'true') {
+        document.getElementById('tutorialOverlay').style.display = 'flex';
+    }
+}
+
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').then(reg => {
+            reg.addEventListener('updatefound', () => {
+                const newWorker = reg.installing;
+                newWorker.addEventListener('statechange', () => {
+                    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                        document.getElementById('updateToast').classList.remove('hidden');
+                    }
+                });
+            });
+        });
+    });
+}
+
+function toggleMenu(forceClose) {
+    const menu = document.getElementById('popupMenu');
+    if (forceClose === false) { menu.style.display = 'none'; } 
+    else { menu.style.display = menu.style.display === 'flex' ? 'none' : 'flex'; }
+}
+
+function toggleRoadmap(show) { document.getElementById('roadmapOverlay').style.display = show ? "flex" : "none"; }
+function toggleAbout(show) { document.getElementById('aboutOverlay').style.display = show ? "flex" : "none"; }
+function toggleWhatsNew(show) { document.getElementById('whatsNewOverlay').style.display = show ? "flex" : "none"; }
+
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('.hamburger-btn') && !e.target.closest('#popupMenu')) {
+        const menu = document.getElementById('popupMenu');
+        if (menu) menu.style.display = 'none';
+    }
+});
+
+document.querySelectorAll('.overlay').forEach(overlay => {
+    overlay.addEventListener('click', function(event) {
+        if (event.target === this) {
+            if (this.id !== 'victoryOverlay') {
+                this.style.display = 'none';
+            }
+        }
+    });
+});
