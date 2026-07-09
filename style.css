@@ -79,7 +79,6 @@
         .close-btn { position: absolute; top: 10px; right: 15px; font-size: 24px; font-weight: bold; cursor: pointer; color: #aaa; }
         
         input[type="text"] { font-size: 24px; text-align: center; text-transform: uppercase; width: 100px; padding: 10px; margin: 15px 0; border: 2px solid var(--border-color); border-radius: 8px; background: var(--input-bg); color: var(--text-color); transition: background-color 0.3s ease, color 0.3s ease; }
-        .leaderboard-list { list-style: none; padding: 0; margin: 20px 0; text-align: center; font-family: monospace; font-size: 18px; }
         .leaderboard-list li { margin: 10px 0; padding: 10px; background: var(--input-bg); border-radius: 5px; border: 1px solid var(--border-color); color: var(--text-color); transition: background-color 0.3s ease, color 0.3s ease;}
         
         #updateToast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background-color: #34495e; color: white; padding: 12px 20px; border-radius: 30px; box-shadow: 0 4px 10px rgba(0,0,0,0.2); font-weight: bold; font-size: 14px; display: flex; gap: 15px; align-items: center; z-index: 9999; }
@@ -175,5 +174,5 @@
             justify-content: space-between; 
             align-items: center; 
             box-sizing: border-box;
-            margin-bottom: 10px; /* Squeezed from 20px */
+            margin-bottom: 10px;
         }

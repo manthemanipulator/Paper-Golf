@@ -35,6 +35,7 @@ let dailySeed = 1;
 let currentHole = 1, strokes = 0, mulligans = 6, currentRoll = 0, canShoot = false, isPutting = false, isHoleComplete = false, usedTeeOffReroll = false;
 let currentBallPos = { x: 0, y: 0 }, holePos = { x: 0, y: 0 }, gridData = [], validTargets = [], clickableTargets = [], particles = [], trail = [], leaves = [];
 let hitSandThisHole = false;
+let leaderboardUnsubscribe = null;
 let localStats = JSON.parse(localStorage.getItem('paperGolfStats')) || { bestScore: null, birdies: 0, eagles: 0, unlocked: [] };
 
 const ACHIEVEMENTS = {
@@ -60,11 +61,9 @@ const ctx = canvas.getContext('2d');
 function updateHUD() {
     const uiHole = document.getElementById('uiHole');
     const uiStrokes = document.getElementById('uiStrokes');
-    const uiMulls = document.getElementById('uiMulls');
     const uiTotal = document.getElementById('uiTotal');
-    
-    if (uiStrokes) uiStrokes.textContent = `Strokes: ${strokes}`; 
-    if (uiMulls) uiMulls.textContent = `Mulls: ${mulligans}`;
+
+    if (uiStrokes) uiStrokes.textContent = `Strokes: ${strokes}`;
 
     if (currentMode === 'casual') {
         if (uiHole) uiHole.textContent = `Hole: ${currentHole}`;
@@ -420,8 +419,8 @@ function showLeaderboard() {
     document.getElementById('inputSection').classList.add('hidden');
     document.getElementById('leaderboardSection').classList.remove('hidden');
     
-    // ADD THIS LINE: Hides the redundant score text when viewing the leaderboard
-    document.getElementById('finalScoreDisplay').style.display = 'none'; 
+    // Hide the redundant score text when viewing the leaderboard
+    document.getElementById('finalScoreDisplay').style.display = 'none';
     
     const list = document.getElementById('leaderboardList');
     const rankBanner = document.getElementById('userRankBanner');
@@ -456,7 +455,6 @@ function showLeaderboard() {
             
             let displayHTML = '';
             if (crown) {
-                // FIXED SPACING: Replaced <br> with a div that adds exactly 6px of breathing room
                 displayHTML += `<div style="margin-bottom: 6px;">👑 ALL-TIME RECORD: <span style="color:var(--accent-color);">${crown.initials} - ${crown.score}</span> 👑</div>`;
             }
             displayHTML += `<span style="font-size: 14px; color: #4cd964;">⛳️ ${monthlyPlays} rounds completed this month</span>`;
@@ -468,7 +466,6 @@ function showLeaderboard() {
         });
         
     } else {
-        // ... (Leave the rest of the function exactly as is)
         const lifetimeRef = firebase.database().ref(`lifetime_stats/${currentMode}`);
         lifetimeRef.once('value').then((snap) => {
             const plays = snap.val() || 0;
@@ -480,7 +477,12 @@ function showLeaderboard() {
     }
     
     // 2. BUILD THE DYNAMIC LEADERBOARD LIST
-    db.collection("globalLeaderboard").orderBy("score", "asc").orderBy("timestamp", "asc").onSnapshot((querySnapshot) => {
+    // Tear down any previous listener first so repeated opens don't stack duplicate subscriptions
+    if (leaderboardUnsubscribe) {
+        leaderboardUnsubscribe();
+        leaderboardUnsubscribe = null;
+    }
+    leaderboardUnsubscribe = db.collection("globalLeaderboard").orderBy("score", "asc").orderBy("timestamp", "asc").onSnapshot((querySnapshot) => {
         list.innerHTML = ''; 
         let count = 0;
         let myRank = null;
@@ -506,11 +508,11 @@ function showLeaderboard() {
             
             const li = document.createElement('li');
             
-           // TRUE TERRACING: Shrink the physical footprint to prevent scrolling
-            let opacity = 1 - ((count - 1) * 0.08);          
-            let fontSize = 18 - (count - 1);                 
-            let padding = 10 - Math.floor((count - 1) * 0.5); 
-            let bottomMargin = count === 1 ? "6px" : "2px";  // Squeezed even tighter
+           // Shrink each subsequent row slightly so the top-10 list fits without scrolling
+            let opacity = 1 - ((count - 1) * 0.08);
+            let fontSize = 18 - (count - 1);
+            let padding = 10 - Math.floor((count - 1) * 0.5);
+            let bottomMargin = count === 1 ? "6px" : "2px";
             
             li.style.opacity = opacity;
             li.style.fontSize = `${fontSize}px`;
