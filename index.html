@@ -823,45 +823,55 @@ function saveScoreToCloud(initials, score) {
     const today = new Date().toLocaleDateString('en-CA');
     const monthYear = getMonthYearString(); 
 
-    const payload = {
-        initials: initials,
-        score: score,
-        mode: currentMode,
-        date: currentMode === 'daily' ? today : null,
-        monthYear: currentMode === 'random' ? monthYear : null
-    };
-
+    // 1. Check for offline mode first
     if (!navigator.onLine) {
         let offlineScores = JSON.parse(localStorage.getItem('paperGolf_offlineScores')) || [];
-        offlineScores.push(payload);
+        offlineScores.push({ initials, score, mode: currentMode, date: today, monthYear });
         localStorage.setItem('paperGolf_offlineScores', JSON.stringify(offlineScores));
         document.getElementById('leaderboardList').innerHTML = `
             <li style="color: #e67e22; font-weight: bold; font-size: 16px;">📶 OFFLINE MODE</li>
-            <li style="font-size: 14px; color: var(--text-color);">Score securely saved to your local ledger! It will automatically upload when you reach port.</li>
+            <li style="font-size: 14px; color: var(--text-color);">Score securely saved! It will upload later.</li>
         `;
         return;
     }
 
     const currentUser = firebase.auth().currentUser;
 
+    // 2. If no user session exists, silently grab one and try again
     if (!currentUser) {
         document.getElementById('leaderboardList').innerHTML = '<li>Re-establishing secure connection...</li>';
-        firebase.auth().signInAnonymously().then(() => saveScoreToCloud(initials, score));
+        firebase.auth().signInAnonymously()
+            .then(() => saveScoreToCloud(initials, score))
+            .catch(err => document.getElementById('leaderboardList').innerHTML = `<li>Auth Error: ${err.message}</li>`);
         return;
     }
 
-    // THE SMUGGLER FIX: Grab the token and put it INSIDE the payload
+    // 3. Force the browser to grab a fresh token
     currentUser.getIdToken(true).then((token) => {
         
-        // Attach the token directly into the data packet to bypass Safari's header stripping
-        payload.clientToken = token;
-        
+        if (!token) {
+            alert("CLIENT ERROR: The browser refused to generate a token!");
+            return;
+        }
+
+        // 4. Create a BRAND NEW secure object to guarantee the token is locked inside
+        const securePayload = {
+            initials: initials,
+            score: score,
+            mode: currentMode,
+            date: currentMode === 'daily' ? today : null,
+            monthYear: currentMode === 'random' ? monthYear : null,
+            clientToken: token // <-- THE SMUGGLED TOKEN
+        };
+
+        // 5. THE DYE TEST: This will pop up and prove the token is actually attached!
+        alert("Token secured! Sending payload to server...");
+
         const submitScoreSecure = firebase.functions().httpsCallable('submitScore');
         
-        submitScoreSecure(payload)
+        submitScoreSecure(securePayload)
             .then((result) => {
                 console.log(result.data.message);
-                
                 if (currentMode === 'random') {
                     const crownRef = firebase.database().ref('paperGolf_stats/all_time_random_crown');
                     crownRef.once('value').then((snap) => {
@@ -878,6 +888,7 @@ function saveScoreToCloud(initials, score) {
                 console.error("Server rejected score:", error.message);
                 document.getElementById('leaderboardList').innerHTML = `<li>Error: ${error.message}</li>`;
             });
+
     }).catch((error) => {
         document.getElementById('leaderboardList').innerHTML = `<li>Token Refresh Failed: ${error.message}</li>`;
     });
