@@ -221,6 +221,14 @@ firebase.auth().onAuthStateChanged((user) => {
         authReadyResolve();
         console.log("Logged in securely! Player UID:", playerUID);
         updateSyncBadge(user);
+
+        // Synced players get their personal stats/achievements pulled down from
+        // the cloud on every sign-in (including a normal app reload with a
+        // restored session) — see pullCloudStatsOnSignIn for why this replaces
+        // rather than merges. Anonymous sessions stay purely local.
+        if (!user.isAnonymous) {
+            pullCloudStatsOnSignIn(user);
+        }
     } else {
         isAuthed = false;
     }
@@ -244,7 +252,18 @@ function promptAccountSync() {
         // re-fire onAuthStateChanged, so the badge has to be updated here directly or
         // it'll keep showing "Not Synced" until the next full page load.
         updateSyncBadge(result.user);
-        alert("Success! Your progress is now permanently synced to your Google Account.");
+
+        // One-time reconciliation: this Google account might already have cloud
+        // stats from a previous device, and this device might have local progress
+        // that's never been synced anywhere. Combine them instead of either side
+        // silently overwriting the other, then push the merged result back up.
+        playerStatsRef(result.user.uid).get().then((doc) => {
+            if (doc.exists) {
+                mergeStatsOnAccountSwitch(doc.data());
+            }
+            pushStatsToCloud();
+            alert("Success! Your progress is now permanently synced to your Google Account.");
+        });
     }).catch((error) => {
         console.error("Error linking account:", error);
         if (error.code === 'auth/credential-already-in-use') {
@@ -258,8 +277,16 @@ function promptAccountSync() {
                 firebase.auth().signInWithCredential(existingCredential).then((signInResult) => {
                     console.log("Switched to existing linked account:", signInResult.user.email);
                     updateSyncBadge(signInResult.user);
-                    alert("You're back in! Your synced leaderboard identity has been restored.");
-                    showLeaderboard();
+                    // Same one-time reconciliation as a fresh link — this throwaway
+                    // session may have played a few rounds before switching accounts.
+                    playerStatsRef(signInResult.user.uid).get().then((doc) => {
+                        if (doc.exists) {
+                            mergeStatsOnAccountSwitch(doc.data());
+                        }
+                        pushStatsToCloud();
+                        alert("You're back in! Your synced progress has been restored.");
+                        showLeaderboard();
+                    });
                 }).catch((signInError) => {
                     console.error("Failed to sign in with existing credential:", signInError);
                     alert("Couldn't switch accounts: " + signInError.message);
@@ -288,8 +315,76 @@ allUsersRef.on('value', (snap) => {
 });
 db.enablePersistence().catch((err) => console.log("Offline mode failed: ", err.code));
 
+function playerStatsRef(uid) {
+    // Matches the existing "users/{userId}" Firestore rule already set up for
+    // per-player career stats — no separate collection or new rule needed.
+    return db.collection('users').doc(uid);
+}
+
 function saveStats() {
     localStorage.setItem('paperGolfStats', JSON.stringify(localStats));
+    pushStatsToCloud();
+}
+
+function pushStatsToCloud() {
+    const user = firebase.auth().currentUser;
+    // Only signed-in (non-anonymous) players get cloud-synced stats — an anonymous
+    // uid is throwaway and can't be signed back into on another device, so there's
+    // nothing useful to sync it to.
+    if (!user || user.isAnonymous) return;
+
+    playerStatsRef(user.uid).set(localStats, { merge: true })
+        .catch((error) => console.error("Failed to push stats to cloud:", error));
+}
+
+function adoptCloudStats(cloudStats) {
+    localStats = {
+        bestScore: cloudStats.bestScore ?? null,
+        birdies: cloudStats.birdies || 0,
+        eagles: cloudStats.eagles || 0,
+        unlocked: cloudStats.unlocked || []
+    };
+    localStorage.setItem('paperGolfStats', JSON.stringify(localStats));
+    renderStats();
+}
+
+function pullCloudStatsOnSignIn(user) {
+    // Cloud is the source of truth for a normal returning session — replace
+    // whatever's stored locally with what the cloud already has. This runs on
+    // every sign-in (including a plain app reload with a restored session), so it
+    // deliberately does NOT merge/sum here — doing so would keep re-adding a
+    // device's stale local numbers on top of the cloud total every time the app
+    // loads. Summing only ever happens once, at the moment of actually linking or
+    // switching accounts (see mergeStatsOnAccountSwitch below).
+    playerStatsRef(user.uid).get().then((doc) => {
+        if (doc.exists) {
+            adoptCloudStats(doc.data());
+        }
+        // If no cloud doc exists yet, leave local stats alone — nothing to pull.
+    }).catch((error) => console.error("Failed to pull cloud stats:", error));
+}
+
+function mergeStatsOnAccountSwitch(cloudStats) {
+    // Only used at the exact moment an anonymous session becomes (or switches to)
+    // a permanent account — the one point where two genuinely independent
+    // histories might both hold real, not-yet-synced progress. Never silently
+    // discard either side: take the best/union of both instead.
+    const localBest = localStats.bestScore;
+    const cloudBest = cloudStats.bestScore ?? null;
+    const bestScore = (localBest == null) ? cloudBest
+        : (cloudBest == null) ? localBest
+        : Math.min(localBest, cloudBest);
+
+    const unlockedSet = new Set([...(localStats.unlocked || []), ...(cloudStats.unlocked || [])]);
+
+    localStats = {
+        bestScore,
+        birdies: (localStats.birdies || 0) + (cloudStats.birdies || 0),
+        eagles: (localStats.eagles || 0) + (cloudStats.eagles || 0),
+        unlocked: Array.from(unlockedSet)
+    };
+    localStorage.setItem('paperGolfStats', JSON.stringify(localStats));
+    renderStats();
 }
 
 function unlockAchievement(id) {
