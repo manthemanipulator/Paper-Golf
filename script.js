@@ -426,17 +426,13 @@ function unlockAchievement(id) {
 }
 
 function triggerVictorySequence() {
-    const today = getUTCDateString();
-    const monthYear = getMonthYearString();
-
-    // Wait for anonymous sign-in to actually finish before writing — these paths
-    // require auth != null, and firing immediately used to lose that race on
-    // slower connections (cold loads on mobile, in particular).
-    authReady.then(() => {
-        firebase.database().ref(`daily_stats/${today}/${currentMode}`).set(firebase.database.ServerValue.increment(1));
-        firebase.database().ref(`lifetime_stats/${currentMode}`).set(firebase.database.ServerValue.increment(1));
-        firebase.database().ref(`monthly_stats/${monthYear}/${currentMode}`).set(firebase.database.ServerValue.increment(1));
-    });
+    // Queue this round's community-stat increment the same durable way offline
+    // holes/scores already are, instead of writing directly to RTDB. A plain
+    // in-memory write here would be lost for good if the app gets closed or the
+    // phone locks before reconnecting — a real risk over something like a
+    // multi-hour flight. Queueing to localStorage first means it survives the app
+    // being fully closed and picks back up on the next load or reconnect.
+    queueRoundForStatsSync(currentMode);
 
     if (!localStats.bestScore || totalCampaignScore < localStats.bestScore) localStats.bestScore = totalCampaignScore;
     saveStats();
@@ -511,6 +507,42 @@ function syncOfflineHolesToDatabase() {
                 localStorage.setItem('paperGolf_unsyncedHoles', 0);
             })
             .catch((error) => console.error("Firebase Sync FAILED.", error));
+    });
+}
+
+function queueRoundForStatsSync(mode) {
+    const pending = JSON.parse(localStorage.getItem('paperGolf_pendingRoundStats')) || [];
+    pending.push({ mode, today: getUTCDateString(), monthYear: getMonthYearString() });
+    localStorage.setItem('paperGolf_pendingRoundStats', JSON.stringify(pending));
+    syncPendingRoundStats();
+}
+
+function syncPendingRoundStats() {
+    if (!navigator.onLine) return;
+    const pending = JSON.parse(localStorage.getItem('paperGolf_pendingRoundStats')) || [];
+    if (pending.length === 0) return;
+
+    authReady.then(() => {
+        // Collapse however many queued rounds into one increment per RTDB path,
+        // instead of one write per round — same effect, fewer writes.
+        const counts = {};
+        pending.forEach(({ mode, today, monthYear }) => {
+            counts[`daily_stats/${today}/${mode}`] = (counts[`daily_stats/${today}/${mode}`] || 0) + 1;
+            counts[`lifetime_stats/${mode}`] = (counts[`lifetime_stats/${mode}`] || 0) + 1;
+            counts[`monthly_stats/${monthYear}/${mode}`] = (counts[`monthly_stats/${monthYear}/${mode}`] || 0) + 1;
+        });
+
+        const updates = {};
+        Object.entries(counts).forEach(([path, count]) => {
+            updates[path] = firebase.database.ServerValue.increment(count);
+        });
+
+        firebase.database().ref().update(updates)
+            .then(() => {
+                console.log(`Synced ${pending.length} queued round(s) of community stats.`);
+                localStorage.setItem('paperGolf_pendingRoundStats', JSON.stringify([]));
+            })
+            .catch((error) => console.error("Failed to sync pending round stats:", error));
     });
 }
 
@@ -1560,10 +1592,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
 syncOfflineHolesToDatabase();
 syncOfflineScoresToCloud();
+syncPendingRoundStats();
 
 window.addEventListener('online', () => {
     syncOfflineHolesToDatabase();
     syncOfflineScoresToCloud();
+    syncPendingRoundStats();
 });
 
 document.addEventListener('visibilitychange', () => {
