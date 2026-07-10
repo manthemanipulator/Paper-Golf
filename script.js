@@ -67,7 +67,15 @@ let currentHole = 1, strokes = 0, mulligans = 6, currentRoll = 0, canShoot = fal
 let currentBallPos = { x: 0, y: 0 }, holePos = { x: 0, y: 0 }, gridData = [], validTargets = [], clickableTargets = [], particles = [], trail = [], leaves = [];
 let hitSandThisHole = false;
 let leaderboardUnsubscribe = null;
-let localStats = JSON.parse(localStorage.getItem('paperGolfStats')) || { bestScore: null, birdies: 0, eagles: 0, unlocked: [] };
+let localStats = JSON.parse(localStorage.getItem('paperGolfStats')) || { bestScore: null, birdies: 0, eagles: 0, unlocked: [], lifetimeHoles: 0 };
+
+// One-time migration: lifetime holes used to live in its own separate localStorage
+// key, entirely outside this stats blob, which is why it was never included in
+// cloud sync. Fold the old value in here so it starts riding along with
+// everything else instead of being left behind.
+if (localStats.lifetimeHoles === undefined) {
+    localStats.lifetimeHoles = parseInt(localStorage.getItem('paperGolf_lifetimeHoles')) || 0;
+}
 
 const ACHIEVEMENTS = {
     'birdie': { icon: '🐤', title: 'First Birdie', desc: 'Finish a hole in 5 strokes or less.' },
@@ -342,10 +350,12 @@ function adoptCloudStats(cloudStats) {
         bestScore: cloudStats.bestScore ?? null,
         birdies: cloudStats.birdies || 0,
         eagles: cloudStats.eagles || 0,
-        unlocked: cloudStats.unlocked || []
+        unlocked: cloudStats.unlocked || [],
+        lifetimeHoles: cloudStats.lifetimeHoles || 0
     };
     localStorage.setItem('paperGolfStats', JSON.stringify(localStats));
     renderStats();
+    loadLocalHoleStats();
 }
 
 function pullCloudStatsOnSignIn(user) {
@@ -387,10 +397,12 @@ function mergeStatsOnAccountSwitch(cloudStats) {
         bestScore,
         birdies: (localStats.birdies || 0) + (cloudStats.birdies || 0),
         eagles: (localStats.eagles || 0) + (cloudStats.eagles || 0),
-        unlocked: Array.from(unlockedSet)
+        unlocked: Array.from(unlockedSet),
+        lifetimeHoles: (localStats.lifetimeHoles || 0) + (cloudStats.lifetimeHoles || 0)
     };
     localStorage.setItem('paperGolfStats', JSON.stringify(localStats));
     renderStats();
+    loadLocalHoleStats();
 }
 
 function unlockAchievement(id) {
@@ -472,10 +484,9 @@ function triggerDailyPulseToast(dailyHoleCount) {
 }
 
 function incrementLocalHoles() {
-    let currentLocalHoles = parseInt(localStorage.getItem('paperGolf_lifetimeHoles')) || 0;
-    currentLocalHoles++;
-    localStorage.setItem('paperGolf_lifetimeHoles', currentLocalHoles);
-    document.getElementById('statLocalHoles').innerText = formatLargeNumber(currentLocalHoles);
+    localStats.lifetimeHoles = (localStats.lifetimeHoles || 0) + 1;
+    saveStats(); // persists locally and pushes to the cloud for synced players
+    document.getElementById('statLocalHoles').innerText = formatLargeNumber(localStats.lifetimeHoles);
 
     let unsynced = parseInt(localStorage.getItem('paperGolf_unsyncedHoles')) || 0;
     unsynced++;
@@ -536,8 +547,7 @@ function syncOfflineScoresToCloud() {
 }
 
 function loadLocalHoleStats() {
-    let currentLocalHoles = parseInt(localStorage.getItem('paperGolf_lifetimeHoles')) || 0;
-    document.getElementById('statLocalHoles').innerText = formatLargeNumber(currentLocalHoles);
+    document.getElementById('statLocalHoles').innerText = formatLargeNumber(localStats.lifetimeHoles || 0);
 }
 
 function saveScoreToCloud(initials, score) {
