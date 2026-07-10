@@ -27,25 +27,33 @@ function getUserTimeZone() {
     }
 }
 
-function initializeTheme() {
-    const savedTheme = localStorage.getItem('paperGolf_theme');
-    const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+function applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+}
 
-    if (savedTheme) {
-        document.documentElement.setAttribute('data-theme', savedTheme);
-    } else if (systemPrefersDark) {
-        document.documentElement.setAttribute('data-theme', 'dark');
-    } else {
-        document.documentElement.setAttribute('data-theme', 'light');
-    }
+function initializeTheme() {
+    // Theme now always mirrors the device's own dark/light setting, live — no more
+    // sticky manual override that silently outlives whatever the system is doing.
+    // Clear out any old stored preference from before this change so it doesn't
+    // keep overriding things for people who already toggled it once.
+    localStorage.removeItem('paperGolf_theme');
+
+    const darkModeQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    applyTheme(darkModeQuery.matches ? 'dark' : 'light');
+
+    // Follow it live — e.g. when the device flips into dark mode at sunset —
+    // instead of only checking once when the page first loads.
+    darkModeQuery.addEventListener('change', (e) => {
+        applyTheme(e.matches ? 'dark' : 'light');
+    });
 }
 
 function toggleTheme() {
-    let currentTheme = document.documentElement.getAttribute('data-theme');
-    let newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-    
-    document.documentElement.setAttribute('data-theme', newTheme);
-    localStorage.setItem('paperGolf_theme', newTheme);
+    // A tap here still flips the theme right away for a quick look, but it's
+    // intentionally not saved anywhere — the device's own setting takes back over
+    // the next time it changes, or the next time the app is reloaded.
+    const currentTheme = document.documentElement.getAttribute('data-theme');
+    applyTheme(currentTheme === 'dark' ? 'light' : 'dark');
 }
 
 initializeTheme();
