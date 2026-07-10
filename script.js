@@ -359,8 +359,14 @@ function pullCloudStatsOnSignIn(user) {
     playerStatsRef(user.uid).get().then((doc) => {
         if (doc.exists) {
             adoptCloudStats(doc.data());
+        } else {
+            // Nothing in the cloud yet for this account — seed it with whatever's
+            // sitting in local storage right now instead of waiting for the next
+            // stat change to trigger the first push. This matters for anyone whose
+            // account got linked before cloud sync existed at all: their real
+            // numbers are just sitting on this device, unsynced, until now.
+            pushStatsToCloud();
         }
-        // If no cloud doc exists yet, leave local stats alone — nothing to pull.
     }).catch((error) => console.error("Failed to pull cloud stats:", error));
 }
 
