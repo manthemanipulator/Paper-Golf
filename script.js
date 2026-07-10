@@ -200,15 +200,6 @@ function tryRegisterPresence() {
 let authReadyResolve;
 const authReady = new Promise((resolve) => { authReadyResolve = resolve; });
 
-firebase.auth().signInAnonymously()
-    .then(() => {
-        console.log("Silent login successful.");
-    })
-    .catch((error) => {
-        // This will pop up on your iPhone the second you open the app if it fails!
-        alert("STARTUP AUTH FAILED: " + error.message);
-    });
-
 function updateSyncBadge(user) {
     const syncBadge = document.getElementById('syncStatusBadge');
     if (!syncBadge) return;
@@ -220,6 +211,8 @@ function updateSyncBadge(user) {
         syncBadge.style.background = "#ff3b30";
     }
 }
+
+let authRestoreChecked = false;
 
 firebase.auth().onAuthStateChanged((user) => {
     if (user) {
@@ -237,9 +230,21 @@ firebase.auth().onAuthStateChanged((user) => {
         if (!user.isAnonymous) {
             pullCloudStatsOnSignIn(user);
         }
+    } else if (!authRestoreChecked) {
+        // Only fall back to a fresh anonymous session on the very first check, and
+        // only if there's truly no persisted session at all (first-ever visit, or
+        // a genuinely signed-out browser). Calling signInAnonymously() unconditionally
+        // on every load — the old approach — was overwriting an already-linked
+        // Google account with a brand-new throwaway anonymous one on every single
+        // reload, which is why "Sync Account" kept resetting back to "Not Synced".
+        firebase.auth().signInAnonymously().catch((error) => {
+            // This will pop up on your iPhone the second you open the app if it fails!
+            alert("STARTUP AUTH FAILED: " + error.message);
+        });
     } else {
         isAuthed = false;
     }
+    authRestoreChecked = true;
 });
 
 function promptAccountSync() {
