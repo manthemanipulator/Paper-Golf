@@ -336,14 +336,63 @@ function playerStatsRef(uid) {
 
 function saveStats() {
     localStorage.setItem('paperGolfStats', JSON.stringify(localStats));
-    pushStatsToCloud();
+    // NOTE: this intentionally no longer pushes the whole object to the cloud.
+    // Doing that from here meant every stat change re-uploaded this device's
+    // ENTIRE in-memory snapshot as a blanket overwrite — including whatever
+    // fields hadn't actually changed. If a second device (e.g. a phone) pushed
+    // newer progress in the meantime, a stale tab on a first device (e.g. a
+    // computer left open) writing again would silently clobber it, since it had
+    // no idea anything had changed elsewhere. Each stat now pushes its own atomic
+    // delta at the moment it changes instead — see pushStatDeltas,
+    // pushBestScoreIfBetter, incrementLocalHoles, and unlockAchievement — so two
+    // devices updating different things (or even the same counter) at the same
+    // time can never overwrite each other's progress.
+}
+
+function pushStatDeltas(fieldUpdates) {
+    const user = firebase.auth().currentUser;
+    // Only signed-in (non-anonymous) players get cloud-synced stats — an anonymous
+    // uid is throwaway and can't be signed back into on another device, so there's
+    // nothing useful to sync it to.
+    if (!user || user.isAnonymous) return;
+
+    // fieldUpdates should use FieldValue.increment()/arrayUnion() sentinels, not
+    // plain numbers/arrays — that's what makes this safe against two devices
+    // writing at the same time (the server applies the delta, not a snapshot).
+    playerStatsRef(user.uid).set(fieldUpdates, { merge: true })
+        .catch((error) => console.error("Failed to push stat delta to cloud:", error));
+}
+
+function pushBestScoreIfBetter(newScore) {
+    const user = firebase.auth().currentUser;
+    if (!user || user.isAnonymous) return;
+
+    // bestScore can't use a simple increment — "keep the lower number" needs an
+    // actual read-then-write, done as a transaction so it checks the REAL current
+    // cloud value at the moment it commits, not a value cached in memory from
+    // whenever this device last loaded. That's what prevents a stale device from
+    // overwriting a genuinely better score another device already saved.
+    const ref = playerStatsRef(user.uid);
+    db.runTransaction((transaction) => {
+        return transaction.get(ref).then((doc) => {
+            const cloudBest = doc.exists ? doc.data().bestScore : null;
+            if (cloudBest == null || newScore < cloudBest) {
+                transaction.set(ref, { bestScore: newScore }, { merge: true });
+            }
+            // else: the cloud already has an equal-or-better score from another
+            // device — leave it alone rather than overwrite with a worse one.
+        });
+    }).catch((error) => console.error("Failed to sync best score:", error));
 }
 
 function pushStatsToCloud() {
     const user = firebase.auth().currentUser;
     // Only signed-in (non-anonymous) players get cloud-synced stats — an anonymous
     // uid is throwaway and can't be signed back into on another device, so there's
-    // nothing useful to sync it to.
+    // nothing useful to sync it to. This full-object push is intentionally only
+    // used for the one-time seed/merge moments (first-ever sync, linking, account
+    // recovery) where overwriting the whole doc is actually correct — NOT for
+    // routine gameplay, where pushStatDeltas/pushBestScoreIfBetter are used instead.
     if (!user || user.isAnonymous) return;
 
     playerStatsRef(user.uid).set(localStats, { merge: true })
@@ -414,6 +463,9 @@ function unlockAchievement(id) {
     if (localStats.unlocked.includes(id)) return;
     localStats.unlocked.push(id);
     saveStats();
+    // arrayUnion is atomic and idempotent server-side — safe even if another
+    // device unlocks a different achievement (or this same one) at the same time.
+    pushStatDeltas({ unlocked: firebase.firestore.FieldValue.arrayUnion(id) });
 
     const ach = ACHIEVEMENTS[id];
     const toast = document.getElementById('achToast');
@@ -441,6 +493,7 @@ function triggerVictorySequence() {
 
     if (!localStats.bestScore || totalCampaignScore < localStats.bestScore) localStats.bestScore = totalCampaignScore;
     saveStats();
+    pushBestScoreIfBetter(totalCampaignScore);
     syncOfflineHolesToDatabase();
     unlockAchievement('ironman');
     if (mulligans === 6) unlockAchievement('purist');
@@ -486,7 +539,8 @@ function triggerDailyPulseToast(dailyHoleCount) {
 
 function incrementLocalHoles() {
     localStats.lifetimeHoles = (localStats.lifetimeHoles || 0) + 1;
-    saveStats(); // persists locally and pushes to the cloud for synced players
+    saveStats(); // persists locally
+    pushStatDeltas({ lifetimeHoles: firebase.firestore.FieldValue.increment(1) });
     document.getElementById('statLocalHoles').innerText = formatLargeNumber(localStats.lifetimeHoles);
 
     let unsynced = parseInt(localStorage.getItem('paperGolf_unsyncedHoles')) || 0;
@@ -1541,8 +1595,16 @@ canvas.addEventListener('pointerdown', (e) => {
         } else if (sankIt) {
             isHoleComplete = true; canShoot = false; rollBtn.disabled = true; puttBtn.disabled = true; rerollBtn.disabled = true;
             
-            if (strokes <= 5) { localStats.birdies++; unlockAchievement('birdie'); }
-            if (strokes <= 4) { localStats.eagles++; unlockAchievement('eagle'); }
+            if (strokes <= 5) {
+                localStats.birdies++;
+                pushStatDeltas({ birdies: firebase.firestore.FieldValue.increment(1) });
+                unlockAchievement('birdie');
+            }
+            if (strokes <= 4) {
+                localStats.eagles++;
+                pushStatDeltas({ eagles: firebase.firestore.FieldValue.increment(1) });
+                unlockAchievement('eagle');
+            }
             if (strokes <= 6 && hitSandThisHole) unlockAchievement('sand');
             saveStats();
 
