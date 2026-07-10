@@ -248,7 +248,23 @@ function promptAccountSync() {
     }).catch((error) => {
         console.error("Error linking account:", error);
         if (error.code === 'auth/credential-already-in-use') {
-            alert("This Google account is already linked to another Paper Golf profile.");
+            // This browser session is a fresh anonymous identity, but the Google
+            // account picked is already linked to a DIFFERENT (their real) profile —
+            // linking can't merge two accounts together. The fix is to abandon this
+            // throwaway anonymous session and sign straight into the one that's
+            // already linked, which Firebase hands back to us as error.credential.
+            const existingCredential = error.credential;
+            if (existingCredential && confirm("This Google account is already linked to your other Paper Golf profile. Sign in to that one now? (Any unsynced progress in THIS browser session will be lost.)")) {
+                firebase.auth().signInWithCredential(existingCredential).then((signInResult) => {
+                    console.log("Switched to existing linked account:", signInResult.user.email);
+                    updateSyncBadge(signInResult.user);
+                    alert("You're back in! Your synced leaderboard identity has been restored.");
+                    showLeaderboard();
+                }).catch((signInError) => {
+                    console.error("Failed to sign in with existing credential:", signInError);
+                    alert("Couldn't switch accounts: " + signInError.message);
+                });
+            }
         } else {
             alert("Failed to sync account: " + error.message);
         }
