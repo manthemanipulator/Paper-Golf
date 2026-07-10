@@ -117,29 +117,39 @@ exports.submitScore = onCall(async (request) => {
         ? existingQuery.where('date', '==', date)
         : existingQuery.where('monthYear', '==', monthYear);
 
-    const existingSnap = await existingQuery.limit(1).get();
+    // 5. Write to the database securely. Wrapped in a transaction because the same
+    //    player can legitimately submit from two devices near-simultaneously (e.g.
+    //    finishing a round on a phone and a computer around the same moment) — a
+    //    plain read-then-write here could let both submissions see "no existing
+    //    doc" and both create one, leaving two rows for the same player/bucket
+    //    instead of one. The transaction makes Firestore retry one of them if that
+    //    happens, so only a single row ever exists.
+    await db.runTransaction(async (transaction) => {
+        const existingSnap = await transaction.get(existingQuery.limit(1));
 
-    // 5. Write to the database securely
-    const payload = {
-        uid,                    // Grabs the verified Auth ID
-        initials: cleanInitials,
-        score,
-        mode,
-        timestamp: FieldValue.serverTimestamp()
-    };
-    if (mode === 'daily') payload.date = date;
-    if (mode === 'random') payload.monthYear = monthYear;
+        const payload = {
+            uid,                    // Grabs the verified Auth ID
+            initials: cleanInitials,
+            score,
+            mode,
+            timestamp: FieldValue.serverTimestamp()
+        };
+        if (mode === 'daily') payload.date = date;
+        if (mode === 'random') payload.monthYear = monthYear;
 
-    if (!existingSnap.empty) {
-        const existingDoc = existingSnap.docs[0];
-        if (score < existingDoc.data().score) {
-            // Lower score is better in golf — replace their old entry with the new best
-            await existingDoc.ref.set(payload);
+        if (!existingSnap.empty) {
+            const existingDoc = existingSnap.docs[0];
+            if (score < existingDoc.data().score) {
+                // Lower score is better in golf — replace their old entry with the new best
+                transaction.set(existingDoc.ref, payload);
+            }
+            // else: not an improvement, leave their existing entry alone
+        } else {
+            // .add() isn't usable inside a transaction (it generates its ref outside
+            // the transaction's tracked read/write set) — create the ref explicitly.
+            transaction.set(leaderboardRef.doc(), payload);
         }
-        // else: not an improvement, leave their existing entry alone
-    } else {
-        await leaderboardRef.add(payload);
-    }
+    });
 
     // 6. Update the all-time "random mode" crown here, server-side, using the Admin SDK.
     //    The RTDB rules block clients from writing this path directly now.
