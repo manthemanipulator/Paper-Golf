@@ -193,6 +193,18 @@ firebase.auth().signInAnonymously()
         alert("STARTUP AUTH FAILED: " + error.message);
     });
 
+function updateSyncBadge(user) {
+    const syncBadge = document.getElementById('syncStatusBadge');
+    if (!syncBadge) return;
+    if (user && !user.isAnonymous) {
+        syncBadge.innerText = "Synced";
+        syncBadge.style.background = "#2ecc71";
+    } else {
+        syncBadge.innerText = "Not Synced";
+        syncBadge.style.background = "#ff3b30";
+    }
+}
+
 firebase.auth().onAuthStateChanged((user) => {
     if (user) {
         playerUID = user.uid;
@@ -200,17 +212,7 @@ firebase.auth().onAuthStateChanged((user) => {
         tryRegisterPresence();
         authReadyResolve();
         console.log("Logged in securely! Player UID:", playerUID);
-
-        const syncBadge = document.getElementById('syncStatusBadge');
-        if (syncBadge) {
-            if (!user.isAnonymous) {
-                syncBadge.innerText = "Synced";
-                syncBadge.style.background = "#2ecc71";
-            } else {
-                syncBadge.innerText = "Not Synced";
-                syncBadge.style.background = "#ff3b30";
-            }
-        }
+        updateSyncBadge(user);
     } else {
         isAuthed = false;
     }
@@ -230,6 +232,10 @@ function promptAccountSync() {
     const provider = new firebase.auth.GoogleAuthProvider();
     firebase.auth().currentUser.linkWithPopup(provider).then((result) => {
         console.log("Account successfully upgraded and linked!", result.user.email);
+        // linkWithPopup upgrades the existing signed-in session in place — it doesn't
+        // re-fire onAuthStateChanged, so the badge has to be updated here directly or
+        // it'll keep showing "Not Synced" until the next full page load.
+        updateSyncBadge(result.user);
         alert("Success! Your progress is now permanently synced to your Google Account.");
     }).catch((error) => {
         console.error("Error linking account:", error);
