@@ -270,11 +270,12 @@ function promptAccountSync() {
         // stats from a previous device, and this device might have local progress
         // that's never been synced anywhere. Combine them instead of either side
         // silently overwriting the other, then push the merged result back up.
-        playerStatsRef(result.user.uid).get().then((doc) => {
-            if (doc.exists) {
-                mergeStatsOnAccountSwitch(doc.data());
-            }
-            pushStatsToCloud();
+        // Guarded so this can only ever run ONCE per target account from this
+        // device — without the guard, re-triggering this flow (which used to
+        // happen on every reload before the anonymous-session-persistence bug was
+        // fixed) would re-sum birdies/eagles/holes every single time, compounding
+        // them well past anything that actually happened in-game.
+        performOneTimeStatsMerge(result.user.uid, () => {
             alert("Success! Your progress is now permanently synced to your Google Account.");
         });
     }).catch((error) => {
@@ -290,13 +291,8 @@ function promptAccountSync() {
                 firebase.auth().signInWithCredential(existingCredential).then((signInResult) => {
                     console.log("Switched to existing linked account:", signInResult.user.email);
                     updateSyncBadge(signInResult.user);
-                    // Same one-time reconciliation as a fresh link — this throwaway
-                    // session may have played a few rounds before switching accounts.
-                    playerStatsRef(signInResult.user.uid).get().then((doc) => {
-                        if (doc.exists) {
-                            mergeStatsOnAccountSwitch(doc.data());
-                        }
-                        pushStatsToCloud();
+                    // Same one-time (guarded) reconciliation as a fresh link.
+                    performOneTimeStatsMerge(signInResult.user.uid, () => {
                         alert("You're back in! Your synced progress has been restored.");
                         showLeaderboard();
                     });
@@ -308,6 +304,28 @@ function promptAccountSync() {
         } else {
             alert("Failed to sync account: " + error.message);
         }
+    });
+}
+
+function performOneTimeStatsMerge(uid, onDone) {
+    const mergeGuardKey = `paperGolf_statsMerged_${uid}`;
+    if (localStorage.getItem(mergeGuardKey) === 'true') {
+        // Already reconciled this device into this account before — do a plain
+        // pull instead of merging again, so repeated link/recovery attempts (e.g.
+        // retrying after a popup gets closed) can't keep re-summing the same
+        // progress on top of itself.
+        pullCloudStatsOnSignIn({ uid });
+        onDone();
+        return;
+    }
+
+    playerStatsRef(uid).get().then((doc) => {
+        if (doc.exists) {
+            mergeStatsOnAccountSwitch(doc.data());
+        }
+        pushStatsToCloud();
+        localStorage.setItem(mergeGuardKey, 'true');
+        onDone();
     });
 }
 
@@ -749,6 +767,33 @@ function renderStats() {
         </div>`;
     }
     document.getElementById('achievementsList').innerHTML = html;
+}
+
+function resetCareerCounters() {
+    // Scoped specifically to the fields a past sync bug could inflate (additive
+    // merges on account linking/recovery) — bestScore and unlocked achievements
+    // use min/union logic instead of addition, so they were never at risk and
+    // are deliberately left untouched here.
+    const confirmed = confirm(
+        "This resets your Birdie count, Eagle count, and Lifetime Holes Played back to 0 — useful if a past sync issue left them looking too high. " +
+        "Your Best Score and unlocked Achievements are NOT affected. This can't be undone. Continue?"
+    );
+    if (!confirmed) return;
+
+    localStats.birdies = 0;
+    localStats.eagles = 0;
+    localStats.lifetimeHoles = 0;
+    saveStats();
+    loadLocalHoleStats();
+    renderStats();
+
+    const user = firebase.auth().currentUser;
+    if (user && !user.isAnonymous) {
+        playerStatsRef(user.uid).set({ birdies: 0, eagles: 0, lifetimeHoles: 0 }, { merge: true })
+            .catch((error) => console.error("Failed to reset cloud counters:", error));
+    }
+
+    alert("Counters reset!");
 }
 
 function showLeaderboard() {

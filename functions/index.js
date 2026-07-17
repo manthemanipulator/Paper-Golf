@@ -222,9 +222,17 @@ exports.dailyRecapToDiscord = functionsV1.pubsub
             let lifetimeRounds = 0;
             let todayRounds = 0;
 
-            // Figure out exactly when midnight was today
-            const midnight = new Date();
-            midnight.setHours(0, 0, 0, 0);
+            // "Today" here means the Pacific calendar day this recap is running
+            // for (it's scheduled at 8pm PT) — comparing calendar-date STRINGS in
+            // that same timezone instead of doing Date-object math. The old
+            // approach built a "midnight" cutoff with new Date().setHours(0,0,0,0),
+            // which zeroes out the time in the Cloud Function's runtime timezone
+            // (UTC) — NOT Pacific, even though the schedule itself is PT. At 8pm
+            // PDT, UTC has already rolled into the next calendar day, so that
+            // "midnight" cutoff was actually tomorrow's UTC midnight — later than
+            // every score submitted earlier today, which is exactly why today's
+            // count kept coming out as 0.
+            const todayPT = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
 
             // Crunch the numbers
             snapshot.forEach(doc => {
@@ -232,7 +240,8 @@ exports.dailyRecapToDiscord = functionsV1.pubsub
 
                 // Read Google's hidden server timestamp of when the score was created
                 const createTime = doc.createTime.toDate();
-                if (createTime >= midnight) {
+                const createTimePT = createTime.toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
+                if (createTimePT === todayPT) {
                     todayRounds++;
                 }
             });
