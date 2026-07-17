@@ -201,10 +201,27 @@ let isAuthed = false;
 
 function tryRegisterPresence() {
     if (rtdbConnected && isAuthed) {
-        myUserRef.set(true);
+        // Register the disconnect cleanup BEFORE writing presence. If these were
+        // reversed (as they used to be) and the connection dropped in the gap
+        // between the two calls, the cleanup would never get registered, leaving
+        // a permanent ghost entry in online_users that nothing would ever remove.
         myUserRef.onDisconnect().remove();
+        // A timestamp instead of `true` lets the player-count display below
+        // self-heal from ghost entries (crashed tabs, force-quits, flaky mobile
+        // connections where onDisconnect never fires) by ignoring anything that
+        // hasn't refreshed recently, instead of trusting onDisconnect to always
+        // eventually clean everything up.
+        myUserRef.set(firebase.database.ServerValue.TIMESTAMP);
     }
 }
+
+// Keep a connected session's presence timestamp fresh so it doesn't get
+// filtered out as "stale" by the count below just for staying open a while.
+setInterval(() => {
+    if (rtdbConnected && isAuthed) {
+        myUserRef.set(firebase.database.ServerValue.TIMESTAMP);
+    }
+}, 60 * 1000);
 
 // Same race applies to every other authenticated RTDB write scattered through
 // this file (stat increments, offline-hole sync) — they were all firing
@@ -357,7 +374,20 @@ appCheckReady.then(() => {
     });
 
     allUsersRef.on('value', (snap) => {
-        const count = snap.numChildren();
+        // Count only entries refreshed recently. A raw numChildren() would count
+        // every ghost entry ever left behind by a crashed tab or a connection
+        // that dropped before onDisconnect could register — those would just
+        // accumulate forever with nothing to remove them, permanently inflating
+        // this number.
+        const PRESENCE_STALE_MS = 3 * 60 * 1000; // 3 minutes
+        const now = Date.now();
+        let count = 0;
+        snap.forEach(child => {
+            const ts = child.val();
+            if (typeof ts === 'number' && (now - ts) < PRESENCE_STALE_MS) {
+                count++;
+            }
+        });
         const countDisplay = document.getElementById('playerCount');
         if (countDisplay) {
             countDisplay.innerText = `👤 ${count}`;
