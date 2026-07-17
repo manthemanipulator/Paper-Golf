@@ -168,6 +168,20 @@ firebase.appCheck().activate(
     true // isTokenAutoRefreshEnabled
 );
 
+// activate() doesn't return a promise, so nothing was ever actually waiting for
+// the first token before Auth/Firestore/RTDB calls fired immediately after it —
+// and since Firestore/RTDB hold long-lived socket connections, a connection
+// opened before a token exists doesn't retroactively pick one up once it's
+// ready. That silently left most real sessions completely unverified in App
+// Check's metrics. Force-fetch the first token here and gate the calls below on
+// it. Bounded to 2s so a slow/blocked reCAPTCHA (ad blockers, etc.) can't leave
+// the game itself unplayable — worst case that one session proceeds unverified,
+// same as before this fix.
+const appCheckReady = Promise.race([
+    firebase.appCheck().getToken().then(() => {}).catch(() => {}),
+    new Promise((resolve) => setTimeout(resolve, 2000))
+]);
+
 const analytics = firebase.analytics();
 const db = firebase.firestore();
 const rtdb = firebase.database();
@@ -214,37 +228,40 @@ function updateSyncBadge(user) {
 
 let authRestoreChecked = false;
 
-firebase.auth().onAuthStateChanged((user) => {
-    if (user) {
-        playerUID = user.uid;
-        isAuthed = true;
-        tryRegisterPresence();
-        authReadyResolve();
-        console.log("Logged in securely! Player UID:", playerUID);
-        updateSyncBadge(user);
+// Gated on appCheckReady — see the comment above where it's created.
+appCheckReady.then(() => {
+    firebase.auth().onAuthStateChanged((user) => {
+        if (user) {
+            playerUID = user.uid;
+            isAuthed = true;
+            tryRegisterPresence();
+            authReadyResolve();
+            console.log("Logged in securely! Player UID:", playerUID);
+            updateSyncBadge(user);
 
-        // Synced players get their personal stats/achievements pulled down from
-        // the cloud on every sign-in (including a normal app reload with a
-        // restored session) — see pullCloudStatsOnSignIn for why this replaces
-        // rather than merges. Anonymous sessions stay purely local.
-        if (!user.isAnonymous) {
-            pullCloudStatsOnSignIn(user);
+            // Synced players get their personal stats/achievements pulled down from
+            // the cloud on every sign-in (including a normal app reload with a
+            // restored session) — see pullCloudStatsOnSignIn for why this replaces
+            // rather than merges. Anonymous sessions stay purely local.
+            if (!user.isAnonymous) {
+                pullCloudStatsOnSignIn(user);
+            }
+        } else if (!authRestoreChecked) {
+            // Only fall back to a fresh anonymous session on the very first check, and
+            // only if there's truly no persisted session at all (first-ever visit, or
+            // a genuinely signed-out browser). Calling signInAnonymously() unconditionally
+            // on every load — the old approach — was overwriting an already-linked
+            // Google account with a brand-new throwaway anonymous one on every single
+            // reload, which is why "Sync Account" kept resetting back to "Not Synced".
+            firebase.auth().signInAnonymously().catch((error) => {
+                // This will pop up on your iPhone the second you open the app if it fails!
+                alert("STARTUP AUTH FAILED: " + error.message);
+            });
+        } else {
+            isAuthed = false;
         }
-    } else if (!authRestoreChecked) {
-        // Only fall back to a fresh anonymous session on the very first check, and
-        // only if there's truly no persisted session at all (first-ever visit, or
-        // a genuinely signed-out browser). Calling signInAnonymously() unconditionally
-        // on every load — the old approach — was overwriting an already-linked
-        // Google account with a brand-new throwaway anonymous one on every single
-        // reload, which is why "Sync Account" kept resetting back to "Not Synced".
-        firebase.auth().signInAnonymously().catch((error) => {
-            // This will pop up on your iPhone the second you open the app if it fails!
-            alert("STARTUP AUTH FAILED: " + error.message);
-        });
-    } else {
-        isAuthed = false;
-    }
-    authRestoreChecked = true;
+        authRestoreChecked = true;
+    });
 });
 
 function promptAccountSync() {
@@ -329,20 +346,25 @@ function performOneTimeStatsMerge(uid, onDone) {
     });
 }
 
-connectedRef.on('value', (snap) => {
-    rtdbConnected = snap.val() === true;
-    tryRegisterPresence();
-});
-
 const allUsersRef = rtdb.ref('online_users');
-allUsersRef.on('value', (snap) => {
-    const count = snap.numChildren();
-    const countDisplay = document.getElementById('playerCount');
-    if (countDisplay) {
-        countDisplay.innerText = `👤 ${count}`;
-        countDisplay.style.opacity = '0.5';
-        setTimeout(() => countDisplay.style.opacity = '1', 150);
-    }
+
+// Same gating as the auth listener above — these open the RTDB socket, so they
+// need to wait for the first App Check token too.
+appCheckReady.then(() => {
+    connectedRef.on('value', (snap) => {
+        rtdbConnected = snap.val() === true;
+        tryRegisterPresence();
+    });
+
+    allUsersRef.on('value', (snap) => {
+        const count = snap.numChildren();
+        const countDisplay = document.getElementById('playerCount');
+        if (countDisplay) {
+            countDisplay.innerText = `👤 ${count}`;
+            countDisplay.style.opacity = '0.5';
+            setTimeout(() => countDisplay.style.opacity = '1', 150);
+        }
+    });
 });
 db.enablePersistence().catch((err) => console.log("Offline mode failed: ", err.code));
 

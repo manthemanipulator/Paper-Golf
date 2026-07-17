@@ -1,6 +1,6 @@
 // Bump this on every deploy that changes cached files — it's what forces old
 // caches to get cleaned out below instead of lingering around forever.
-const CACHE_NAME = 'paper-golf-v2026.7.0.1';
+const CACHE_NAME = 'paper-golf-v2026.7.16';
 const urlsToCache = [
     './',
     './index.html'
@@ -38,6 +38,16 @@ self.addEventListener('fetch', event => {
         return;
     }
 
+    // Only cache same-origin requests. This cache exists purely as an offline
+    // fallback for our own site's files — cross-origin responses (Firebase,
+    // reCAPTCHA, Google Analytics, etc.) are frequently "opaque" and were the
+    // actual source of the "Response body is already used" console error:
+    // cloning certain opaque/disk-cache-served responses can throw. There's
+    // also no reason to cache someone else's API responses in the first place.
+    if (new URL(event.request.url).origin !== self.location.origin) {
+        return;
+    }
+
     // Network-first, cache as an offline fallback only. The old cache-first
     // approach meant every deploy needed TWO page loads before players actually
     // saw the new code — the first load served the stale cache and only updated
@@ -46,7 +56,14 @@ self.addEventListener('fetch', event => {
     event.respondWith(
         fetch(event.request)
             .then(networkResponse => {
-                caches.open(CACHE_NAME).then(cache => cache.put(event.request, networkResponse.clone()));
+                // Clone synchronously, right here, before any async gap — and
+                // catch any cache-write failure so it can't surface as an
+                // unhandled promise rejection or affect the response we hand
+                // back to the page either way.
+                const responseToCache = networkResponse.clone();
+                caches.open(CACHE_NAME)
+                    .then(cache => cache.put(event.request, responseToCache))
+                    .catch(err => console.warn('SW cache put failed:', err));
                 return networkResponse;
             })
             .catch(() => caches.open(CACHE_NAME).then(cache => cache.match(event.request)))
