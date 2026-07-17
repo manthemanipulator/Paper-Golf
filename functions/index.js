@@ -216,35 +216,38 @@ exports.dailyRecapToDiscord = functionsV1.pubsub
         const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
 
         try {
-            // Grab the entire leaderboard
-            const snapshot = await db.collection('globalLeaderboard').get();
-
-            let lifetimeRounds = 0;
-            let todayRounds = 0;
-
-            // "Today" here means the Pacific calendar day this recap is running
-            // for (it's scheduled at 8pm PT) — comparing calendar-date STRINGS in
-            // that same timezone instead of doing Date-object math. The old
-            // approach built a "midnight" cutoff with new Date().setHours(0,0,0,0),
-            // which zeroes out the time in the Cloud Function's runtime timezone
-            // (UTC) — NOT Pacific, even though the schedule itself is PT. At 8pm
-            // PDT, UTC has already rolled into the next calendar day, so that
-            // "midnight" cutoff was actually tomorrow's UTC midnight — later than
-            // every score submitted earlier today, which is exactly why today's
-            // count kept coming out as 0.
+            // Pull real per-mode round counts straight from the same RTDB counters
+            // the in-app "X rounds completed" display already reads (daily_stats /
+            // lifetime_stats), instead of approximating "rounds played" from the
+            // Firestore leaderboard collection. The old approach counted leaderboard
+            // DOCUMENTS, but this app keeps only one document per player per bucket
+            // (best score wins) — a document's createTime only reflects the FIRST
+            // time a player ever got a personal best in that bucket. Every replay
+            // after that either updates the existing doc (createTime doesn't change
+            // on an update) or gets discarded outright if it's not an improvement,
+            // so this was chronically undercounting real activity, sometimes badly.
             const todayPT = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
+            const rtdb = getDatabase();
 
-            // Crunch the numbers
-            snapshot.forEach(doc => {
-                lifetimeRounds++;
+            const [todaySnap, lifetimeSnap] = await Promise.all([
+                rtdb.ref(`daily_stats/${todayPT}`).once('value'),
+                rtdb.ref('lifetime_stats').once('value')
+            ]);
 
-                // Read Google's hidden server timestamp of when the score was created
-                const createTime = doc.createTime.toDate();
-                const createTimePT = createTime.toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
-                if (createTimePT === todayPT) {
-                    todayRounds++;
-                }
-            });
+            // Both nodes have one child per mode (casual/daily/random) — sum
+            // across whichever modes exist rather than hardcoding mode names, so
+            // this doesn't need updating if a new mode gets added later.
+            const sumModeValues = (snapshot) => {
+                let total = 0;
+                snapshot.forEach(child => {
+                    const val = child.val();
+                    if (typeof val === 'number') total += val;
+                });
+                return total;
+            };
+
+            const todayRounds = sumModeValues(todaySnap);
+            const lifetimeRounds = sumModeValues(lifetimeSnap);
 
             // Calculate Holes (Assuming 18 per round)
             const lifetimeHoles = lifetimeRounds * 18;
