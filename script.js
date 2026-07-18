@@ -618,25 +618,41 @@ function incrementLocalHoles() {
     localStorage.setItem('paperGolf_unsyncedHoles', unsynced);
 }
 
-function syncOfflineHolesToDatabase() {
-    if (!navigator.onLine) return; 
+async function syncOfflineHolesToDatabase() {
+    if (!navigator.onLine) return;
     let unsynced = parseInt(localStorage.getItem('paperGolf_unsyncedHoles')) || 0;
-    if (unsynced === 0) return; 
+    if (unsynced === 0) return;
 
-    authReady.then(() => {
-        const todayStr = getTodayDateString();
-        const bulkIncrement = firebase.database.ServerValue.increment(unsynced);
+    await authReady;
+    const todayStr = getTodayDateString();
+
+    // Chunked so a large backlog (e.g. after weeks fully offline, which the
+    // 30-day playedAt trust window explicitly allows for) can never push a
+    // single write's delta over the RTDB validate rule's cap (5000) and get
+    // silently rejected. Before this, a rejected write just logged to the
+    // console and left the whole backlog untouched, so the next sync attempt
+    // retried the exact same oversized amount and failed the same way forever
+    // — a permanent, invisible dead end. Each chunk shrinks the saved backlog
+    // immediately on success, so a failure partway through a big sync doesn't
+    // lose progress that already made it through.
+    const CHUNK_SIZE = 4000;
+    while (unsynced > 0) {
+        const chunk = Math.min(unsynced, CHUNK_SIZE);
+        const bulkIncrement = firebase.database.ServerValue.increment(chunk);
         const updates = {};
         updates[`paperGolf_stats/daily_holes/${todayStr}`] = bulkIncrement;
         updates['paperGolf_stats/global_lifetime_holes'] = bulkIncrement;
 
-        firebase.database().ref().update(updates)
-            .then(() => {
-                console.log(`Successfully dropped ${unsynced} offline holes onto the server!`);
-                localStorage.setItem('paperGolf_unsyncedHoles', 0);
-            })
-            .catch((error) => console.error("Firebase Sync FAILED.", error));
-    });
+        try {
+            await firebase.database().ref().update(updates);
+            unsynced -= chunk;
+            localStorage.setItem('paperGolf_unsyncedHoles', unsynced);
+        } catch (error) {
+            console.error("Firebase Sync FAILED.", error);
+            return; // Stop here — the remainder retries next time this runs.
+        }
+    }
+    console.log("Successfully synced all offline holes.");
 }
 
 function queueRoundForStatsSync(mode) {
@@ -646,16 +662,24 @@ function queueRoundForStatsSync(mode) {
     syncPendingRoundStats();
 }
 
-function syncPendingRoundStats() {
+async function syncPendingRoundStats() {
     if (!navigator.onLine) return;
-    const pending = JSON.parse(localStorage.getItem('paperGolf_pendingRoundStats')) || [];
+    let pending = JSON.parse(localStorage.getItem('paperGolf_pendingRoundStats')) || [];
     if (pending.length === 0) return;
 
-    authReady.then(() => {
-        // Collapse however many queued rounds into one increment per RTDB path,
-        // instead of one write per round — same effect, fewer writes.
+    await authReady;
+
+    // Processed in batches for the same reason as syncOfflineHolesToDatabase
+    // above — a large backlog could otherwise push a single path's delta over
+    // the RTDB validate rule's cap (1000) and get stuck retrying the same
+    // oversized write forever. Even in the worst case where every queued round
+    // in a batch shares the same mode/day/month, a 500-entry batch stays safely
+    // under that cap.
+    const BATCH_SIZE = 500;
+    while (pending.length > 0) {
+        const batch = pending.slice(0, BATCH_SIZE);
         const counts = {};
-        pending.forEach(({ mode, today, monthYear }) => {
+        batch.forEach(({ mode, today, monthYear }) => {
             counts[`daily_stats/${today}/${mode}`] = (counts[`daily_stats/${today}/${mode}`] || 0) + 1;
             counts[`lifetime_stats/${mode}`] = (counts[`lifetime_stats/${mode}`] || 0) + 1;
             counts[`monthly_stats/${monthYear}/${mode}`] = (counts[`monthly_stats/${monthYear}/${mode}`] || 0) + 1;
@@ -666,13 +690,16 @@ function syncPendingRoundStats() {
             updates[path] = firebase.database.ServerValue.increment(count);
         });
 
-        firebase.database().ref().update(updates)
-            .then(() => {
-                console.log(`Synced ${pending.length} queued round(s) of community stats.`);
-                localStorage.setItem('paperGolf_pendingRoundStats', JSON.stringify([]));
-            })
-            .catch((error) => console.error("Failed to sync pending round stats:", error));
-    });
+        try {
+            await firebase.database().ref().update(updates);
+            pending = pending.slice(batch.length);
+            localStorage.setItem('paperGolf_pendingRoundStats', JSON.stringify(pending));
+        } catch (error) {
+            console.error("Failed to sync pending round stats:", error);
+            return; // Stop here — the remainder retries next time this runs.
+        }
+    }
+    console.log("Synced all queued round(s) of community stats.");
 }
 
 function syncOfflineScoresToCloud() {
