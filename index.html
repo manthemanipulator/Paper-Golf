@@ -24,7 +24,7 @@
 
     <nav class="top-nav-bar">
         <div class="nav-left">
-            <span id="playerCount" class="live-stat">👤 1</span>
+            <span id="playerCount" class="live-stat" onclick="toggleCountryBreakdown(true)" style="cursor: pointer;">👤 1</span>
             <span id="global-holes" class="global-stat">🌎⛳️ ...</span>
         </div>
 
@@ -250,8 +250,8 @@
             
             <h4 style="color: #2c3e50; margin-bottom: 10px;">🚧 The Road Ahead 🚧</h4>
             <ul style="text-align: left; margin-bottom: 20px; font-size: 14px; color: #333; line-height: 1.5; padding-left: 20px;">
-                <li style="margin-bottom: 8px;"><b>✅ v7.0 - The Cloud Update:</b> (COMPLETED) Server lockdown and permanent cross-device account sync.</li>
-                <li style="margin-bottom: 8px;"><b>🔜 v8.0 - The Customization Update:</b> Future ideas are coming soon! Add your feature requests in the Discord.</li>
+                <li style="margin-bottom: 8px;"><b>🏆 Leaderboard Updates:</b> More ways to view the Random leaderboard are on the way, based on your feedback in the Discord.</li>
+                <li style="margin-bottom: 8px;"><b>🎲 New Mode Coming:</b> A tougher, no-stakes way to play for anyone who wants more of a challenge.</li>
                 <li style="margin-bottom: 8px;"><b>🔮 Future Expansion:</b> Multi-round weekend tournaments and brand new course hazards.</li>
             </ul>
             
@@ -270,7 +270,7 @@
         
         <h3 style="margin: 0 0 12px 0; font-size: 24px;">About</h3>
         <p style="margin: 0 0 12px 0; font-weight: bold; font-size: 18px;">Paper Golf</p>
-        <p style="margin: 0 0 12px 0; font-size: 14px; color: #666;">Version 2026.7.0</p>
+        <p style="margin: 0 0 12px 0; font-size: 14px; color: #666;">Version 2026.7.17</p>
         <div style="margin: 0 0 15px 0; font-size: 14px; color: #333;">
             🌍 <strong>Official Website:</strong> <span style="color: #007aff; font-weight: bold;">papergolf.app</span>
         </div>
@@ -310,19 +310,29 @@
     <div id="whatsNewOverlay" class="overlay" style="display: none; background: rgba(0,0,0,0.5); z-index: 3000;">
         <div class="modal-content" style="text-align: center;">
             <h2 style="margin-top: 0; color: #007aff; font-size: 28px;">App Updated!</h2>
-            <p style="font-size: 16px; color: #333; margin-bottom: 20px;">Welcome to version 2026.7.0 🚀</p>
-            
+            <p style="font-size: 16px; color: #333; margin-bottom: 20px;">Welcome to version 2026.7.17 🚀</p>
+
             <div style="background-color: var(--input-bg); border-left: 4px solid #007aff; padding: 12px; margin-bottom: 20px; border-radius: 4px; font-size: 14px; color: var(--text-color); text-align: left;">
                 🎉 <strong>Welcome New Players!</strong> Paper Golf is completely free, runs offline, and is tracked live. Play at <a href="https://papergolf.app" style="color: #007aff; text-decoration: none; font-weight: bold;">papergolf.app</a>!
             </div>
-            
+
             <ul style="text-align: left; font-size: 15px; color: #333; margin-bottom: 25px; line-height: 1.6;">
-                <li>☁️ <b>Cloud Account Sync:</b> The transition is complete! Link your Google account to permanently protect your stats and play seamlessly across all your devices.</li>
-                <li>🌓 <b>Dark Mode & UI Polish:</b> A sleek new dark theme that automatically matches your system settings, plus a completely redesigned Top 10 Leaderboard with a sticky personal rank banner!</li>
-                <li>🛡️ <b>Leaderboard Lockdown:</b> Client-side tampering is a thing of the past. Scores are now verified securely by our dedicated server functions, ensuring the Hall of Fame stays 100% fair and hacker-free.</li>
+                <li>⌨️ <b>Keyboard Controls:</b> Playing on a computer? Hit Space to roll (press it again to reroll) and Ctrl to putt.</li>
+                <li>🌍 <b>Players by Country:</b> Tap the player count in the top corner to see a live breakdown of where everyone online is playing from!</li>
             </ul>
             
             <button onclick="document.getElementById('whatsNewOverlay').style.display='none'; checkTutorial();" style="width: 100%; font-size: 18px;">Let's Golf!</button>
+        </div>
+    </div>
+
+    <div id="countryOverlay" class="overlay" style="display: none; background: rgba(0,0,0,0.5); z-index: 3000;">
+        <div class="modal-content" style="width: 100%; max-width: 350px; text-align: center; padding: 20px 15px;">
+            <h2 style="margin: 0 0 15px 0; color: #2c3e50; font-size: 24px;">🌍 Players Online</h2>
+            <div id="countryList" style="text-align: left; font-size: 16px; line-height: 1.8; max-height: 300px; overflow-y: auto; margin-bottom: 15px;">
+                Loading...
+            </div>
+            <p style="font-size: 12px; color: #999; margin-bottom: 15px;">Country is a rough guess based on browser settings, not exact location.</p>
+            <button onclick="toggleCountryBreakdown(false)" style="display: block; margin: 0 auto; width: 100%; max-width: 250px; font-size: 16px; padding: 12px;">Close</button>
         </div>
     </div>
 

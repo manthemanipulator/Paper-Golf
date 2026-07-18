@@ -27,6 +27,32 @@ function getUserTimeZone() {
     }
 }
 
+function guessPlayerCountry() {
+    // A rough, self-reported guess for the "players online by country" popup —
+    // purely cosmetic/fun, so there's no need for real IP-based geolocation (which
+    // would require a new Cloud Function). Intl.Locale's maximize() fills in a
+    // likely region even when the browser's language tag doesn't include one (e.g.
+    // "en" -> "en-Latn-US"). Won't be perfectly accurate for VPNs or a browser
+    // language set differently than the player's actual country, same tradeoff
+    // already accepted for timezone-based date bucketing elsewhere in this file.
+    try {
+        const locale = new Intl.Locale(navigator.language || 'en-US').maximize();
+        return (locale.region || 'XX').toUpperCase();
+    } catch (e) {
+        return 'XX';
+    }
+}
+
+function countryCodeToFlag(code) {
+    // Each letter of a 2-letter ISO country code maps to a Unicode "regional
+    // indicator symbol" — combining the two renders as that country's flag emoji,
+    // no emoji library needed. Anything that isn't a clean 2-letter code (our own
+    // 'XX' fallback, or anything malformed) just shows a generic flag instead of
+    // rendering garbage.
+    if (!/^[A-Z]{2}$/.test(code)) return '🏳️';
+    return code.replace(/./g, c => String.fromCodePoint(127397 + c.charCodeAt(0)));
+}
+
 function applyTheme(theme) {
     document.documentElement.setAttribute('data-theme', theme);
 }
@@ -199,6 +225,9 @@ let playerUID = null;
 let rtdbConnected = false;
 let isAuthed = false;
 
+// Guessed once per page load — no need to recompute on every heartbeat.
+const myCountryGuess = guessPlayerCountry();
+
 function tryRegisterPresence() {
     if (rtdbConnected && isAuthed) {
         // Register the disconnect cleanup BEFORE writing presence. If these were
@@ -206,12 +235,12 @@ function tryRegisterPresence() {
         // between the two calls, the cleanup would never get registered, leaving
         // a permanent ghost entry in online_users that nothing would ever remove.
         myUserRef.onDisconnect().remove();
-        // A timestamp instead of `true` lets the player-count display below
-        // self-heal from ghost entries (crashed tabs, force-quits, flaky mobile
-        // connections where onDisconnect never fires) by ignoring anything that
-        // hasn't refreshed recently, instead of trusting onDisconnect to always
-        // eventually clean everything up.
-        myUserRef.set(firebase.database.ServerValue.TIMESTAMP);
+        // ts (instead of a bare `true`/timestamp) lets the player-count display
+        // below self-heal from ghost entries (crashed tabs, force-quits, flaky
+        // mobile connections where onDisconnect never fires) by ignoring anything
+        // that hasn't refreshed recently. country powers the "players by country"
+        // popup — see guessPlayerCountry() for how it's derived.
+        myUserRef.set({ ts: firebase.database.ServerValue.TIMESTAMP, country: myCountryGuess });
     }
 }
 
@@ -219,7 +248,7 @@ function tryRegisterPresence() {
 // filtered out as "stale" by the count below just for staying open a while.
 setInterval(() => {
     if (rtdbConnected && isAuthed) {
-        myUserRef.set(firebase.database.ServerValue.TIMESTAMP);
+        myUserRef.set({ ts: firebase.database.ServerValue.TIMESTAMP, country: myCountryGuess });
     }
 }, 60 * 1000);
 
@@ -382,10 +411,14 @@ appCheckReady.then(() => {
         const PRESENCE_STALE_MS = 3 * 60 * 1000; // 3 minutes
         const now = Date.now();
         let count = 0;
+        const countryTally = {};
         snap.forEach(child => {
-            const ts = child.val();
+            const val = child.val();
+            const ts = val && typeof val === 'object' ? val.ts : val; // old-format ghosts may just be a bare number/true
             if (typeof ts === 'number' && (now - ts) < PRESENCE_STALE_MS) {
                 count++;
+                const country = (val && typeof val === 'object' && val.country) || 'XX';
+                countryTally[country] = (countryTally[country] || 0) + 1;
             }
         });
         const countDisplay = document.getElementById('playerCount');
@@ -394,6 +427,7 @@ appCheckReady.then(() => {
             countDisplay.style.opacity = '0.5';
             setTimeout(() => countDisplay.style.opacity = '1', 150);
         }
+        renderCountryBreakdown(countryTally);
     });
 });
 db.enablePersistence().catch((err) => console.log("Offline mode failed: ", err.code));
@@ -1436,6 +1470,31 @@ rerollBtn.addEventListener('click', () => {
     }, 50);
 });
 
+// Desktop keyboard controls: Space rolls, and — since there's no separate reroll
+// key — pressing Space again does whatever action is actually available next
+// (a fresh roll, or a reroll if that's what's active), matching the buttons'
+// own enabled/disabled state instead of a hardcoded mapping. Ctrl putts.
+document.addEventListener('keydown', (e) => {
+    // Don't hijack keys while focus is in a text field (initials entry, etc.),
+    // and ignore the OS's key-repeat firing while a key is held down.
+    const focusedTag = document.activeElement && document.activeElement.tagName;
+    if (focusedTag === 'INPUT' || focusedTag === 'TEXTAREA') return;
+    if (e.repeat) return;
+
+    if (e.code === 'Space') {
+        e.preventDefault(); // Space's default behavior scrolls the page.
+        if (!rollBtn.disabled) {
+            rollBtn.click();
+        } else if (!rerollBtn.disabled) {
+            rerollBtn.click();
+        }
+    } else if (e.key === 'Control') {
+        if (!puttBtn.disabled) {
+            puttBtn.click();
+        }
+    }
+});
+
 document.getElementById('nextHoleBtn')?.addEventListener('click', () => {
     currentHole++; strokes = 0; isHoleComplete = false;
     document.getElementById('victoryOverlay').style.display = 'none';
@@ -1770,7 +1829,7 @@ function idleLoop() {
 document.addEventListener('DOMContentLoaded', () => { 
     resetGame(); 
     
-    const CURRENT_VERSION = '2026.7.0';
+    const CURRENT_VERSION = '2026.7.17';
     const lastSeenVersion = localStorage.getItem('paperGolfVersion');
     
     if (lastSeenVersion !== CURRENT_VERSION) {
@@ -1828,6 +1887,30 @@ function toggleMenu(forceClose) {
 function toggleRoadmap(show) { document.getElementById('roadmapOverlay').style.display = show ? "flex" : "none"; }
 function toggleAbout(show) { document.getElementById('aboutOverlay').style.display = show ? "flex" : "none"; }
 function toggleWhatsNew(show) { document.getElementById('whatsNewOverlay').style.display = show ? "flex" : "none"; }
+function toggleCountryBreakdown(show) { document.getElementById('countryOverlay').style.display = show ? "flex" : "none"; }
+
+let latestCountryTally = {};
+function renderCountryBreakdown(countryTally) {
+    // Called every time the presence list updates (see allUsersRef.on above), so
+    // the popup always shows current data whenever it's opened rather than needing
+    // its own separate read.
+    latestCountryTally = countryTally;
+    const listEl = document.getElementById('countryList');
+    if (!listEl) return;
+
+    const sorted = Object.entries(countryTally).sort((a, b) => b[1] - a[1]);
+    if (sorted.length === 0) {
+        listEl.innerHTML = '<div style="text-align:center; color:#999;">No one else online right now.</div>';
+        return;
+    }
+    listEl.innerHTML = sorted.map(([code, count]) => {
+        const label = code === 'XX' ? 'Unknown' : code;
+        return `<div style="display:flex; justify-content:space-between; padding: 4px 8px;">
+            <span>${countryCodeToFlag(code)} ${label}</span>
+            <span style="font-weight:bold;">${count}</span>
+        </div>`;
+    }).join('');
+}
 
 document.addEventListener('click', (e) => {
     if (!e.target.closest('.hamburger-btn') && !e.target.closest('#popupMenu')) {
