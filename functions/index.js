@@ -229,13 +229,15 @@ exports.dailyRecapToDiscord = functionsV1.pubsub
             const todayPT = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
             const rtdb = getDatabase();
 
-            const [todaySnap, lifetimeSnap] = await Promise.all([
+            const [todaySnap, lifetimeSnap, todayHolesSnap, lifetimeHolesSnap] = await Promise.all([
                 rtdb.ref(`daily_stats/${todayPT}`).once('value'),
-                rtdb.ref('lifetime_stats').once('value')
+                rtdb.ref('lifetime_stats').once('value'),
+                rtdb.ref(`paperGolf_stats/daily_holes/${todayPT}`).once('value'),
+                rtdb.ref('paperGolf_stats/global_lifetime_holes').once('value')
             ]);
 
-            // Both nodes have one child per mode (casual/daily/random) — sum
-            // across whichever modes exist rather than hardcoding mode names, so
+            // Both round-count nodes have one child per mode (casual/daily/random) —
+            // sum across whichever modes exist rather than hardcoding mode names, so
             // this doesn't need updating if a new mode gets added later.
             const sumModeValues = (snapshot) => {
                 let total = 0;
@@ -249,9 +251,12 @@ exports.dailyRecapToDiscord = functionsV1.pubsub
             const todayRounds = sumModeValues(todaySnap);
             const lifetimeRounds = sumModeValues(lifetimeSnap);
 
-            // Calculate Holes (Assuming 18 per round)
-            const lifetimeHoles = lifetimeRounds * 18;
-            const todayHoles = todayRounds * 18;
+            // Read the real hole counters instead of assuming every round finished
+            // all 18 holes (rounds * 18) — that assumption breaks the moment anyone
+            // quits mid-round or plays a partial round, and it was badly understating
+            // real activity (591 actual holes vs. 180 assumed on 2026-07-17).
+            const todayHoles = todayHolesSnap.val() || 0;
+            const lifetimeHoles = lifetimeHolesSnap.val() || 0;
 
             // Build the Recap Card
             const discordPayload = {
