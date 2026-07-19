@@ -1042,11 +1042,14 @@ function showLeaderboard() {
 }
 
 function getTodayDateString() {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-    return `${year}_${month}_${day}`;
+    // Matches getUTCDateString()'s hyphenated "YYYY-MM-DD" format (local time) so
+    // the daily_holes bucket this powers lines up with daily_stats and with the
+    // Discord recap's own PT-based date key. This used to be a separate
+    // underscore-separated format ("YYYY_MM_DD") that matched neither of those —
+    // harmless while the recap only computed holes as rounds*18, but the moment it
+    // started actually reading daily_holes directly, it was reading the wrong key
+    // and silently getting 0 every time.
+    return getUTCDateString();
 }
 
 function initializeCommunityStats() {
