@@ -227,12 +227,18 @@ exports.dailyRecapToDiscord = functionsV1.pubsub
             // on an update) or gets discarded outright if it's not an improvement,
             // so this was chronically undercounting real activity, sometimes badly.
             const todayPT = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
+            // daily_holes uses its own established underscore-separated format
+            // ("YYYY_MM_DD"), distinct from daily_stats' hyphenated one — matching
+            // months of existing history plus external integrations (TRMNL, Home
+            // Assistant) that already read that format directly. This function
+            // adapts to it rather than the other way around.
+            const todayPTUnderscored = todayPT.replace(/-/g, '_');
             const rtdb = getDatabase();
 
             const [todaySnap, lifetimeSnap, todayHolesSnap, lifetimeHolesSnap] = await Promise.all([
                 rtdb.ref(`daily_stats/${todayPT}`).once('value'),
                 rtdb.ref('lifetime_stats').once('value'),
-                rtdb.ref(`paperGolf_stats/daily_holes/${todayPT}`).once('value'),
+                rtdb.ref(`paperGolf_stats/daily_holes/${todayPTUnderscored}`).once('value'),
                 rtdb.ref('paperGolf_stats/global_lifetime_holes').once('value')
             ]);
 
