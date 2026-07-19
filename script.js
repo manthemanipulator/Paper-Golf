@@ -676,6 +676,12 @@ async function syncOfflineHolesToDatabase() {
         const updates = {};
         updates[`paperGolf_stats/daily_holes/${todayStr}`] = bulkIncrement;
         updates['paperGolf_stats/global_lifetime_holes'] = bulkIncrement;
+        // Same country guess used for the "players online by country" popup —
+        // powers a holes-by-country breakdown in the Discord recap. Keyed by
+        // holes (not rounds), same reasoning as daily_holes above: someone who
+        // plays a bunch of casual holes without ever finishing a full round
+        // would never show up in a rounds-based breakdown.
+        updates[`country_holes/${todayStr}/${myCountryGuess}`] = bulkIncrement;
 
         try {
             await firebase.database().ref().update(updates);

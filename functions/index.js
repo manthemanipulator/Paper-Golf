@@ -47,6 +47,14 @@ function getServerMonthYearString(timeZone, atDate) {
     return atDate.toLocaleString('en-US', { month: 'long', year: 'numeric', timeZone });
 }
 
+function countryCodeToFlag(code) {
+    // Same Unicode regional-indicator trick as the client's countryCodeToFlag() in
+    // script.js — plain code-point math, no browser APIs needed, so it works
+    // server-side too.
+    if (!/^[A-Z]{2}$/.test(code)) return '🏳️';
+    return code.replace(/./g, c => String.fromCodePoint(127397 + c.charCodeAt(0)));
+}
+
 // Offline play support: a score queued while offline can sync days later, and it
 // should land on the day it was actually PLAYED, not the day the request finally
 // reached the server. We accept a client-reported `playedAt` timestamp for this —
@@ -235,11 +243,12 @@ exports.dailyRecapToDiscord = functionsV1.pubsub
             const todayPTUnderscored = todayPT.replace(/-/g, '_');
             const rtdb = getDatabase();
 
-            const [todaySnap, lifetimeSnap, todayHolesSnap, lifetimeHolesSnap] = await Promise.all([
+            const [todaySnap, lifetimeSnap, todayHolesSnap, lifetimeHolesSnap, countryHolesSnap] = await Promise.all([
                 rtdb.ref(`daily_stats/${todayPT}`).once('value'),
                 rtdb.ref('lifetime_stats').once('value'),
                 rtdb.ref(`paperGolf_stats/daily_holes/${todayPTUnderscored}`).once('value'),
-                rtdb.ref('paperGolf_stats/global_lifetime_holes').once('value')
+                rtdb.ref('paperGolf_stats/global_lifetime_holes').once('value'),
+                rtdb.ref(`country_holes/${todayPTUnderscored}`).once('value')
             ]);
 
             // Both round-count nodes have one child per mode (casual/daily/random) —
@@ -264,6 +273,26 @@ exports.dailyRecapToDiscord = functionsV1.pubsub
             const todayHoles = todayHolesSnap.val() || 0;
             const lifetimeHoles = lifetimeHolesSnap.val() || 0;
 
+            // Holes-by-country breakdown — keyed by holes rather than rounds, same
+            // reasoning as daily_holes above: someone playing a bunch of casual
+            // holes without ever finishing a full round still shows up here, where
+            // they'd be invisible in a rounds-based breakdown. Capped to the top 8
+            // so this can't blow past Discord's embed field length limit on a day
+            // with a lot of countries represented.
+            const countryEntries = [];
+            countryHolesSnap.forEach(child => {
+                const val = child.val();
+                if (typeof val === 'number' && val > 0) {
+                    countryEntries.push([child.key, val]);
+                }
+            });
+            countryEntries.sort((a, b) => b[1] - a[1]);
+            const countryBreakdownText = countryEntries.length > 0
+                ? countryEntries.slice(0, 8)
+                    .map(([code, holes]) => `${countryCodeToFlag(code)} ${code === 'XX' ? 'Unknown' : code}: **${holes}**`)
+                    .join('\n')
+                : '_No holes played yet today_';
+
             // Build the Recap Card
             const discordPayload = {
                 embeds: [{
@@ -275,7 +304,9 @@ exports.dailyRecapToDiscord = functionsV1.pubsub
                         { name: "⛳️ Holes Played Today", value: `**${todayHoles}**`, inline: true },
                         { name: "​", value: "​", inline: false }, // Blank line spacer
                         { name: "🌎 Lifetime Rounds", value: `**${lifetimeRounds}**`, inline: true },
-                        { name: "♾️ Lifetime Holes", value: `**${lifetimeHoles}**`, inline: true }
+                        { name: "♾️ Lifetime Holes", value: `**${lifetimeHoles}**`, inline: true },
+                        { name: "​", value: "​", inline: false }, // Blank line spacer
+                        { name: "🗺️ Holes By Country Today", value: countryBreakdownText, inline: false }
                     ],
                     timestamp: new Date().toISOString(),
                     footer: { text: "Paper Golf Analytics" }
