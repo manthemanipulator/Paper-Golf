@@ -1790,15 +1790,22 @@ canvas.addEventListener('pointerdown', (e) => {
         } else if (sankIt) {
             isHoleComplete = true; canShoot = false; rollBtn.disabled = true; puttBtn.disabled = true; rerollBtn.disabled = true;
             
-            if (strokes <= 5) {
-                localStats.birdies++;
-                pushStatDeltas({ birdies: firebase.firestore.FieldValue.increment(1) });
-                unlockAchievement('birdie');
-            }
+            // These used to be two independent `if` checks, both testing against the
+            // same hole's stroke count — but strokes <= 4 always ALSO satisfies
+            // strokes <= 5, so every eagle was silently also counting as a birdie.
+            // That's exactly why birdies + eagles could add up to more than total
+            // holes played: a single eagle hole was contributing +1 to each counter
+            // instead of +1 to just one of them. Eagle is strictly better than birdie
+            // for the same hole, not an additional category, so this needs to be
+            // mutually exclusive.
             if (strokes <= 4) {
                 localStats.eagles++;
                 pushStatDeltas({ eagles: firebase.firestore.FieldValue.increment(1) });
                 unlockAchievement('eagle');
+            } else if (strokes === 5) {
+                localStats.birdies++;
+                pushStatDeltas({ birdies: firebase.firestore.FieldValue.increment(1) });
+                unlockAchievement('birdie');
             }
             if (strokes <= 6 && hitSandThisHole) unlockAchievement('sand');
             saveStats();
@@ -1841,7 +1848,7 @@ function idleLoop() {
 document.addEventListener('DOMContentLoaded', () => { 
     resetGame(); 
     
-    const CURRENT_VERSION = '2026.7.19';
+    const CURRENT_VERSION = '2026.7.20';
     const lastSeenVersion = localStorage.getItem('paperGolfVersion');
     
     if (lastSeenVersion !== CURRENT_VERSION) {
