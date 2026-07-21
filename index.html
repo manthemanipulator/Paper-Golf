@@ -207,7 +207,7 @@
     </div>
 
     <div id="leaderboardModal" class="overlay" style="background: rgba(0,0,0,0.95);">
-        <div class="modal-content" style="background: transparent; color: white; text-align: center; border: 2px solid white; padding: 15px 10px; width: 100%; max-width: 360px;">
+        <div class="modal-content" style="background: transparent; color: white; text-align: center; border: 2px solid white; padding: 15px 10px 8px; width: 100%; max-width: 360px;">
             <h2 id="modalTitle" style="margin-top: 0; margin-bottom: 5px;">ROUND COMPLETE!</h2>
             <p id="dailyPlaysCount" style="font-size: 14px; color: #4cd964; margin-top: 0; margin-bottom: 8px; font-weight: bold; line-height: 1.2;"></p>
             <h3 id="finalScoreDisplay" style="margin-top: 0; margin-bottom: 10px;">Final Score: 0</h3>
@@ -221,7 +221,13 @@
            <div id="leaderboardSection" class="hidden">
                                 
                 <input type="date" id="historyDate" style="font-size: 16px; margin-bottom: 15px; padding: 5px; border-radius: 5px; border: 1px solid var(--border-color); font-family: monospace; color: var(--text-color); background-color: var(--input-bg);">
-                
+
+                <div id="randomRangeToggle" style="display: none; gap: 6px; margin-bottom: 8px; justify-content: center;">
+                    <button type="button" class="rangeBtn" data-range="daily" style="flex: none; width: auto; max-width: none; margin: 0; padding: 6px 14px; font-size: 13px; font-weight: bold; border-radius: 20px; border: 1px solid var(--border-color); background-color: var(--input-bg); color: var(--text-color); cursor: pointer;">Daily</button>
+                    <button type="button" class="rangeBtn" data-range="weekly" style="flex: none; width: auto; max-width: none; margin: 0; padding: 6px 14px; font-size: 13px; font-weight: bold; border-radius: 20px; border: 1px solid var(--border-color); background-color: var(--input-bg); color: var(--text-color); cursor: pointer;">Weekly</button>
+                    <button type="button" class="rangeBtn" data-range="monthly" style="flex: none; width: auto; max-width: none; margin: 0; padding: 6px 14px; font-size: 13px; font-weight: bold; border-radius: 20px; border: 1px solid var(--border-color); background-color: var(--input-bg); color: var(--text-color); cursor: pointer;">Monthly</button>
+                </div>
+
                 <ul class="leaderboard-list" id="leaderboardList" style="width: 100%; max-width: 300px; margin-top: 0;"></ul>
                 
                 <div id="userRankBanner" class="hidden">
@@ -229,8 +235,8 @@
                     <span style="font-size: 12px; opacity: 0.9;" id="userRankText">Unranked</span>
                 </div>
                 
-                <button id="playAgainBtn" style="width: 100%; max-width: 300px;">Play Again</button>
-                <button id="backToCasualBtn" class="btn-secondary" style="width: 100%; max-width: 300px; margin-top: 10px;">Back to Casual</button>
+                <button id="playAgainBtn" style="width: 100%; max-width: 300px; padding: 12px; font-size: 14px; margin-bottom: 8px;">Play Again</button>
+                <button id="backToCasualBtn" class="btn-secondary" style="width: 100%; max-width: 300px; padding: 12px; font-size: 14px; margin-top: 0; margin-bottom: 0;">Back to Casual</button>
             </div>
         </div>
     </div>
@@ -250,7 +256,6 @@
             
             <h4 style="color: #2c3e50; margin-bottom: 10px;">🚧 The Road Ahead 🚧</h4>
             <ul style="text-align: left; margin-bottom: 20px; font-size: 14px; color: #333; line-height: 1.5; padding-left: 20px;">
-                <li style="margin-bottom: 8px;"><b>🏆 Leaderboard Updates:</b> More ways to view the Random leaderboard are on the way, based on your feedback in the Discord.</li>
                 <li style="margin-bottom: 8px;"><b>🎲 New Mode Coming:</b> A tougher, no-stakes way to play for anyone who wants more of a challenge.</li>
                 <li style="margin-bottom: 8px;"><b>🔮 Future Expansion:</b> Multi-round weekend tournaments and brand new course hazards.</li>
             </ul>
@@ -270,7 +275,7 @@
         
         <h3 style="margin: 0 0 12px 0; font-size: 24px;">About</h3>
         <p style="margin: 0 0 12px 0; font-weight: bold; font-size: 18px;">Paper Golf</p>
-        <p style="margin: 0 0 12px 0; font-size: 14px; color: #666;">Version 2026.7.20</p>
+        <p style="margin: 0 0 12px 0; font-size: 14px; color: #666;">Version 2026.7.21</p>
         <div style="margin: 0 0 15px 0; font-size: 14px; color: #333;">
             🌍 <strong>Official Website:</strong> <span style="color: #007aff; font-weight: bold;">papergolf.app</span>
         </div>
@@ -310,13 +315,10 @@
     <div id="whatsNewOverlay" class="overlay" style="display: none; background: rgba(0,0,0,0.5); z-index: 3000;">
         <div class="modal-content" style="text-align: center;">
             <h2 style="margin-top: 0; color: #007aff; font-size: 28px;">App Updated!</h2>
-            <p style="font-size: 16px; color: #333; margin-bottom: 20px;">Welcome to version 2026.7.20 🚀</p>
-
-            <div style="background-color: var(--input-bg); border-left: 4px solid #007aff; padding: 12px; margin-bottom: 20px; border-radius: 4px; font-size: 14px; color: var(--text-color); text-align: left;">
-                🎉 <strong>Welcome New Players!</strong> Paper Golf is completely free, runs offline, and is tracked live. Play at <a href="https://papergolf.app" style="color: #007aff; text-decoration: none; font-weight: bold;">papergolf.app</a>!
-            </div>
+            <p style="font-size: 16px; color: #333; margin-bottom: 20px;">Welcome to version 2026.7.21 🚀</p>
 
             <ul style="text-align: left; font-size: 15px; color: #333; margin-bottom: 25px; line-height: 1.6;">
+                <li>🏆 <b>Random Leaderboard Toggle:</b> View the Random leaderboard by Daily, Weekly, or Monthly — tap the toggle above the list to switch.</li>
                 <li>🐛 <b>Birdie/Eagle Math Fixed:</b> Sorry about this one — a bug meant every Eagle was also secretly counting as a Birdie, so your Career Stats could show more birdies + eagles than holes you've actually played. It's fixed now. If your numbers still look off from before, open <b>Stats & Achievements</b> and tap "Birdie/Eagle/Holes counters look wrong? Reset them" at the bottom to zero them out and start fresh.</li>
                 <li>⌨️ <b>Keyboard Controls:</b> Playing on a computer? Hit Space to roll (press it again to reroll) and Ctrl to putt.</li>
                 <li>🌍 <b>Players by Country:</b> Tap the player count in the top corner to see a live breakdown of where everyone online is playing from!</li>

@@ -612,6 +612,10 @@ function triggerVictorySequence() {
     document.getElementById('leaderboardSection').classList.add('hidden');
     document.getElementById('initialsInput').value = '';
     document.getElementById('leaderboardModal').style.display = 'flex';
+    // Refresh this now, not just after submitting — otherwise it shows whatever
+    // was left over from the last time the leaderboard was opened, possibly in a
+    // completely different mode. See updatePlaysCountDisplay() for the full story.
+    updatePlaysCountDisplay();
 }
 
 document.getElementById('submitScoreBtn')?.addEventListener('click', () => {
@@ -915,26 +919,23 @@ function resetCareerCounters() {
     alert("Counters reset!");
 }
 
-function showLeaderboard() {
-    document.getElementById('inputSection').classList.add('hidden');
-    document.getElementById('leaderboardSection').classList.remove('hidden');
-    
-    // Hide the redundant score text when viewing the leaderboard
-    document.getElementById('finalScoreDisplay').style.display = 'none';
-    
-    const list = document.getElementById('leaderboardList');
-    const rankBanner = document.getElementById('userRankBanner');
+function updatePlaysCountDisplay() {
+    // Pulled out of showLeaderboard() so it can also run the moment the victory
+    // screen opens for initials entry. That screen and the full leaderboard view
+    // share this same #dailyPlaysCount element, but only showLeaderboard() used to
+    // refresh it — so right after finishing a Daily round, the initials screen
+    // would show whatever text was left over from the last time the leaderboard
+    // was opened (e.g. still showing "rounds completed this month" from an earlier
+    // look at Random mode) until you actually submitted your score. Calling this
+    // right away instead keeps it in sync with whatever mode was actually just played.
     const playsCountDisplay = document.getElementById('dailyPlaysCount');
-    const currentMonthYear = getMonthYearString(); 
-    
-    list.innerHTML = '<li>Loading...</li>';
-    rankBanner.classList.add('hidden');
-    playsCountDisplay.innerHTML = 'Loading stats...'; 
-    
+    const currentMonthYear = getMonthYearString();
+
+    playsCountDisplay.innerHTML = 'Loading stats...';
+
     const datePicker = document.getElementById('historyDate');
     const targetDate = (currentMode === 'daily' && datePicker.value) ? datePicker.value : getUTCDateString();
-    
-   // 1. FETCH CONTEXTUAL PLAY COUNTS
+
     if (currentMode === 'daily') {
         const statsRef = firebase.database().ref(`daily_stats/${targetDate}/daily`);
         statsRef.once('value').then((snap) => {
@@ -944,27 +945,27 @@ function showLeaderboard() {
             console.error("Firebase Read Error:", error);
             playsCountDisplay.innerHTML = `<span style="color: #ff3b30;">⚠️ Stats temporarily unavailable</span>`;
         });
-        
+
     } else if (currentMode === 'random') {
         const crownRef = firebase.database().ref('paperGolf_stats/all_time_random_crown');
         const monthlyRef = firebase.database().ref(`monthly_stats/${currentMonthYear}/random`);
-        
+
         Promise.all([crownRef.once('value'), monthlyRef.once('value')]).then(([crownSnap, monthlySnap]) => {
             const crown = crownSnap.val();
             const monthlyPlays = monthlySnap.val() || 0;
-            
+
             let displayHTML = '';
             if (crown) {
                 displayHTML += `<div style="margin-bottom: 6px;">👑 ALL-TIME RECORD: <span style="color:var(--accent-color);">${crown.initials} - ${crown.score}</span> 👑</div>`;
             }
             displayHTML += `<span style="font-size: 14px; color: #4cd964;">⛳️ ${monthlyPlays} rounds completed this month</span>`;
-            
+
             playsCountDisplay.innerHTML = displayHTML;
         }).catch((error) => {
             console.error("Firebase Read Error:", error);
             playsCountDisplay.innerHTML = `<span style="color: #ff3b30;">⚠️ Stats temporarily unavailable</span>`;
         });
-        
+
     } else {
         const lifetimeRef = firebase.database().ref(`lifetime_stats/${currentMode}`);
         lifetimeRef.once('value').then((snap) => {
@@ -975,7 +976,49 @@ function showLeaderboard() {
             playsCountDisplay.innerHTML = `<span style="color: #ff3b30;">⚠️ Stats temporarily unavailable</span>`;
         });
     }
+}
+
+function showLeaderboard() {
+    document.getElementById('inputSection').classList.add('hidden');
+    document.getElementById('leaderboardSection').classList.remove('hidden');
     
+    // Hide the redundant score text when viewing the leaderboard
+    document.getElementById('finalScoreDisplay').style.display = 'none';
+    
+    const list = document.getElementById('leaderboardList');
+    const rankBanner = document.getElementById('userRankBanner');
+    const currentMonthYear = getMonthYearString();
+
+    // Needed for the daily-mode filter below. This used to be computed inline
+    // here, but got left behind in updatePlaysCountDisplay() when that fetch
+    // logic was pulled out — leaving this function referencing an undefined
+    // targetDate and throwing every time the daily leaderboard tried to render.
+    const datePicker = document.getElementById('historyDate');
+    const targetDate = (currentMode === 'daily' && datePicker.value) ? datePicker.value : getUTCDateString();
+
+    // Keep these header controls synced to the mode every time this renders — not
+    // just when the trophy button is clicked. showLeaderboard() also runs right
+    // after submitting a score, and without this, the picker/toggle would show
+    // whatever leftover state a previous, different-mode visit to the leaderboard
+    // left behind (same class of bug as the stale plays-count text).
+    const rangeToggle = document.getElementById('randomRangeToggle');
+    if (currentMode === 'daily') {
+        datePicker.style.display = 'inline-block';
+        rangeToggle.style.display = 'none';
+    } else if (currentMode === 'random') {
+        datePicker.style.display = 'none';
+        rangeToggle.style.display = 'flex';
+        updateRangeToggleStyles();
+    } else {
+        datePicker.style.display = 'none';
+        rangeToggle.style.display = 'none';
+    }
+
+    list.innerHTML = '<li>Loading...</li>';
+    rankBanner.classList.add('hidden');
+
+    updatePlaysCountDisplay();
+
     // 2. BUILD THE DYNAMIC LEADERBOARD LIST
     // Tear down any previous listener first so repeated opens don't stack duplicate subscriptions
     if (leaderboardUnsubscribe) {
@@ -991,11 +1034,21 @@ function showLeaderboard() {
         
         querySnapshot.forEach((doc) => {
             const entry = doc.data();
-            
+
             if (currentMode === 'daily' && (entry.mode !== 'daily' || entry.date !== targetDate)) return;
-            if (currentMode === 'random' && (entry.mode !== 'random' || entry.monthYear !== currentMonthYear)) return;
+            if (currentMode === 'random') {
+                if (entry.mode !== 'random' || entry.monthYear !== currentMonthYear) return;
+                // The monthly bucket only ever holds ONE row per player (their best
+                // for the month), and entry.timestamp is server-set to whenever that
+                // best was actually achieved — not "now." That means Daily/Weekly here
+                // aren't separate buckets, they're just a narrower slice of this same
+                // monthly-deduped data, same idea as how Daily mode's own leaderboard
+                // already works (one PB per player per day).
+                if (randomLeaderboardRange === 'daily' && !isTimestampToday(entry.timestamp)) return;
+                if (randomLeaderboardRange === 'weekly' && !isTimestampThisWeek(entry.timestamp)) return;
+            }
             if (currentMode === 'casual' && entry.mode !== 'casual') return;
-            
+
             totalScoresInCategory++;
             
             if (entry.uid === playerUID && !myRank) {
@@ -1047,6 +1100,46 @@ function showLeaderboard() {
     });
 }
 
+// Which slice of the Random-mode monthly leaderboard to show: 'daily' (today only),
+// 'weekly' (last 7 days), or 'monthly' (the full existing behavior — one PB per
+// player per month). Remembered across visits since it's a display preference,
+// same idea as other little "how do you like to view this" choices.
+let randomLeaderboardRange = localStorage.getItem('randomLeaderboardRange') || 'monthly';
+
+function isTimestampToday(ts) {
+    // entry.timestamp is a Firestore Timestamp (server-set to whenever that score
+    // actually became the player's personal best), not a plain Date — .toDate()
+    // converts it. Compared against the browser's own local calendar day, same as
+    // what the player sees on their own clock.
+    if (!ts || typeof ts.toDate !== 'function') return false;
+    const d = ts.toDate();
+    const now = new Date();
+    return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
+}
+
+function isTimestampThisWeek(ts) {
+    if (!ts || typeof ts.toDate !== 'function') return false;
+    const d = ts.toDate();
+    const now = new Date();
+    const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay());
+    return d >= startOfWeek && d <= now;
+}
+
+function getRandomLeaderboardTitle() {
+    if (randomLeaderboardRange === 'daily') return "TODAY'S LEADERBOARD";
+    if (randomLeaderboardRange === 'weekly') return "THIS WEEK'S LEADERBOARD";
+    const currentMonth = new Date().toLocaleString('default', { month: 'long' });
+    return `${currentMonth.toUpperCase()} LEADERBOARD`;
+}
+
+function updateRangeToggleStyles() {
+    document.querySelectorAll('#randomRangeToggle .rangeBtn').forEach((btn) => {
+        const active = btn.dataset.range === randomLeaderboardRange;
+        btn.style.backgroundColor = active ? 'var(--accent-color)' : 'var(--input-bg)';
+        btn.style.color = active ? '#ffffff' : 'var(--text-color)';
+    });
+}
+
 function getTodayDateString() {
     // Underscore-separated "YYYY_MM_DD" (local time) — this is its own established
     // format for the daily_holes bucket, distinct from getUTCDateString()'s hyphenated
@@ -1094,25 +1187,31 @@ initializeCommunityStats();
 document.getElementById('historyDate')?.addEventListener('change', showLeaderboard);
 
 document.getElementById('viewScoresBtn')?.addEventListener('click', () => {
-    if (currentMode === 'casual') return; 
+    if (currentMode === 'casual') return;
     document.getElementById('modalTitle').textContent = currentMode === 'daily' ? "DAILY LEADERBOARD" : "ALL-TIME TOP 5";
-    
-    const datePicker = document.getElementById('historyDate');
+
     if (currentMode === 'daily') {
-        datePicker.style.display = 'inline-block';
-        datePicker.value = getUTCDateString();
+        document.getElementById('historyDate').value = getUTCDateString();
     } else if (currentMode === 'random') {
-        const currentMonth = new Date().toLocaleString('default', { month: 'long' });
-        document.getElementById('modalTitle').textContent = `${currentMonth.toUpperCase()} LEADERBOARD`;
-        datePicker.style.display = 'none';
-    } else {
-        datePicker.style.display = 'none';
+        document.getElementById('modalTitle').textContent = getRandomLeaderboardTitle();
     }
-    
+    // Picker/toggle visibility itself is synced inside showLeaderboard() now,
+    // so it stays correct no matter which path led there.
+
     document.getElementById('inputSection').classList.add('hidden');
     document.getElementById('leaderboardSection').classList.remove('hidden');
     document.getElementById('leaderboardModal').style.display = 'flex';
     showLeaderboard();
+});
+
+document.querySelectorAll('#randomRangeToggle .rangeBtn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+        randomLeaderboardRange = btn.dataset.range;
+        localStorage.setItem('randomLeaderboardRange', randomLeaderboardRange);
+        document.getElementById('modalTitle').textContent = getRandomLeaderboardTitle();
+        updateRangeToggleStyles();
+        showLeaderboard();
+    });
 });
 
 document.getElementById('playAgainBtn')?.addEventListener('click', resetGame);
@@ -1848,7 +1947,7 @@ function idleLoop() {
 document.addEventListener('DOMContentLoaded', () => { 
     resetGame(); 
     
-    const CURRENT_VERSION = '2026.7.20';
+    const CURRENT_VERSION = '2026.7.21';
     const lastSeenVersion = localStorage.getItem('paperGolfVersion');
     
     if (lastSeenVersion !== CURRENT_VERSION) {
