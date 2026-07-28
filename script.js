@@ -1096,7 +1096,7 @@ function showLeaderboard() {
                 li.style.border = "2px solid #d35400";
                 li.style.fontSize = "18px"; 
             } else {
-                li.textContent = `#${count} - ${entry.initials} ${flag} ..... ${entry.score}`;
+                li.textContent = `#${count} - ${entry.initials} ..... ${entry.score} ${flag}`;
             }
             list.appendChild(li);
         });
