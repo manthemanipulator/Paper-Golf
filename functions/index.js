@@ -51,7 +51,10 @@ function countryCodeToFlag(code) {
     // Same Unicode regional-indicator trick as the client's countryCodeToFlag() in
     // script.js — plain code-point math, no browser APIs needed, so it works
     // server-side too.
-    if (!/^[A-Z]{2}$/.test(code)) return '🏳️';
+    // 'XX' passes the 2-letter check but isn't a real ISO region — it's the
+    // client's own "couldn't figure it out" fallback — so give it its own
+    // explicit case, same as the client-side countryCodeToFlag().
+    if (code === 'XX' || !/^[A-Z]{2}$/.test(code)) return '🏳️';
     return code.replace(/./g, c => String.fromCodePoint(127397 + c.charCodeAt(0)));
 }
 
@@ -94,7 +97,7 @@ exports.submitScore = onCall(async (request) => {
     //    — those are derived below from the server. `timezone` and `playedAt` are the
     //    exceptions: they're hints used to pick which local-midnight the date gets
     //    bucketed into, not trusted as the date itself — see resolvePlayedAtDate().)
-    const { initials, score, mode, timezone, playedAt } = request.data;
+    const { initials, score, mode, timezone, playedAt, country } = request.data;
 
     // 3. Validate the data
     if (typeof score !== 'number' || !Number.isFinite(score) || !Number.isInteger(score) || score < 18) {
@@ -112,6 +115,11 @@ exports.submitScore = onCall(async (request) => {
     // Fall back to UTC for anything malformed/missing rather than rejecting the
     // submission outright — worst case someone's daily just buckets by UTC that round.
     const safeTimeZone = isValidTimeZone(timezone) ? timezone : 'UTC';
+    // Same low-stakes trust call as timezone above — this is just a self-guessed
+    // country used to show a flag next to the player's initials, not anything
+    // load-bearing. 'XX' (countryCodeToFlag's own "unknown" fallback) covers
+    // anything malformed or missing instead of rejecting the whole submission.
+    const safeCountry = (typeof country === 'string' && /^[A-Z]{2}$/.test(country)) ? country : 'XX';
     const effectivePlayDate = resolvePlayedAtDate(playedAt);
     const date = mode === 'daily' ? getServerDateString(safeTimeZone, effectivePlayDate) : null;
     const monthYear = mode === 'random' ? getServerMonthYearString(safeTimeZone, effectivePlayDate) : null;
@@ -140,6 +148,7 @@ exports.submitScore = onCall(async (request) => {
             initials: cleanInitials,
             score,
             mode,
+            country: safeCountry,
             timestamp: FieldValue.serverTimestamp()
         };
         if (mode === 'daily') payload.date = date;

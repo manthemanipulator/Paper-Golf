@@ -49,7 +49,11 @@ function countryCodeToFlag(code) {
     // no emoji library needed. Anything that isn't a clean 2-letter code (our own
     // 'XX' fallback, or anything malformed) just shows a generic flag instead of
     // rendering garbage.
-    if (!/^[A-Z]{2}$/.test(code)) return '🏳️';
+    // 'XX' technically passes the 2-letter check below but isn't a real ISO
+    // region — it's our own "couldn't figure it out" fallback — so it needs its
+    // own explicit case here or it'd render as undefined/tofu flag glyphs
+    // instead of the intended generic white flag.
+    if (code === 'XX' || !/^[A-Z]{2}$/.test(code)) return '🏳️';
     return code.replace(/./g, c => String.fromCodePoint(127397 + c.charCodeAt(0)));
 }
 
@@ -793,6 +797,11 @@ function saveScoreToCloud(initials, score) {
         date: currentMode === 'daily' ? today : null,
         monthYear: currentMode === 'random' ? monthYear : null,
         timezone: getUserTimeZone(),
+        // Same self-guessed country used for the online player count and the
+        // Discord holes-by-country breakdown — not verified, just a low-stakes
+        // guess from the browser's own locale. Lets the leaderboard show a flag
+        // next to initials without any new trust/verification machinery.
+        country: myCountryGuess,
         // Captured now, at the moment the round actually finished — not when this
         // payload eventually reaches the server. That distinction matters for
         // offline play: if this sits in the queue for a few days before syncing,
@@ -1060,26 +1069,34 @@ function showLeaderboard() {
             count++;
             
             const li = document.createElement('li');
-            
+
+            // entry.country only exists on scores submitted after this feature
+            // shipped — older entries fall through to countryCodeToFlag()'s own
+            // 🏳️ fallback for anything that isn't a clean 2-letter code, so this
+            // works fine without any backfill.
+            const flag = countryCodeToFlag(entry.country);
+
            // Shrink each subsequent row slightly so the top-10 list fits without scrolling
             let opacity = 1 - ((count - 1) * 0.08);
             let fontSize = 18 - (count - 1);
             let padding = 10 - Math.floor((count - 1) * 0.5);
             let bottomMargin = count === 1 ? "6px" : "2px";
-            
+
             li.style.opacity = opacity;
             li.style.fontSize = `${fontSize}px`;
             li.style.padding = `${padding}px`;
             li.style.marginBottom = bottomMargin;
             li.style.lineHeight = "1.2";
-            
+
             if (count === 1) {
-                li.innerHTML = `🏆 <b>${entry.initials} ..... ${entry.score}</b> 🏆`;
-                li.style.color = '#d35400'; 
+                // Trophy stays on the left; the right-hand trophy is replaced by
+                // the player's flag instead of a second copy of the same emoji.
+                li.innerHTML = `🏆 <b>${entry.initials} ..... ${entry.score}</b> ${flag}`;
+                li.style.color = '#d35400';
                 li.style.border = "2px solid #d35400";
                 li.style.fontSize = "18px"; 
             } else {
-                li.textContent = `#${count} - ${entry.initials} ..... ${entry.score}`;
+                li.textContent = `#${count} - ${entry.initials} ${flag} ..... ${entry.score}`;
             }
             list.appendChild(li);
         });
@@ -1947,7 +1964,7 @@ function idleLoop() {
 document.addEventListener('DOMContentLoaded', () => { 
     resetGame(); 
     
-    const CURRENT_VERSION = '2026.7.21';
+    const CURRENT_VERSION = '2026.7.28';
     const lastSeenVersion = localStorage.getItem('paperGolfVersion');
     
     if (lastSeenVersion !== CURRENT_VERSION) {
