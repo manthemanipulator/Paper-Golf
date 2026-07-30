@@ -100,7 +100,13 @@ exports.submitScore = onCall(async (request) => {
     const { initials, score, mode, timezone, playedAt, country } = request.data;
 
     // 3. Validate the data
-    if (typeof score !== 'number' || !Number.isFinite(score) || !Number.isInteger(score) || score < 18) {
+    // The literal ace-every-hole minimum is 18 (1 stroke × 18 holes), but that's
+    // not a realistic bar for anti-cheat — it's just the absolute mathematical
+    // floor, which is exactly how a spoofed "score: 18" API call slipped past this
+    // check and onto the leaderboard. 54 (an implausibly lucky 3 strokes/hole) is
+    // still well below the actual best score ever recorded (70), so it can't
+    // reject any real round, while catching drive-by fake submissions instead.
+    if (typeof score !== 'number' || !Number.isFinite(score) || !Number.isInteger(score) || score < 54) {
         throw new HttpsError('invalid-argument', 'Score is mathematically impossible.');
     }
     if (typeof initials !== 'string' || !/^[A-Za-z]{3}$/.test(initials)) {
@@ -184,7 +190,7 @@ exports.submitScore = onCall(async (request) => {
 
 
 // ==========================================
-// BOT 1: THE LIVE SCORE TRACKER (Unchanged)
+// BOT 1: THE LIVE SCORE TRACKER
 // ==========================================
 exports.sendScoreToDiscord = functionsV1.firestore
     .document('globalLeaderboard/{docId}')
@@ -204,6 +210,10 @@ exports.sendScoreToDiscord = functionsV1.firestore
                 fields: [
                     { name: "Player", value: `**${newScore.initials}**`, inline: true },
                     { name: "Score", value: `**${newScore.score}**`, inline: true },
+                    // Only present on scores submitted after the leaderboard-flags
+                    // feature shipped — countryCodeToFlag()'s own 'XX'/malformed
+                    // fallback covers anything older with a generic white flag.
+                    { name: "Country", value: countryCodeToFlag(newScore.country), inline: true },
                     { name: "Mode", value: newScore.mode === 'daily' ? "📅 Daily 18-Hole" : (newScore.mode === 'random' ? "🎲 Random 18-Hole" : "Casual"), inline: false }
                 ],
                 timestamp: new Date().toISOString(),
