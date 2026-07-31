@@ -92,6 +92,10 @@ let currentMode = 'casual';
 let ballZOffset = 0; 
 let currentWeather = { windX: 1, windY: 0 }; 
 let totalCampaignScore = 0;
+// Per-hole stroke counts for the current 18-hole round — only populated for
+// Daily/Random (the campaign modes), reset every time a new round starts. This
+// is what the Wordle-style share card is built from at the end of a Daily round.
+let currentRoundHoleScores = [];
 let dailySeed = 1;
 let currentHole = 1, strokes = 0, mulligans = 6, currentRoll = 0, canShoot = false, isPutting = false, isHoleComplete = false, usedTeeOffReroll = false;
 let currentBallPos = { x: 0, y: 0 }, holePos = { x: 0, y: 0 }, gridData = [], validTargets = [], clickableTargets = [], particles = [], trail = [], leaves = [];
@@ -134,7 +138,10 @@ function updateHUD() {
 
     if (uiStrokes) uiStrokes.textContent = `Strokes: ${strokes}`;
 
-    if (currentMode === 'casual') {
+    // Casual and Pro are both untracked, single-hole-at-a-time free play — same
+    // HUD treatment for both, just a different wind rule (see updateWeatherForStroke
+    // call sites below).
+    if (currentMode === 'casual' || currentMode === 'pro') {
         if (uiHole) uiHole.textContent = `Hole: ${currentHole}`;
         if (uiTotal) uiTotal.classList.add('hidden');
     } else {
@@ -145,7 +152,7 @@ function updateHUD() {
 
     const scoresBtn = document.getElementById('viewScoresBtn');
     if (scoresBtn) {
-        if (currentMode === 'casual') {
+        if (currentMode === 'casual' || currentMode === 'pro') {
             scoresBtn.style.opacity = '0.3';
             scoresBtn.style.cursor = 'default';
         } else {
@@ -160,12 +167,14 @@ modeSelect.addEventListener('change', (e) => {
     if (currentMode === 'casual') modeSelect.className = "mode-dropdown";
     else if (currentMode === 'random') modeSelect.className = "mode-dropdown random";
     else if (currentMode === 'daily') modeSelect.className = "mode-dropdown daily";
+    else if (currentMode === 'pro') modeSelect.className = "mode-dropdown pro";
     resetGame();
 });
 
 function resetGame() {
     currentHole = 1;
     totalCampaignScore = 0;
+    currentRoundHoleScores = [];
     strokes = 0;
     mulligans = 6;
     isHoleComplete = false;
@@ -620,7 +629,74 @@ function triggerVictorySequence() {
     // was left over from the last time the leaderboard was opened, possibly in a
     // completely different mode. See updatePlaysCountDisplay() for the full story.
     updatePlaysCountDisplay();
+
+    // Share is Daily-only for now, and shown immediately — it's independent of
+    // (not gated behind) submitting to the leaderboard, since plenty of players
+    // never bother submitting but might still want to text a friend their score.
+    // Buttons are inline-block by default, which is what lets the modal's
+    // text-align:center actually center them (same trick Submit Score relies on,
+    // untouched by JS). Switching this to 'block' instead of 'inline-block' was
+    // exactly what knocked it out of that centering and pinned it to the left.
+    const shareBtn = document.getElementById('shareScoreBtn');
+    if (shareBtn) shareBtn.style.display = currentMode === 'daily' ? 'inline-block' : 'none';
 }
+
+// Maps a hole's stroke count to one of the same birdie/eagle-style terms already
+// used elsewhere in the app, so the share grid feels consistent with in-game
+// language instead of inventing new terminology just for this. This is a
+// CATEGORY only, not a precise value — eagle covers anything from a hole-in-one
+// up through 4 strokes, same range the achievement itself uses. Pairing this
+// with the actual stroke number in buildDailyShareText() is what keeps the card
+// from silently implying a slightly-wrong total if someone adds up the emoji.
+function getHoleResultEmoji(strokes) {
+    if (strokes <= 4) return '🦅'; // Eagle
+    if (strokes === 5) return '🐦'; // Birdie
+    if (strokes <= 7) return '⛳'; // Solid, on the green
+    return '🐢'; // Took a while — deliberately light-hearted, not a "bad" marker
+}
+
+// Wordle-style share text: shows the SHAPE of the round (a category emoji plus
+// the real stroke count for each hole) without giving away anything about the
+// actual course itself — no hole layout, no hazard positions, no dice rolls.
+// Everyone plays the same seeded course each day, so leaking any of that would
+// be a real spoiler for friends who haven't played yet. The exact stroke count
+// isn't a course spoiler though — it's just your own performance, same as the
+// final score already shown in the clear — so including it keeps the card
+// mathematically honest instead of only "vibes-based."
+function buildDailyShareText() {
+    const dateLabel = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const grid = currentRoundHoleScores.map(strokes => `${getHoleResultEmoji(strokes)}${strokes}`).join(' ');
+    // Blank line after every section, including the title — it was only a single
+    // \n there while everything else got a full blank-line break, so the title
+    // and score looked glued together while the rest had breathing room.
+    return `⛳ Paper Golf — Daily (${dateLabel})\n\nScore: ${totalCampaignScore}\n\n${grid}\n\nPlay today's round: https://papergolf.app`;
+}
+
+document.getElementById('shareScoreBtn')?.addEventListener('click', async () => {
+    const shareText = buildDailyShareText();
+
+    // Web Share API gives the native share sheet (Messages, WhatsApp, etc.) on
+    // supported browsers — mainly mobile Safari/Chrome. Desktop browsers without
+    // it fall back to just copying the text, same end result either way.
+    if (navigator.share) {
+        try {
+            await navigator.share({ text: shareText });
+        } catch (err) {
+            // AbortError just means the player closed the share sheet without
+            // picking anything — not an actual failure, nothing to do.
+            if (err.name !== 'AbortError') console.error('Share failed:', err);
+        }
+        return;
+    }
+
+    try {
+        await navigator.clipboard.writeText(shareText);
+        alert('Score copied! Paste it anywhere to share.');
+    } catch (err) {
+        console.error('Clipboard copy failed:', err);
+        alert('Could not copy your score — please try again.');
+    }
+});
 
 document.getElementById('submitScoreBtn')?.addEventListener('click', () => {
     const initials = document.getElementById('initialsInput').value.trim().toUpperCase();
@@ -1104,7 +1180,7 @@ function showLeaderboard() {
         if (count === 0) list.innerHTML = '<li>No scores yet!</li>';
         
         // 3. POPULATE THE STICKY RANK BANNER
-        if (currentMode !== 'casual') {
+        if (currentMode !== 'casual' && currentMode !== 'pro') {
             if (myBestThisContext) {
                 document.getElementById('userBestBannerScore').innerText = myBestThisContext;
                 document.getElementById('userRankText').innerText = `#${myRank} / ${totalScoresInCategory}`;
@@ -1204,7 +1280,7 @@ initializeCommunityStats();
 document.getElementById('historyDate')?.addEventListener('change', showLeaderboard);
 
 document.getElementById('viewScoresBtn')?.addEventListener('click', () => {
-    if (currentMode === 'casual') return;
+    if (currentMode === 'casual' || currentMode === 'pro') return;
     document.getElementById('modalTitle').textContent = currentMode === 'daily' ? "DAILY LEADERBOARD" : "ALL-TIME TOP 5";
 
     if (currentMode === 'daily') {
@@ -1385,7 +1461,10 @@ function calculateValidTargets() {
             statusText.style.color = '#d9534f';
             statusText.innerText = "Blocked! Unplayable lie (+1 Stroke). Roll again.";
             strokes++; updateHUD();
-            updateWeatherForStroke(); 
+            // Casual is the one mode that only re-rolls wind once per hole (at
+            // generateCourse()) instead of after every stroke — everything else,
+            // including the new Pro mode, keeps the original every-stroke behavior.
+            if (currentMode !== 'casual') updateWeatherForStroke();
             canShoot = false; rollBtn.disabled = false; puttBtn.disabled = false;
             if (navigator.vibrate) navigator.vibrate([50, 100, 50]);
         }
@@ -1901,7 +1980,8 @@ canvas.addEventListener('pointerdown', (e) => {
             
             canShoot = false; isPutting = false; rollBtn.disabled = false; puttBtn.disabled = false; currentRoll = 0; diceResult.innerText = '-';
             statusText.style.color = '#d9534f'; statusText.innerText = "Penalty! Choose your shot type to continue.";
-            updateWeatherForStroke(); updateRerollButton();
+            if (currentMode !== 'casual') updateWeatherForStroke();
+            updateRerollButton();
             
         } else if (sankIt) {
             isHoleComplete = true; canShoot = false; rollBtn.disabled = true; puttBtn.disabled = true; rerollBtn.disabled = true;
@@ -1928,11 +2008,12 @@ canvas.addEventListener('pointerdown', (e) => {
 
             incrementLocalHoles(); 
             
-            if (currentMode === 'casual') {
+            if (currentMode === 'casual' || currentMode === 'pro') {
                 statusText.style.color = '#5cb85c'; statusText.innerText = "Hole completed!";
                 document.getElementById('victoryOverlay').style.display = 'flex';
                 document.getElementById('finalScoreText').innerText = `Score: ${strokes}`;
             } else {
+                currentRoundHoleScores.push(strokes);
                 totalCampaignScore += strokes;
                 statusText.style.color = '#5cb85c'; statusText.innerText = `Hole ${currentHole} Complete! (Score: ${strokes})`;
                 updateHUD();
@@ -1944,7 +2025,8 @@ canvas.addEventListener('pointerdown', (e) => {
         } else {
             canShoot = false; isPutting = false; rollBtn.disabled = false; puttBtn.disabled = false; currentRoll = 0; diceResult.innerText = '-';
             statusText.style.color = '#d9534f'; statusText.innerText = "Choose your shot type to continue.";
-            updateWeatherForStroke(); updateRerollButton();
+            if (currentMode !== 'casual') updateWeatherForStroke();
+            updateRerollButton();
         }
     });
 });
@@ -1964,7 +2046,7 @@ function idleLoop() {
 document.addEventListener('DOMContentLoaded', () => { 
     resetGame(); 
     
-    const CURRENT_VERSION = '2026.7.29';
+    const CURRENT_VERSION = '2026.7.31';
     const lastSeenVersion = localStorage.getItem('paperGolfVersion');
     
     if (lastSeenVersion !== CURRENT_VERSION) {

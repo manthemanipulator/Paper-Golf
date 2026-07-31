@@ -51,6 +51,10 @@
         .mode-dropdown { background-color: var(--input-bg); color: var(--text-color); border: 2px solid var(--border-color); border-radius: 20px; padding: 8px 35px 8px 15px; font-family: monospace; font-size: 16px; font-weight: bold; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.1); appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232c3e50' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e"); background-repeat: no-repeat; background-position: right 12px center; background-size: 16px; transition: all 0.2s ease; }
         .mode-dropdown.random { background-color: #2ecc71; color: white; border-color: #27ae60; background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e"); }
         .mode-dropdown.daily { background-color: #3498db; color: white; border-color: #2980b9; background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e"); }
+        /* Red/danger rather than reusing the Putt button's orange — Pro is the
+           harder, wind-every-stroke mode, and a distinct color keeps it from being
+           visually confused with an existing control. */
+        .mode-dropdown.pro { background-color: #e74c3c; color: white; border-color: #c0392b; background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e"); }
         
         .rules-link { color: var(--accent-color); text-decoration: underline; cursor: pointer; }
         
@@ -145,7 +149,7 @@
         }
 
         /* Flips the custom SVG dropdown arrows to light gray in dark mode */
-        [data-theme="dark"] .mode-dropdown:not(.random):not(.daily),
+        [data-theme="dark"] .mode-dropdown:not(.random):not(.daily):not(.pro),
         [data-theme="dark"] input[type="date"] {
             background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23eeeeee' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
         }

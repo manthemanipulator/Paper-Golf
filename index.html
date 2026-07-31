@@ -35,6 +35,7 @@
                 <option value="casual">Casual</option>
                 <option value="daily">Daily</option>
                 <option value="random">Random</option>
+                <option value="pro">Pro</option>
             </select>
 
             <div style="position: relative;">
@@ -216,6 +217,11 @@
                 <p>Enter 3 initials for the leaderboard:</p>
                 <input type="text" id="initialsInput" maxlength="3" autocomplete="off"><br>
                 <button id="submitScoreBtn">Submit Score</button>
+                <!-- Daily-only, shown immediately on finishing — not gated behind
+                     submitting a score, since sharing with friends and posting to
+                     the public leaderboard are different things and someone might
+                     want one without the other. -->
+                <button id="shareScoreBtn" style="display: none; background-color: #1abc9c; margin-top: 10px;">📤 Share Today's Score</button>
             </div>
             
            <div id="leaderboardSection" class="hidden">
@@ -256,7 +262,6 @@
             
             <h4 style="color: #2c3e50; margin-bottom: 10px;">🚧 The Road Ahead 🚧</h4>
             <ul style="text-align: left; margin-bottom: 20px; font-size: 14px; color: #333; line-height: 1.5; padding-left: 20px;">
-                <li style="margin-bottom: 8px;"><b>🎲 New Mode Coming:</b> A tougher, no-stakes way to play for anyone who wants more of a challenge.</li>
                 <li style="margin-bottom: 8px;"><b>🔮 Future Expansion:</b> Multi-round weekend tournaments and brand new course hazards.</li>
             </ul>
             
@@ -275,7 +280,7 @@
         
         <h3 style="margin: 0 0 12px 0; font-size: 24px;">About</h3>
         <p style="margin: 0 0 12px 0; font-weight: bold; font-size: 18px;">Paper Golf</p>
-        <p style="margin: 0 0 12px 0; font-size: 14px; color: #666;">Version 2026.7.29</p>
+        <p style="margin: 0 0 12px 0; font-size: 14px; color: #666;">Version 2026.7.31</p>
         <div style="margin: 0 0 15px 0; font-size: 14px; color: #333;">
             🌍 <strong>Official Website:</strong> <span style="color: #007aff; font-weight: bold;">papergolf.app</span>
         </div>
@@ -315,13 +320,12 @@
     <div id="whatsNewOverlay" class="overlay" style="display: none; background: rgba(0,0,0,0.5); z-index: 3000;">
         <div class="modal-content" style="text-align: center;">
             <h2 style="margin-top: 0; color: #007aff; font-size: 28px;">App Updated!</h2>
-            <p style="font-size: 16px; color: #333; margin-bottom: 20px;">Welcome to version 2026.7.29 🚀</p>
+            <p style="font-size: 16px; color: #333; margin-bottom: 20px;">Welcome to version 2026.7.31 🚀</p>
 
             <ul style="text-align: left; font-size: 15px; color: #333; margin-bottom: 25px; line-height: 1.6;">
-                <li>🏁 <b>Leaderboard Flags:</b> Scores on the Daily and Random leaderboards now show a country flag next to your initials, based on the same guess used for the online player count.</li>
-                <li>🐛 <b>Birdie/Eagle Math Fixed:</b> Sorry about this one — a bug meant every Eagle was also secretly counting as a Birdie, so your Career Stats could show more birdies + eagles than holes you've actually played. It's fixed now. If your numbers still look off from before, open <b>Stats & Achievements</b> and tap "Birdie/Eagle/Holes counters look wrong? Reset them" at the bottom to zero them out and start fresh.</li>
-                <li>⌨️ <b>Keyboard Controls:</b> Playing on a computer? Hit Space to roll (press it again to reroll) and Ctrl to putt.</li>
-                <li>🌍 <b>Players by Country:</b> Tap the player count in the top corner to see a live breakdown of where everyone online is playing from!</li>
+                <li>📤 <b>Share Your Daily Score:</b> Finish today's round and tap "Share Today's Score" to send a Wordle-style result card to friends — no spoilers, just your score and a hole-by-hole shape of the round.</li>
+                <li>🔴 <b>New Mode — Pro:</b> Want more of a challenge? Pro plays like Casual (no leaderboard pressure, one hole at a time) but the wind shifts every single stroke instead of once per hole. Find it in the mode dropdown.</li>
+                <li>🌬️ <b>Casual Got Calmer:</b> Casual mode's wind now only changes once per hole instead of every stroke, for a more relaxed round. If you liked the old chaos, that's now Pro mode.</li>
             </ul>
 
             <button onclick="document.getElementById('whatsNewOverlay').style.display='none'; checkTutorial();" style="width: 100%; font-size: 18px;">Let's Golf!</button>
