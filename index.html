@@ -52,6 +52,7 @@
                     <div onclick="toggleMenu(false); toggleRules(true);" style="padding: 15px; font-size: 16px; color: var(--text-color); font-weight: bold; border-bottom: 1px solid var(--border-color); cursor: pointer;">📜 Rules</div>
                     <div onclick="toggleMenu(false); toggleStats(true);" style="padding: 15px; font-size: 16px; color: var(--text-color); font-weight: bold; border-bottom: 1px solid var(--border-color); cursor: pointer;">🏆 Stats & Achievements</div>
                     <div onclick="toggleMenu(false); toggleOffline(true);" style="padding: 15px; font-size: 16px; color: var(--text-color); font-weight: bold; border-bottom: 1px solid var(--border-color); cursor: pointer;">📱 Offline Play</div>
+                    <div onclick="toggleMenu(false); togglePoll(true);" style="padding: 15px; font-size: 16px; color: var(--text-color); font-weight: bold; border-bottom: 1px solid var(--border-color); cursor: pointer;">📊 Community Poll</div>
                     <div onclick="toggleMenu(false); toggleRoadmap(true);" style="padding: 15px; font-size: 16px; color: var(--text-color); font-weight: bold; border-bottom: 1px solid var(--border-color); cursor: pointer;">💡 Roadmap / Feedback</div>
                     <div onclick="toggleMenu(false); toggleWhatsNew(true);" style="padding: 15px; font-size: 16px; color: var(--text-color); font-weight: bold; border-bottom: 1px solid var(--border-color); cursor: pointer;">📦 What's New</div>
                     <div onclick="toggleMenu(false); toggleAbout(true);" style="padding: 15px; font-size: 16px; color: var(--text-color); font-weight: bold; cursor: pointer;">ℹ️ About</div>
@@ -134,7 +135,7 @@
             Don't show this automatically
         </label>
         
-        <button onclick="if(document.getElementById('dontShowAgainCheck').checked) { localStorage.setItem('hideTutorial', 'true'); } document.getElementById('tutorialOverlay').style.display='none';" style="width: 100%; font-size: 18px;">Got it!</button>
+        <button onclick="if(document.getElementById('dontShowAgainCheck').checked) { localStorage.setItem('hideTutorial', 'true'); } document.getElementById('tutorialOverlay').style.display='none'; checkPoll();" style="width: 100%; font-size: 18px;">Got it!</button>
     </div>
 </div>
 
@@ -280,7 +281,7 @@
         
         <h3 style="margin: 0 0 12px 0; font-size: 24px;">About</h3>
         <p style="margin: 0 0 12px 0; font-weight: bold; font-size: 18px;">Paper Golf</p>
-        <p style="margin: 0 0 12px 0; font-size: 14px; color: #666;">Version 2026.7.31</p>
+        <p style="margin: 0 0 12px 0; font-size: 14px; color: #666;">Version 2026.8.5</p>
         <div style="margin: 0 0 15px 0; font-size: 14px; color: #333;">
             🌍 <strong>Official Website:</strong> <span style="color: #007aff; font-weight: bold;">papergolf.app</span>
         </div>
@@ -329,6 +330,26 @@
             </ul>
 
             <button onclick="document.getElementById('whatsNewOverlay').style.display='none'; checkTutorial();" style="width: 100%; font-size: 18px;">Let's Golf!</button>
+        </div>
+    </div>
+
+    <div id="pollOverlay" class="overlay" style="display: none; background: rgba(0,0,0,0.5); z-index: 3000;">
+        <div class="modal-content" style="width: 100%; max-width: 360px; text-align: center; padding: 20px 15px;">
+            <h2 style="margin: 0 0 15px 0; color: #2c3e50; font-size: 22px;">📊 Community Poll</h2>
+            <p id="pollQuestion" style="font-size: 15px; color: #333; text-align: left; line-height: 1.5; margin-bottom: 20px;"></p>
+
+            <div id="pollOptions" style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 15px;"></div>
+
+            <div id="pollResults" class="hidden" style="text-align: left; margin-bottom: 15px;"></div>
+
+            <p id="pollClosedNote" class="hidden" style="font-size: 12px; color: #999; margin-bottom: 15px;">This poll has closed — thanks to everyone who voted!</p>
+
+            <button onclick="togglePoll(false)" style="display: block; margin: 0 auto; width: 100%; max-width: 250px; font-size: 16px; padding: 12px;">Close</button>
+
+            <div id="pollCountryBreakdown" class="hidden" style="margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--border-color);">
+                <p style="font-size: 12px; color: #999; margin-bottom: 8px; text-align: center;">Votes by country</p>
+                <div id="pollCountryGrid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px 4px; font-size: 13px; color: var(--text-color); text-align: center;"></div>
+            </div>
         </div>
     </div>
 

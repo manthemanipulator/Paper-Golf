@@ -2046,7 +2046,7 @@ function idleLoop() {
 document.addEventListener('DOMContentLoaded', () => { 
     resetGame(); 
     
-    const CURRENT_VERSION = '2026.7.31';
+    const CURRENT_VERSION = '2026.8.5';
     const lastSeenVersion = localStorage.getItem('paperGolfVersion');
     
     if (lastSeenVersion !== CURRENT_VERSION) {
@@ -2077,6 +2077,10 @@ function checkTutorial() {
     const hideTutorial = localStorage.getItem('hideTutorial');
     if (hideTutorial !== 'true') {
         document.getElementById('tutorialOverlay').style.display = 'flex';
+        // checkPoll() runs from the tutorial's own "Got it!" button in this case,
+        // so the poll never pops up stacked on top of the tutorial.
+    } else {
+        checkPoll();
     }
 }
 
@@ -2105,6 +2109,201 @@ function toggleRoadmap(show) { document.getElementById('roadmapOverlay').style.d
 function toggleAbout(show) { document.getElementById('aboutOverlay').style.display = show ? "flex" : "none"; }
 function toggleWhatsNew(show) { document.getElementById('whatsNewOverlay').style.display = show ? "flex" : "none"; }
 function toggleCountryBreakdown(show) { document.getElementById('countryOverlay').style.display = show ? "flex" : "none"; }
+
+// ==========================================
+// COMMUNITY POLL
+// Hardcoded here (and mirrored in functions/index.js so the Discord daily recap
+// can label the tally) — no CMS, launching a new poll is just editing this object
+// and pushing, same as everything else in this app. Bump `id` any time the
+// question changes: that's what makes returning players see the auto-popup again,
+// and it keeps a new question's votes from mixing with an old question's tally.
+// ==========================================
+const CURRENT_POLL = {
+    id: 'clubs_2026_08',
+    question: "Right now every shot uses one dice roll. We're considering adding club types (Driver, Iron, Wedge) so you can control shot distance instead — but it'd change how scoring and difficulty feel. Interested?",
+    options: [
+        { id: 'keep', label: '⛳ Keep it simple as-is' },
+        { id: 'clubs', label: "🏌️ Yes, I'd try clubs" },
+        { id: 'neutral', label: '🤷 No strong opinion either way' }
+    ],
+    // ISO string (e.g. '2026-08-15T00:00:00') to auto-close voting on a date, or
+    // null to leave it open until it's replaced with a new poll.
+    expiresAt: null
+};
+
+function isPollExpired() {
+    return !!(CURRENT_POLL.expiresAt && new Date() > new Date(CURRENT_POLL.expiresAt));
+}
+
+function getMyPollVote() {
+    return localStorage.getItem('paperGolf_pollVote_' + CURRENT_POLL.id);
+}
+
+function togglePoll(show) {
+    document.getElementById('pollOverlay').style.display = show ? 'flex' : 'none';
+    if (show) renderPoll();
+}
+
+// Auto-popup, once per poll — same "have they seen this yet" pattern the What's
+// New modal already uses, just keyed to the poll's own id instead of the app
+// version so a new poll can go out without needing a version bump.
+function checkPoll() {
+    const lastSeenPoll = localStorage.getItem('paperGolf_lastSeenPoll');
+    if (lastSeenPoll !== CURRENT_POLL.id) {
+        localStorage.setItem('paperGolf_lastSeenPoll', CURRENT_POLL.id);
+        togglePoll(true);
+    }
+}
+
+function renderPoll() {
+    document.getElementById('pollQuestion').textContent = CURRENT_POLL.question;
+    document.getElementById('pollClosedNote').classList.toggle('hidden', !isPollExpired());
+
+    const myVote = getMyPollVote();
+    // Once it's closed, everyone sees results regardless of whether they voted —
+    // no more bandwagon risk once voting itself is over.
+    if (myVote || isPollExpired()) {
+        renderPollResults(myVote);
+    } else {
+        renderPollOptions();
+    }
+}
+
+function renderPollOptions() {
+    document.getElementById('pollResults').classList.add('hidden');
+    const container = document.getElementById('pollOptions');
+    container.classList.remove('hidden');
+    container.innerHTML = '';
+    CURRENT_POLL.options.forEach((opt) => {
+        const btn = document.createElement('button');
+        btn.textContent = opt.label;
+        btn.style.width = '100%';
+        // The actual bug: .overlay button in style.css caps every button at
+        // max-width: 300px, and this modal is 360px wide. width:100% was being
+        // capped down to 300px, leaving the button narrower than its container
+        // and anchored to the left of that leftover space — nothing to do with
+        // how the label text inside it was aligned, which is why the last two
+        // fixes did nothing. Overriding max-width here is the actual fix.
+        btn.style.maxWidth = 'none';
+        btn.style.boxSizing = 'border-box';
+        btn.style.display = 'flex';
+        btn.style.alignItems = 'center';
+        btn.style.justifyContent = 'center';
+        btn.style.textAlign = 'center';
+        // Outlined "ghost" style for the choices themselves — solid accent color
+        // on 3-4 stacked buttons (plus the solid Close button below) reads as one
+        // undifferentiated wall of blue. Keeping Close solid and these outlined
+        // gives the eye a clear "these are choices, that's the exit" hierarchy.
+        btn.style.background = 'transparent';
+        btn.style.color = 'var(--accent-color)';
+        btn.style.border = '2px solid var(--accent-color)';
+        // .overlay button also sets margin-bottom: 15px, which would stack with
+        // this container's own 10px flex gap and make the spacing uneven/larger
+        // than intended between options.
+        btn.style.marginBottom = '0';
+        btn.onclick = () => castPollVote(opt.id);
+        container.appendChild(btn);
+    });
+}
+
+function castPollVote(optionId) {
+    // Recorded locally right away so the UI flips to results immediately —
+    // matches every other "have they already done this" gate in the app
+    // (localStorage, not account-tied). This is feedback, not a competitive
+    // leaderboard, so this lighter-touch guard is proportionate to the stakes.
+    localStorage.setItem('paperGolf_pollVote_' + CURRENT_POLL.id, optionId);
+
+    // Same authReady gate every other authenticated RTDB write in this file
+    // uses — writing before sign-in resolves would get silently rejected by the
+    // rules requiring auth != null.
+    authReady.then(() => {
+        // Same self-guessed country used for online_users/country_holes/the
+        // leaderboard flag — written as a parallel counter alongside the vote
+        // tally (mirrors daily_holes/country_holes) rather than nesting it
+        // into poll_votes, so the existing tally logic doesn't need to change.
+        const updates = {};
+        updates[`poll_votes/${CURRENT_POLL.id}/${optionId}`] = firebase.database.ServerValue.increment(1);
+        updates[`poll_votes_by_country/${CURRENT_POLL.id}/${optionId}/${myCountryGuess}`] = firebase.database.ServerValue.increment(1);
+        rtdb.ref().update(updates)
+            .catch((error) => console.error('Poll vote failed to save:', error));
+    });
+
+    renderPollResults(optionId);
+}
+
+function renderPollResults(myVote) {
+    document.getElementById('pollOptions').classList.add('hidden');
+    const resultsEl = document.getElementById('pollResults');
+    resultsEl.classList.remove('hidden');
+    resultsEl.innerHTML = '<p style="text-align:center; color: var(--text-color);">Loading results...</p>';
+
+    Promise.all([
+        rtdb.ref(`poll_votes/${CURRENT_POLL.id}`).once('value'),
+        rtdb.ref(`poll_votes_by_country/${CURRENT_POLL.id}`).once('value')
+    ]).then(([snap, countrySnap]) => {
+        const counts = snap.val() || {};
+        const total = CURRENT_POLL.options.reduce((sum, opt) => sum + (counts[opt.id] || 0), 0);
+
+        resultsEl.innerHTML = '';
+        CURRENT_POLL.options.forEach((opt) => {
+            const count = counts[opt.id] || 0;
+            const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+            const isMine = opt.id === myVote;
+
+            const row = document.createElement('div');
+            row.style.marginBottom = '12px';
+            row.innerHTML = `
+                <div style="display:flex; justify-content:space-between; font-size:14px; margin-bottom:4px; color: var(--text-color); font-weight: ${isMine ? 'bold' : 'normal'};">
+                    <span>${opt.label}${isMine ? ' ✅' : ''}</span>
+                    <span>${pct}% (${count})</span>
+                </div>
+                <div style="background: var(--border-color); border-radius: 6px; height: 10px; overflow: hidden;">
+                    <div style="background: var(--accent-color); height: 100%; width: ${pct}%;"></div>
+                </div>
+            `;
+            resultsEl.appendChild(row);
+        });
+
+        if (total === 0) {
+            resultsEl.innerHTML += '<p style="text-align:center; font-size: 13px; color: #999;">Be the first to vote!</p>';
+        }
+
+        renderPollCountryBreakdown(countrySnap.val() || {});
+    }).catch((error) => {
+        console.error('Failed to load poll results:', error);
+        resultsEl.innerHTML = '<p style="text-align:center; color: var(--text-color);">Could not load results — try again later.</p>';
+    });
+}
+
+// Compact grid below the Close button — summed across every option (not
+// split per-option, same reasoning as the Discord recap breakdown) so this
+// stays a fixed handful of columns wide and just grows downward a row at a
+// time as more countries vote, instead of the modal getting taller per
+// option the way a full per-option breakdown would.
+function renderPollCountryBreakdown(byOption) {
+    const totals = {};
+    Object.values(byOption).forEach((countries) => {
+        Object.entries(countries).forEach(([code, count]) => {
+            if (typeof count === 'number' && count > 0) {
+                totals[code] = (totals[code] || 0) + count;
+            }
+        });
+    });
+
+    const container = document.getElementById('pollCountryBreakdown');
+    const grid = document.getElementById('pollCountryGrid');
+    const entries = Object.entries(totals).sort((a, b) => b[1] - a[1]);
+
+    if (entries.length === 0) {
+        container.classList.add('hidden');
+        return;
+    }
+
+    grid.innerHTML = entries
+        .map(([code, count]) => `<div>${countryCodeToFlag(code)} ${count}</div>`)
+        .join('');
+    container.classList.remove('hidden');
+}
 
 let latestCountryTally = {};
 function renderCountryBreakdown(countryTally) {

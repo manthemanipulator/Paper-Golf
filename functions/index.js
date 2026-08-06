@@ -19,6 +19,19 @@ const db = getFirestore();
 
 const VALID_MODES = ['daily', 'random'];
 
+// Mirrors the CURRENT_POLL object in script.js — kept in sync manually, same
+// duplication tradeoff as countryCodeToFlag() below. Only `id` and each option's
+// `id`/`label` are needed here (just enough to label the Discord tally); this
+// doesn't need the question text or expiresAt.
+const CURRENT_POLL = {
+    id: 'clubs_2026_08',
+    options: [
+        { id: 'keep', label: '⛳ Keep it simple as-is' },
+        { id: 'clubs', label: "🏌️ Yes, I'd try clubs" },
+        { id: 'neutral', label: '🤷 No strong opinion either way' }
+    ]
+};
+
 // Server-authoritative date helpers — never trust a raw date/monthYear string from
 // the client, or anyone could submit a score into any day's or month's bucket they
 // want. We DO accept a client-reported IANA timezone (e.g. "America/Los_Angeles") so
@@ -262,12 +275,14 @@ exports.dailyRecapToDiscord = functionsV1.pubsub
             const todayPTUnderscored = todayPT.replace(/-/g, '_');
             const rtdb = getDatabase();
 
-            const [todaySnap, lifetimeSnap, todayHolesSnap, lifetimeHolesSnap, countryHolesSnap] = await Promise.all([
+            const [todaySnap, lifetimeSnap, todayHolesSnap, lifetimeHolesSnap, countryHolesSnap, pollVotesSnap, pollVotesByCountrySnap] = await Promise.all([
                 rtdb.ref(`daily_stats/${todayPT}`).once('value'),
                 rtdb.ref('lifetime_stats').once('value'),
                 rtdb.ref(`paperGolf_stats/daily_holes/${todayPTUnderscored}`).once('value'),
                 rtdb.ref('paperGolf_stats/global_lifetime_holes').once('value'),
-                rtdb.ref(`country_holes/${todayPTUnderscored}`).once('value')
+                rtdb.ref(`country_holes/${todayPTUnderscored}`).once('value'),
+                rtdb.ref(`poll_votes/${CURRENT_POLL.id}`).once('value'),
+                rtdb.ref(`poll_votes_by_country/${CURRENT_POLL.id}`).once('value')
             ]);
 
             // Both round-count nodes have one child per mode (casual/daily/random) —
@@ -312,6 +327,43 @@ exports.dailyRecapToDiscord = functionsV1.pubsub
                     .join('\n')
                 : '_No holes played yet today_';
 
+            // Current community poll tally, if any votes exist yet. Reads whatever
+            // CURRENT_POLL points at above — bump that id here (and in script.js)
+            // together whenever a new poll goes out.
+            const pollCounts = pollVotesSnap.val() || {};
+            const pollTotal = CURRENT_POLL.options.reduce((sum, opt) => sum + (pollCounts[opt.id] || 0), 0);
+            const pollBreakdownText = pollTotal > 0
+                ? CURRENT_POLL.options
+                    .map((opt) => {
+                        const count = pollCounts[opt.id] || 0;
+                        const pct = Math.round((count / pollTotal) * 100);
+                        return `${opt.label}: **${count}** (${pct}%)`;
+                    })
+                    .join('\n')
+                : '_No votes yet_';
+
+            // Poll votes by country — summed across every option rather than
+            // split per-option (that'd multiply the row count by 3 and risk
+            // Discord's per-field length limit). Same top-8-by-count cap and
+            // flag/code/count format as Holes By Country above, for the same
+            // reason. No screen real estate to show this in-app, so the recap
+            // is the only place voters-by-country shows up.
+            const pollCountryTotals = {};
+            pollVotesByCountrySnap.forEach(optionSnap => {
+                optionSnap.forEach(countrySnap => {
+                    const val = countrySnap.val();
+                    if (typeof val === 'number' && val > 0) {
+                        pollCountryTotals[countrySnap.key] = (pollCountryTotals[countrySnap.key] || 0) + val;
+                    }
+                });
+            });
+            const pollCountryEntries = Object.entries(pollCountryTotals).sort((a, b) => b[1] - a[1]);
+            const pollCountryBreakdownText = pollCountryEntries.length > 0
+                ? pollCountryEntries.slice(0, 8)
+                    .map(([code, count]) => `${countryCodeToFlag(code)} ${code === 'XX' ? 'Unknown' : code}: **${count}**`)
+                    .join('\n')
+                : '_No votes yet_';
+
             // Build the Recap Card
             const discordPayload = {
                 embeds: [{
@@ -325,7 +377,11 @@ exports.dailyRecapToDiscord = functionsV1.pubsub
                         { name: "🌎 Lifetime Rounds", value: `**${lifetimeRounds}**`, inline: true },
                         { name: "♾️ Lifetime Holes", value: `**${lifetimeHoles}**`, inline: true },
                         { name: "​", value: "​", inline: false }, // Blank line spacer
-                        { name: "🗺️ Holes By Country Today", value: countryBreakdownText, inline: false }
+                        { name: "🗺️ Holes By Country Today", value: countryBreakdownText, inline: false },
+                        { name: "​", value: "​", inline: false }, // Blank line spacer
+                        { name: "📊 Community Poll So Far", value: pollBreakdownText, inline: false },
+                        { name: "​", value: "​", inline: false }, // Blank line spacer
+                        { name: "🗳️ Poll Votes By Country", value: pollCountryBreakdownText, inline: false }
                     ],
                     timestamp: new Date().toISOString(),
                     footer: { text: "Paper Golf Analytics" }
