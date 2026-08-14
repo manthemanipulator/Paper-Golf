@@ -1,6 +1,24 @@
 # Paper Golf — What's New
 
-It's been a while since this page was updated, so here's everything that's changed since the last itch.io build. Short version: it's faster, fairer, and a lot harder to break.
+It's been a while since this page was updated, so here's everything that's changed since the last itch.io build. Short version: it's faster, fairer, more social, and a lot harder to break.
+
+## 📊 Community Poll
+
+- There's now a Community Poll right in the menu — no Discord required. Vote once per device and see live results update in real time, including a quick breakdown of who's voting from where.
+- First question up: should the game stay as simple as it is, or would you want a bigger change like club types (Driver, Iron, Wedge) for more control over shot distance? Nothing's decided — we're listening before we build.
+
+## 🔴 New Mode: Pro
+
+- Pro plays like Casual — one hole at a time, no leaderboard, no pressure — but the wind shifts on every single stroke instead of once per hole. Find it in the mode dropdown, marked in red.
+- Casual got calmer to make room for Pro: wind now only changes once per hole for a more relaxed round.
+
+## 📤 Share Your Daily Score
+
+- Finish today's Daily round and share a Wordle-style result card with friends — your final score plus a hole-by-hole emoji shape of the round. No spoilers, just enough to brag or compare notes.
+
+## 🌍 Country Flags
+
+- Leaderboard entries and the live Discord score feed now show a flag next to each player, based on a rough guess from your device's regional settings.
 
 ## ☁️ Cloud Sync & Secure Leaderboards
 
@@ -22,6 +40,7 @@ It's been a while since this page was updated, so here's everything that's chang
 
 ## 🐛 Bug Fixes
 
+- Tightened up leaderboard score validation to keep things fair for everyone.
 - Fixed a crash that could stop achievements from unlocking properly after finishing a round.
 - Fixed the leaderboard occasionally showing stale data after repeated opens.
 - Fixed the app sometimes serving an outdated version of itself after an update — it should now always load the newest build on your next visit instead of needing a second reload.

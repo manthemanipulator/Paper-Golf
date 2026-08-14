@@ -253,7 +253,7 @@
         <button onclick="window.location.reload(true)">Reload</button>
     </div>
 
-    <div id="dailyPulseToast" style="display: none; position: fixed; top: -100px; left: 50%; transform: translateX(-50%); background-color: #34495e; color: white; padding: 12px 24px; border-radius: 30px; font-family: monospace; font-size: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.4); z-index: 4000; transition: top 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275); text-align: center; white-space: nowrap;">
+    <div id="dailyPulseToast" style="display: none; position: fixed; top: -100px; left: 50%; transform: translateX(-50%); background-color: #34495e; color: white; padding: 12px 24px; border-radius: 30px; font-family: monospace; font-size: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.4); z-index: 4000; transition: top 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275); text-align: center; white-space: nowrap; pointer-events: none;">
         🌍 <span id="dailyPulseText" style="font-weight: bold; color: #ff9500;">...</span> holes played today!
     </div>
 
@@ -281,7 +281,7 @@
         
         <h3 style="margin: 0 0 12px 0; font-size: 24px;">About</h3>
         <p style="margin: 0 0 12px 0; font-weight: bold; font-size: 18px;">Paper Golf</p>
-        <p style="margin: 0 0 12px 0; font-size: 14px; color: #666;">Version 2026.8.5</p>
+        <p style="margin: 0 0 12px 0; font-size: 14px; color: #666;">Version 2026.8.13</p>
         <div style="margin: 0 0 15px 0; font-size: 14px; color: #333;">
             🌍 <strong>Official Website:</strong> <span style="color: #007aff; font-weight: bold;">papergolf.app</span>
         </div>
@@ -321,13 +321,11 @@
     <div id="whatsNewOverlay" class="overlay" style="display: none; background: rgba(0,0,0,0.5); z-index: 3000;">
         <div class="modal-content" style="text-align: center;">
             <h2 style="margin-top: 0; color: #007aff; font-size: 28px;">App Updated!</h2>
-            <p style="font-size: 16px; color: #333; margin-bottom: 20px;">Welcome to version 2026.8.5 🚀</p>
+            <p style="font-size: 16px; color: #333; margin-bottom: 20px;">Welcome to version 2026.8.13 🚀</p>
 
             <ul style="text-align: left; font-size: 15px; color: #333; margin-bottom: 25px; line-height: 1.6;">
-                <li>📤 <b>Share Your Daily Score:</b> Finish today's round and tap "Share Today's Score" to send a Wordle-style result card to friends — no spoilers, just your score and a hole-by-hole shape of the round.</li>
-                <li>🔴 <b>New Mode — Pro:</b> Want more of a challenge? Pro plays like Casual (no leaderboard pressure, one hole at a time) but the wind shifts every single stroke instead of once per hole. Find it in the mode dropdown.</li>
-                <li>🌬️ <b>Casual Got Calmer:</b> Casual mode's wind now only changes once per hole instead of every stroke, for a more relaxed round. If you liked the old chaos, that's now Pro mode.</li>
                 <li>📊 <b>Community Poll:</b> Got an opinion on the future of the game? Check the menu for a new Community Poll — vote and see live results right in the app.</li>
+                <li>🎯 <b>Remembers Your Mode:</b> The mode picker now remembers what you last played, so you don't have to reselect Casual, Daily, Random, or Pro every time you open the app.</li>
             </ul>
 
             <button onclick="document.getElementById('whatsNewOverlay').style.display='none'; checkTutorial();" style="width: 100%; font-size: 18px;">Let's Golf!</button>

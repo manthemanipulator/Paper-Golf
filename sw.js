@@ -1,6 +1,6 @@
 // Bump this on every deploy that changes cached files — it's what forces old
 // caches to get cleaned out below instead of lingering around forever.
-const CACHE_NAME = 'paper-golf-v2026.8.5';
+const CACHE_NAME = 'paper-golf-v2026.8.13';
 const urlsToCache = [
     './',
     './index.html'

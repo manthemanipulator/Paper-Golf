@@ -168,8 +168,26 @@ modeSelect.addEventListener('change', (e) => {
     else if (currentMode === 'random') modeSelect.className = "mode-dropdown random";
     else if (currentMode === 'daily') modeSelect.className = "mode-dropdown daily";
     else if (currentMode === 'pro') modeSelect.className = "mode-dropdown pro";
+    // Remembered across visits so the mode picker doesn't reset to Casual
+    // every time the page loads — restored below, right before the first
+    // resetGame() call.
+    localStorage.setItem('paperGolfLastMode', currentMode);
     resetGame();
 });
+
+// Restore whatever mode was last selected, instead of always starting on
+// Casual. Applied directly (not through the change handler) so it doesn't
+// re-write the localStorage value it just read, and so it runs once before
+// the first resetGame() call on page load.
+const savedMode = localStorage.getItem('paperGolfLastMode');
+if (savedMode && ['casual', 'daily', 'random', 'pro'].includes(savedMode)) {
+    currentMode = savedMode;
+    modeSelect.value = savedMode;
+    if (savedMode === 'casual') modeSelect.className = "mode-dropdown";
+    else if (savedMode === 'random') modeSelect.className = "mode-dropdown random";
+    else if (savedMode === 'daily') modeSelect.className = "mode-dropdown daily";
+    else if (savedMode === 'pro') modeSelect.className = "mode-dropdown pro";
+}
 
 function resetGame() {
     currentHole = 1;
@@ -718,11 +736,15 @@ function triggerDailyPulseToast(dailyHoleCount) {
     const toast = document.getElementById('dailyPulseToast');
     document.getElementById('dailyPulseText').innerText = formatLargeNumber(dailyHoleCount);
     toast.style.display = 'block';
+    // Kept at its original position over the nav bar (also has pointer-events:
+    // none, so it never actually blocks clicks on the mode dropdown), but the
+    // dwell time is cut way down — from ~3.8s to ~1.1s visible — since it's
+    // just a passing notice and doesn't need to linger.
     setTimeout(() => { toast.style.top = '30px'; }, 100);
-    setTimeout(() => { 
-        toast.style.top = '-100px'; 
-        setTimeout(() => { toast.style.display = 'none'; }, 600); 
-    }, 4500);
+    setTimeout(() => {
+        toast.style.top = '-100px';
+        setTimeout(() => { toast.style.display = 'none'; }, 600);
+    }, 1800);
 }
 
 function incrementLocalHoles() {
@@ -2046,7 +2068,7 @@ function idleLoop() {
 document.addEventListener('DOMContentLoaded', () => { 
     resetGame(); 
     
-    const CURRENT_VERSION = '2026.8.5';
+    const CURRENT_VERSION = '2026.8.13';
     const lastSeenVersion = localStorage.getItem('paperGolfVersion');
     
     if (lastSeenVersion !== CURRENT_VERSION) {
