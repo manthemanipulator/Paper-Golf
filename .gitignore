@@ -7,3 +7,9 @@ node_modules/
 
 # Ignore Mac system trash
 .DS_Store
+
+# Local firebase CLI debug output
+firebase-debug.log
+
+# itch.io upload zips — built for manual upload, never needed in git
+*.zip
