@@ -443,6 +443,7 @@ appCheckReady.then(() => {
         const now = Date.now();
         let count = 0;
         const countryTally = {};
+        const staleSessionIds = [];
         snap.forEach(child => {
             const val = child.val();
             const ts = val && typeof val === 'object' ? val.ts : val; // old-format ghosts may just be a bare number/true
@@ -450,6 +451,8 @@ appCheckReady.then(() => {
                 count++;
                 const country = (val && typeof val === 'object' && val.country) || 'XX';
                 countryTally[country] = (countryTally[country] || 0) + 1;
+            } else {
+                staleSessionIds.push(child.key);
             }
         });
         const countDisplay = document.getElementById('playerCount');
@@ -459,6 +462,22 @@ appCheckReady.then(() => {
             setTimeout(() => countDisplay.style.opacity = '1', 150);
         }
         renderCountryBreakdown(countryTally);
+
+        // Opportunistic ghost cleanup — actually deletes stale entries from the
+        // DB instead of just hiding them from the count above, so anything
+        // reading the raw node directly (Firebase console, external dashboards)
+        // sees an accurate number too. Any connected, signed-in client can do
+        // this for any session, not just its own — the write rule already
+        // allows that — so cleanup happens the moment anyone has the app open,
+        // no scheduled function needed. Gated on authReady since this is a
+        // write and needs sign-in to have resolved first.
+        if (staleSessionIds.length > 0) {
+            authReady.then(() => {
+                const updates = {};
+                staleSessionIds.forEach(id => { updates[`online_users/${id}`] = null; });
+                rtdb.ref().update(updates).catch((error) => console.error('Ghost cleanup failed:', error));
+            });
+        }
     });
 });
 db.enablePersistence().catch((err) => console.log("Offline mode failed: ", err.code));
