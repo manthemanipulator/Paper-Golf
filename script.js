@@ -2087,7 +2087,7 @@ function idleLoop() {
 document.addEventListener('DOMContentLoaded', () => { 
     resetGame(); 
     
-    const CURRENT_VERSION = '2026.8.13';
+    const CURRENT_VERSION = '2026.9.17';
     const lastSeenVersion = localStorage.getItem('paperGolfVersion');
     
     if (lastSeenVersion !== CURRENT_VERSION) {
@@ -2168,8 +2168,11 @@ const CURRENT_POLL = {
         { id: 'neutral', label: '🤷 No strong opinion either way' }
     ],
     // ISO string (e.g. '2026-08-15T00:00:00') to auto-close voting on a date, or
-    // null to leave it open until it's replaced with a new poll.
-    expiresAt: null
+    // null to leave it open until it's replaced with a new poll. Set to today
+    // (2026.9.17) to close this poll — isPollExpired() then forces the results
+    // view for everyone (voters and non-voters alike) instead of the vote
+    // buttons, and shows pollClosedNote below.
+    expiresAt: '2026-09-17T00:00:00'
 };
 
 function isPollExpired() {
