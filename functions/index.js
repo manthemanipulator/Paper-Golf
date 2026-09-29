@@ -155,14 +155,25 @@ exports.submitScore = onCall(async (request) => {
     // spent — see the ROUND SESSIONS block above for why this exists. Checked
     // before the leaderboard transaction so a rejected submission never
     // touches the leaderboard at all.
+    // 'invalid-argument' on purpose for these two — a queued offline score with
+    // no token (or one belonging to a different player/mode) will NEVER become
+    // submittable no matter how many times it's retried, same category as a
+    // malformed score/initials/mode above. The client's offline-score retry
+    // logic already treats 'invalid-argument' as "permanently rejected, drop
+    // it" — using that same code here means a round played with zero
+    // connectivity throughout gets cleanly dropped from the retry queue
+    // instead of silently retrying forever. The timing check below is
+    // different — a genuine round that's briefly rejected for arriving too
+    // fast CAN succeed on retry once more real time has passed — so it stays
+    // 'failed-precondition', which the client already keeps retrying.
     if (typeof roundToken !== 'string' || !roundToken) {
-        throw new HttpsError('failed-precondition', 'No round session found — play a full round before submitting.');
+        throw new HttpsError('invalid-argument', 'No round session found — play a full round before submitting.');
     }
     const roundRef = getDatabase().ref(`roundSessions/${roundToken}`);
     const roundSnap = await roundRef.once('value');
     const roundData = roundSnap.val();
     if (!roundData || roundData.uid !== uid || roundData.mode !== mode) {
-        throw new HttpsError('failed-precondition', 'Invalid round session.');
+        throw new HttpsError('invalid-argument', 'Invalid round session.');
     }
     if (Date.now() - roundData.startedAt < MIN_ROUND_DURATION_MS) {
         throw new HttpsError('failed-precondition', 'Round submitted too quickly to be genuine.');

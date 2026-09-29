@@ -2173,6 +2173,27 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
+// Visual cue so an offline player sees the Submit Score button as offline
+// rather than wondering why nothing seems to happen when they tap it. Still
+// fully clickable while offline — saveScoreToCloud() already queues it for
+// later sync, this doesn't change that — it's purely a "here's why" signal.
+function updateSubmitButtonForConnectivity() {
+    const btn = document.getElementById('submitScoreBtn');
+    if (!btn) return;
+    if (navigator.onLine) {
+        btn.textContent = 'Submit Score';
+        btn.style.opacity = '1';
+        btn.style.filter = 'none';
+    } else {
+        btn.textContent = 'Submit Score (Offline — saves for later)';
+        btn.style.opacity = '0.6';
+        btn.style.filter = 'grayscale(60%)';
+    }
+}
+updateSubmitButtonForConnectivity();
+window.addEventListener('online', updateSubmitButtonForConnectivity);
+window.addEventListener('offline', updateSubmitButtonForConnectivity);
+
 syncOfflineHolesToDatabase();
 syncOfflineScoresToCloud();
 syncPendingRoundStats();
