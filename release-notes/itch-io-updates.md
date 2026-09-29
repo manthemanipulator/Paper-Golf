@@ -1,11 +1,21 @@
 # Paper Golf — What's New
 
-It's been a while since this page was updated, so here's everything that's changed since the last itch.io build. Short version: it's faster, fairer, more social, and a lot harder to break.
+It's been a while since this page was updated, so here's everything that's changed since the last itch.io build. Short version: it's faster, fairer, more social, more secure, and a lot harder to break.
+
+## 🛡️ Leaderboard Security
+
+- Shipped a round of behind-the-scenes fixes to keep the leaderboards fair and accurate for everyone — nothing changes about how you play, just tighter protection so the scores you see are the real ones.
+- Added a visual indicator on the Submit Score button when you're offline, so it's clear your score is saved and just waiting to sync — not lost.
+
+## 🎯 Quality of Life
+
+- The mode picker now remembers what you last played — Casual, Daily, Random, or Pro — so you don't have to reselect it every time you open the app.
+- The community pulse popup that shows on launch now clears the screen a lot faster, so it's out of your way sooner.
 
 ## 📊 Community Poll
 
 - There's now a Community Poll right in the menu — no Discord required. Vote once per device and see live results update in real time, including a quick breakdown of who's voting from where.
-- First question up: should the game stay as simple as it is, or would you want a bigger change like club types (Driver, Iron, Wedge) for more control over shot distance? Nothing's decided — we're listening before we build.
+- First question up: should the game stay as simple as it is, or would you want a bigger change like club types (Driver, Iron, Wedge) for more control over shot distance? Voting has since closed — thanks to everyone who weighed in. Based on the results, club types are in the works for **Pro Mode** specifically; Casual, Daily, and Random stay exactly as they are.
 
 ## 🔴 New Mode: Pro
 
