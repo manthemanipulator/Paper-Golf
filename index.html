@@ -40,8 +40,8 @@
             
             <select id="modeSelect" class="mode-dropdown">
                 <option value="casual">Casual</option>
-                <option value="daily">Daily</option>
-                <option value="random">Random</option>
+                <option value="daily" disabled>Daily (Paused)</option>
+                <option value="random" disabled>Random (Paused)</option>
                 <option value="pro">Pro</option>
             </select>
 
@@ -288,7 +288,7 @@
         
         <h3 style="margin: 0 0 12px 0; font-size: 24px;">About</h3>
         <p style="margin: 0 0 12px 0; font-weight: bold; font-size: 18px;">Paper Golf</p>
-        <p style="margin: 0 0 12px 0; font-size: 14px; color: #666;">Version 2026.9.28</p>
+        <p style="margin: 0 0 12px 0; font-size: 14px; color: #666;">Version 2026.9.29</p>
         <div style="margin: 0 0 15px 0; font-size: 14px; color: #333;">
             🌍 <strong>Official Website:</strong> <span style="color: #007aff; font-weight: bold;">papergolf.app</span>
         </div>
@@ -328,13 +328,13 @@
     <div id="whatsNewOverlay" class="overlay" style="display: none; background: rgba(0,0,0,0.5); z-index: 3000;">
         <div class="modal-content" style="text-align: center;">
             <h2 style="margin-top: 0; color: #007aff; font-size: 28px;">App Updated!</h2>
-            <p style="font-size: 16px; color: #333; margin-bottom: 20px;">🛡️ Leaderboard Fixes</p>
+            <p style="font-size: 16px; color: #333; margin-bottom: 20px;">🛡️ Scoring Paused for Daily &amp; Random</p>
 
             <p style="text-align: left; font-size: 15px; color: #333; margin-bottom: 25px; line-height: 1.6;">
-                We shipped some behind-the-scenes improvements to keep the leaderboards fair and accurate for everyone. Nothing changes about how you play — just tighter protection so the scores you see are the real ones.
+                Daily and Random are temporarily unavailable while we work on stronger anti-cheat protections for the leaderboards. Casual and Pro are completely unaffected — jump in and keep playing.
             </p>
             <p style="text-align: left; font-size: 15px; color: #333; margin-bottom: 25px; line-height: 1.6;">
-                As always, check the Roadmap for a peek at what's coming next!
+                We'll turn scoring back on as soon as it's ready. Thanks for your patience — and check the Community Poll while you're here!
             </p>
 
             <button onclick="document.getElementById('whatsNewOverlay').style.display='none'; checkTutorial();" style="width: 100%; font-size: 18px;">Let's Golf!</button>

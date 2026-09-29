@@ -4,8 +4,9 @@ It's been a while since this page was updated, so here's everything that's chang
 
 ## 🛡️ Leaderboard Security
 
-- Shipped a round of behind-the-scenes fixes to keep the leaderboards fair and accurate for everyone — nothing changes about how you play, just tighter protection so the scores you see are the real ones.
+- Shipped a round of behind-the-scenes fixes to keep the leaderboards fair and accurate for everyone.
 - Added a visual indicator on the Submit Score button when you're offline, so it's clear your score is saved and just waiting to sync — not lost.
+- **Daily and Random scoring is temporarily paused** while we build stronger anti-cheat protection — both modes are unavailable in the mode picker for now. Casual and Pro are completely unaffected and remain fully playable. We'll turn scoring back on as soon as the next round of protections is ready.
 
 ## 🎯 Quality of Life
 
@@ -16,6 +17,7 @@ It's been a while since this page was updated, so here's everything that's chang
 
 - There's now a Community Poll right in the menu — no Discord required. Vote once per device and see live results update in real time, including a quick breakdown of who's voting from where.
 - First question up: should the game stay as simple as it is, or would you want a bigger change like club types (Driver, Iron, Wedge) for more control over shot distance? Voting has since closed — thanks to everyone who weighed in. Based on the results, club types are in the works for **Pro Mode** specifically; Casual, Daily, and Random stay exactly as they are.
+- New poll now open: we're exploring building a native app for iOS and Android — let us know if you'd be interested, and what you play on.
 
 ## 🔴 New Mode: Pro
 

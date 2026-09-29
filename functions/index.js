@@ -19,6 +19,26 @@ const db = getFirestore();
 
 const VALID_MODES = ['daily', 'random'];
 
+// ==========================================
+// SCORING PAUSE
+// Daily and Random are the only modes that ever call startRound/submitScore —
+// Casual and Pro are untracked, local-only, and never touch these functions.
+// Flipped on 2026-09-29 after a submission ("HCK", score 54) got past the
+// round-token AND the per-hole plausibility check the same night both shipped:
+// the plausibility check assumed rigged/best-case dice rolls would produce
+// near-identical stroke counts per hole, but that's not actually true — holes
+// differ in required strokes from terrain/hazards alone, independent of roll
+// fairness, so a rigged round can still show real variance and clear that
+// check without any deliberate evasion. Rather than ship another
+// heuristic under pressure, scoring is paused here while a better approach
+// (e.g. comparing against the rest of the day's field, since every Daily
+// player faces the same seeded course) gets designed properly. 'failed-
+// precondition' so any offline-queued Daily/Random score from this window
+// keeps retrying and lands once this flips back, instead of being dropped.
+// ==========================================
+const SCORING_PAUSED = true;
+const SCORING_PAUSED_MESSAGE = 'Daily and Random scoring are temporarily paused while we improve leaderboard protection. Casual and Pro are unaffected — check back soon!';
+
 // Server-authoritative date helpers — never trust a raw date/monthYear string from
 // the client, or anyone could submit a score into any day's or month's bucket they
 // want. We DO accept a client-reported IANA timezone (e.g. "America/Los_Angeles") so
@@ -97,6 +117,9 @@ exports.startRound = onCall(async (request) => {
     if (!request.auth) {
         throw new HttpsError('unauthenticated', 'You must be logged in to start a round.');
     }
+    if (SCORING_PAUSED) {
+        throw new HttpsError('failed-precondition', SCORING_PAUSED_MESSAGE);
+    }
     const { mode } = request.data;
     if (typeof mode !== 'string' || !VALID_MODES.includes(mode)) {
         throw new HttpsError('invalid-argument', 'Invalid game mode.');
@@ -123,6 +146,9 @@ exports.submitScore = onCall(async (request) => {
     // 1. Check for the automatically verified Auth Token
     if (!request.auth) {
         throw new HttpsError('unauthenticated', 'You must be logged in to submit a score.');
+    }
+    if (SCORING_PAUSED) {
+        throw new HttpsError('failed-precondition', SCORING_PAUSED_MESSAGE);
     }
 
     // 2. Extract your payload from request.data (ignore the client's raw date/monthYear/uid

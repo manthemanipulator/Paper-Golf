@@ -186,14 +186,24 @@ modeSelect.addEventListener('change', (e) => {
 // Casual. Applied directly (not through the change handler) so it doesn't
 // re-write the localStorage value it just read, and so it runs once before
 // the first resetGame() call on page load.
+// Daily and Random are temporarily paused (see the matching note in
+// functions/index.js) and their <option> elements are marked disabled — a
+// returning player whose last remembered mode was one of those shouldn't get
+// silently dropped back into a mode they can no longer submit a score from,
+// so fall back to Casual instead until scoring resumes.
+const SCORING_PAUSED_MODES = ['daily', 'random'];
 const savedMode = localStorage.getItem('paperGolfLastMode');
-if (savedMode && ['casual', 'daily', 'random', 'pro'].includes(savedMode)) {
-    currentMode = savedMode;
-    modeSelect.value = savedMode;
-    if (savedMode === 'casual') modeSelect.className = "mode-dropdown";
-    else if (savedMode === 'random') modeSelect.className = "mode-dropdown random";
-    else if (savedMode === 'daily') modeSelect.className = "mode-dropdown daily";
-    else if (savedMode === 'pro') modeSelect.className = "mode-dropdown pro";
+if (savedMode && SCORING_PAUSED_MODES.includes(savedMode)) {
+    localStorage.setItem('paperGolfLastMode', 'casual');
+}
+const effectiveSavedMode = (savedMode && SCORING_PAUSED_MODES.includes(savedMode)) ? 'casual' : savedMode;
+if (effectiveSavedMode && ['casual', 'daily', 'random', 'pro'].includes(effectiveSavedMode)) {
+    currentMode = effectiveSavedMode;
+    modeSelect.value = effectiveSavedMode;
+    if (effectiveSavedMode === 'casual') modeSelect.className = "mode-dropdown";
+    else if (effectiveSavedMode === 'random') modeSelect.className = "mode-dropdown random";
+    else if (effectiveSavedMode === 'daily') modeSelect.className = "mode-dropdown daily";
+    else if (effectiveSavedMode === 'pro') modeSelect.className = "mode-dropdown pro";
 }
 
 function resetGame() {
@@ -2170,7 +2180,7 @@ rtdb.ref('siteStatus/maintenanceMode').once('value').then((snap) => {
 document.addEventListener('DOMContentLoaded', () => {
     resetGame();
 
-    const CURRENT_VERSION = '2026.9.28';
+    const CURRENT_VERSION = '2026.9.29';
     const lastSeenVersion = localStorage.getItem('paperGolfVersion');
     
     if (lastSeenVersion !== CURRENT_VERSION) {
@@ -2264,19 +2274,19 @@ function toggleCountryBreakdown(show) { document.getElementById('countryOverlay'
 // and it keeps a new question's votes from mixing with an old question's tally.
 // ==========================================
 const CURRENT_POLL = {
-    id: 'clubs_2026_08',
-    question: "Right now every shot uses one dice roll. We're considering adding club types (Driver, Iron, Wedge) so you can control shot distance instead — but it'd change how scoring and difficulty feel. Interested?",
+    id: 'native_app_2026_09',
+    question: "We're exploring building a native app (outside the browser) for iOS and Android. Would you be interested, and what do you play on?",
     options: [
-        { id: 'keep', label: '⛳ Keep it simple as-is' },
-        { id: 'clubs', label: "🏌️ Yes, I'd try clubs" },
-        { id: 'neutral', label: '🤷 No strong opinion either way' }
+        { id: 'yes_ios', label: "📱 Yes, I'd want it — I play on iOS" },
+        { id: 'no_ios', label: "🚫 Not interested — I play on iOS" },
+        { id: 'yes_android', label: "🤖 Yes, I'd want it — I play on Android" },
+        { id: 'no_android', label: "🚫 Not interested — I play on Android" }
     ],
     // ISO string (e.g. '2026-08-15T00:00:00') to auto-close voting on a date, or
-    // null to leave it open until it's replaced with a new poll. Set to today
-    // (2026.9.17) to close this poll — isPollExpired() then forces the results
-    // view for everyone (voters and non-voters alike) instead of the vote
-    // buttons, and shows pollClosedNote below.
-    expiresAt: '2026-09-17T00:00:00'
+    // null to leave it open until it's replaced with a new poll. Left open here —
+    // this one's gathering data to inform a real decision, not just a quick
+    // temperature check, so no auto-close date yet.
+    expiresAt: null
 };
 
 function isPollExpired() {
