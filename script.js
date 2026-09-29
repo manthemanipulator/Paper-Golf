@@ -2084,9 +2084,25 @@ function idleLoop() {
     }
 }
 
-document.addEventListener('DOMContentLoaded', () => { 
-    resetGame(); 
-    
+document.addEventListener('DOMContentLoaded', async () => {
+    // Remote kill switch — checked before anything else initializes, so a
+    // maintenance flag flipped in the Firebase Console blocks play instantly
+    // for anyone loading (or reloading) the page, no redeploy needed to turn
+    // it on or off. Added 2026-09-28 in response to a leaderboard exploit —
+    // see submitScore in functions/index.js for the actual fix in progress.
+    // Fails open (game loads normally) if the read itself fails, so a network
+    // hiccup can't permanently soft-lock the app.
+    const maintenanceSnap = await rtdb.ref('siteStatus/maintenanceMode').once('value').catch(() => null);
+    if (maintenanceSnap && maintenanceSnap.val() === true) {
+        const messageSnap = await rtdb.ref('siteStatus/maintenanceMessage').once('value').catch(() => null);
+        const message = (messageSnap && messageSnap.val()) || "We're doing some quick maintenance to keep the leaderboard fair — back shortly. Thanks for your patience!";
+        document.getElementById('maintenanceMessage').textContent = message;
+        document.getElementById('maintenanceOverlay').style.display = 'flex';
+        return; // Nothing else initializes — no game, no listeners, no writes.
+    }
+
+    resetGame();
+
     const CURRENT_VERSION = '2026.9.17';
     const lastSeenVersion = localStorage.getItem('paperGolfVersion');
     
