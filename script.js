@@ -2097,7 +2097,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         const messageSnap = await rtdb.ref('siteStatus/maintenanceMessage').once('value').catch(() => null);
         const message = (messageSnap && messageSnap.val()) || "We're doing some quick maintenance to keep the leaderboard fair — back shortly. Thanks for your patience!";
         document.getElementById('maintenanceMessage').textContent = message;
-        document.getElementById('maintenanceOverlay').style.display = 'flex';
+        const overlay = document.getElementById('maintenanceOverlay');
+        overlay.style.display = 'flex';
+        // Belt-and-suspenders: don't rely on z-index alone to block interaction —
+        // a couple of existing toasts (#updateToast, #achToast) also use z-index
+        // 9999, and a tie goes to whichever is later in the DOM, which could let
+        // clicks reach the game underneath in some state. Disabling pointer
+        // events on the whole page except the overlay itself is bulletproof
+        // against that regardless of any other element's stacking.
+        document.body.style.pointerEvents = 'none';
+        document.body.style.overflow = 'hidden';
+        overlay.style.pointerEvents = 'auto';
         return; // Nothing else initializes — no game, no listeners, no writes.
     }
 
