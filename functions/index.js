@@ -129,7 +129,7 @@ exports.submitScore = onCall(async (request) => {
     //    — those are derived below from the server. `timezone` and `playedAt` are the
     //    exceptions: they're hints used to pick which local-midnight the date gets
     //    bucketed into, not trusted as the date itself — see resolvePlayedAtDate().)
-    const { initials, score, mode, timezone, playedAt, country, roundToken } = request.data;
+    const { initials, score, mode, timezone, playedAt, country, roundToken, holeScores } = request.data;
 
     // 3. Validate the data
     // The literal ace-every-hole minimum is 18 (1 stroke × 18 holes), but that's
@@ -179,6 +179,69 @@ exports.submitScore = onCall(async (request) => {
         throw new HttpsError('failed-precondition', 'Round submitted too quickly to be genuine.');
     }
     await roundRef.remove(); // Single-use — can't be replayed for a second submission.
+
+    // 3c. Plausibility check on the per-hole shape of the round. The round-token
+    // check above proves *a* round of plausible duration happened; it can't tell
+    // a genuinely great round apart from someone rigging Math.random() to always
+    // return the best roll and playing it out for real (reported 2026-09-28,
+    // after the round-token fix shipped). Real rounds vary hole-to-hole because
+    // of terrain, hazards, and wind — a rigged round tends to look suspiciously
+    // uniform. This does NOT block the submission (see note below) — it just logs
+    // and alerts so it can be reviewed by hand, since it's a heuristic, not proof.
+    // Old cached clients that haven't picked up this update yet won't send
+    // holeScores at all — treat that as "nothing to check," not a violation.
+    try {
+        if (Array.isArray(holeScores) && holeScores.length === 18 && holeScores.every(n => Number.isInteger(n) && n >= 1 && n <= 30)) {
+            const sum = holeScores.reduce((a, b) => a + b, 0);
+            const mean = sum / holeScores.length;
+            const variance = holeScores.reduce((a, b) => a + (b - mean) ** 2, 0) / holeScores.length;
+            const stdDev = Math.sqrt(variance);
+
+            // The reported total should always match the reported per-hole detail —
+            // a mismatch means the client sent two numbers that don't agree, which
+            // is itself worth a look regardless of score.
+            const totalMismatch = sum !== score;
+            // Only scrutinize rounds good enough to matter (near the all-time
+            // record of 70) — an ordinary mid-pack round with low variance is far
+            // more likely a coincidence than a cheat, and isn't worth false-flagging.
+            const suspiciouslyUniform = score < 75 && stdDev < 0.75;
+
+            if (totalMismatch || suspiciouslyUniform) {
+                const reason = totalMismatch
+                    ? `reported total (${score}) doesn't match per-hole sum (${sum})`
+                    : `near-zero variance across holes (stdDev ${stdDev.toFixed(2)}) for a score of ${score}`;
+
+                await getDatabase().ref('flaggedRounds').push().set({
+                    uid, initials: initials.toUpperCase(), score, mode, holeScores, reason, flaggedAt: Date.now()
+                });
+
+                const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
+                if (webhookUrl) {
+                    await fetch(webhookUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            embeds: [{
+                                title: '🚩 Suspicious round flagged',
+                                color: 15158332,
+                                fields: [
+                                    { name: 'Player', value: initials.toUpperCase(), inline: true },
+                                    { name: 'Score', value: String(score), inline: true },
+                                    { name: 'Mode', value: mode, inline: true },
+                                    { name: 'Reason', value: reason, inline: false },
+                                    { name: 'Holes', value: holeScores.join(', '), inline: false }
+                                ],
+                                timestamp: new Date().toISOString()
+                            }]
+                        })
+                    });
+                }
+            }
+        }
+    } catch (error) {
+        // Never let the plausibility check itself break a real submission.
+        console.error('Plausibility check failed to run:', error);
+    }
 
     const cleanInitials = initials.toUpperCase();
     // Fall back to UTC for anything malformed/missing rather than rejecting the

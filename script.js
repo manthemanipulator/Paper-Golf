@@ -966,7 +966,15 @@ function saveScoreToCloud(initials, score) {
         // finished travels with the payload even into the offline queue, so a
         // round played and completed online but synced later still carries its
         // real token.
-        roundToken: currentRoundToken
+        roundToken: currentRoundToken,
+        // Per-hole stroke breakdown for this round — the same array already built
+        // for the Daily share card (buildDailyShareText). Lets the server do a
+        // lightweight plausibility check (does the shape of this round look like
+        // real play, or like every hole came back identical) without needing to
+        // replay the course or dice rolls. Only meaningful for daily/random (the
+        // only modes that populate it) — casual/pro leave this empty, which the
+        // server treats as "nothing to check" rather than a red flag.
+        holeScores: [...currentRoundHoleScores]
     };
     // Consumed either way once a round ends — a fresh one is requested the next
     // time resetGame() runs. Prevents an accidental double-send of the same
