@@ -96,6 +96,13 @@ let totalCampaignScore = 0;
 // Daily/Random (the campaign modes), reset every time a new round starts. This
 // is what the Wordle-style share card is built from at the end of a Daily round.
 let currentRoundHoleScores = [];
+// Proof-of-play token for the round currently in progress — requested from the
+// server whenever a Daily/Random round begins (see requestRoundToken()) and
+// sent along with the final score. submitScore rejects anything without a
+// valid, unused, sufficiently-aged token, closing the "call submitScore
+// directly without playing" exploit reported 2026-09-28. null until the
+// server responds, and null again for Casual/Pro (which never submit scores).
+let currentRoundToken = null;
 let dailySeed = 1;
 let currentHole = 1, strokes = 0, mulligans = 6, currentRoll = 0, canShoot = false, isPutting = false, isHoleComplete = false, usedTeeOffReroll = false;
 let currentBallPos = { x: 0, y: 0 }, holePos = { x: 0, y: 0 }, gridData = [], validTargets = [], clickableTargets = [], particles = [], trail = [], leaves = [];
@@ -196,12 +203,41 @@ function resetGame() {
     strokes = 0;
     mulligans = 6;
     isHoleComplete = false;
-    
+    currentRoundToken = null;
+
     document.getElementById('victoryOverlay').style.display = 'none';
     document.getElementById('leaderboardModal').style.display = 'none';
-    
-    generateCourse(); 
+
+    generateCourse();
     updateHUD();
+
+    // Only Daily/Random ever submit a score, so only they need a token. Fired
+    // here — the single place a new round of any kind begins (mode switch,
+    // initial load, Play Again) — rather than duplicated at each call site.
+    if (currentMode === 'daily' || currentMode === 'random') {
+        requestRoundToken();
+    }
+}
+
+function requestRoundToken() {
+    // Snapshot which round this token is for, so a slow response can't land
+    // after the player has already switched modes again and overwrite
+    // currentRoundToken with a token for the wrong mode.
+    const modeAtRequestTime = currentMode;
+    authReady.then(() => {
+        const startRound = firebase.functions().httpsCallable('startRound');
+        return startRound({ mode: modeAtRequestTime });
+    }).then((result) => {
+        if (currentMode === modeAtRequestTime) {
+            currentRoundToken = result.data.token;
+        }
+    }).catch((error) => {
+        // Leave currentRoundToken null — submission will fail server-side with
+        // a clear "play a full round first" error rather than silently
+        // succeeding, same fail-safe (not fail-open) posture the score floor
+        // already uses for anti-cheat.
+        console.error('Could not start round session:', error);
+    });
 }
 
 const firebaseConfig = {
@@ -924,8 +960,18 @@ function saveScoreToCloud(initials, score) {
         // offline play: if this sits in the queue for a few days before syncing,
         // the server uses this to bucket the score under the day it was actually
         // played, not the day the phone finally got signal back.
-        playedAt: new Date().toISOString()
+        playedAt: new Date().toISOString(),
+        // Proof-of-play token from requestRoundToken() — see its definition for
+        // what this closes. Whatever value was current at the moment THIS round
+        // finished travels with the payload even into the offline queue, so a
+        // round played and completed online but synced later still carries its
+        // real token.
+        roundToken: currentRoundToken
     };
+    // Consumed either way once a round ends — a fresh one is requested the next
+    // time resetGame() runs. Prevents an accidental double-send of the same
+    // token if saveScoreToCloud() somehow got called twice for one round.
+    currentRoundToken = null;
 
     if (!navigator.onLine) {
         let offlineScores = JSON.parse(localStorage.getItem('paperGolf_offlineScores')) || [];
@@ -2084,18 +2130,20 @@ function idleLoop() {
     }
 }
 
-document.addEventListener('DOMContentLoaded', async () => {
-    // Remote kill switch — checked before anything else initializes, so a
-    // maintenance flag flipped in the Firebase Console blocks play instantly
-    // for anyone loading (or reloading) the page, no redeploy needed to turn
-    // it on or off. Added 2026-09-28 in response to a leaderboard exploit —
-    // see submitScore in functions/index.js for the actual fix in progress.
-    // Fails open (game loads normally) if the read itself fails, so a network
-    // hiccup can't permanently soft-lock the app.
-    const maintenanceSnap = await rtdb.ref('siteStatus/maintenanceMode').once('value').catch(() => null);
-    if (maintenanceSnap && maintenanceSnap.val() === true) {
-        const messageSnap = await rtdb.ref('siteStatus/maintenanceMessage').once('value').catch(() => null);
-        const message = (messageSnap && messageSnap.val()) || "We're doing some quick maintenance to keep the leaderboard fair — back shortly. Thanks for your patience!";
+// Remote kill switch — runs independently of the main DOMContentLoaded init
+// below so it can never delay or interfere with normal page load (an earlier
+// version awaited this before doing anything else, which broke the game by
+// stalling resetGame() behind a network round-trip). Applied reactively
+// instead: the game starts up exactly as it always did, and this covers it
+// up after the fact if the flag comes back true. Toggled via the Firebase
+// Console, no redeploy needed to turn it on or off. Added 2026-09-28 in
+// response to a leaderboard exploit — see submitScore in functions/index.js
+// for the actual fix in progress. Fails silently (game stays playable) if
+// the read itself fails, so a network hiccup can't soft-lock the app.
+rtdb.ref('siteStatus/maintenanceMode').once('value').then((snap) => {
+    if (snap.val() !== true) return;
+    return rtdb.ref('siteStatus/maintenanceMessage').once('value').then((messageSnap) => {
+        const message = messageSnap.val() || "We're doing some quick maintenance to keep the leaderboard fair — back shortly. Thanks for your patience!";
         document.getElementById('maintenanceMessage').textContent = message;
         const overlay = document.getElementById('maintenanceOverlay');
         overlay.style.display = 'flex';
@@ -2108,9 +2156,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.body.style.pointerEvents = 'none';
         document.body.style.overflow = 'hidden';
         overlay.style.pointerEvents = 'auto';
-        return; // Nothing else initializes — no game, no listeners, no writes.
-    }
+    });
+}).catch(() => {});
 
+document.addEventListener('DOMContentLoaded', () => {
     resetGame();
 
     const CURRENT_VERSION = '2026.9.17';

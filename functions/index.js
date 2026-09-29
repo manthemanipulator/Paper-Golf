@@ -81,6 +81,38 @@ function resolvePlayedAtDate(playedAt) {
 }
 
 // ==========================================
+// ROUND SESSIONS
+// Proof-of-play tokens. Issued when a Daily/Random round begins, consumed by
+// submitScore when it ends — closes the "call submitScore directly without
+// playing" exploit reported 2026-09-28 (score < 54 alone only blocked the
+// most extreme fakes, not a plausible-looking forged submission). This proves
+// *some* round of at least a plausible duration happened; it does not (and
+// can't, short of full server-side replay verification, which was already
+// weighed and rejected as disproportionate for this project) prove the dice
+// rolls themselves weren't manipulated client-side.
+// ==========================================
+const MIN_ROUND_DURATION_MS = 45 * 1000; // no real 18-hole round finishes faster than this
+
+exports.startRound = onCall(async (request) => {
+    if (!request.auth) {
+        throw new HttpsError('unauthenticated', 'You must be logged in to start a round.');
+    }
+    const { mode } = request.data;
+    if (typeof mode !== 'string' || !VALID_MODES.includes(mode)) {
+        throw new HttpsError('invalid-argument', 'Invalid game mode.');
+    }
+
+    const roundRef = getDatabase().ref('roundSessions').push();
+    await roundRef.set({
+        uid: request.auth.uid,
+        mode,
+        startedAt: Date.now() // Written server-side — this is the server's own clock, not a client-supplied value, so it's trusted directly.
+    });
+
+    return { token: roundRef.key };
+});
+
+// ==========================================
 // SCORE SUBMISSION
 // Validates and writes scores from the client, keyed to the caller's own
 // verified auth UID. Also owns the all-time "random mode" crown update —
@@ -97,7 +129,7 @@ exports.submitScore = onCall(async (request) => {
     //    — those are derived below from the server. `timezone` and `playedAt` are the
     //    exceptions: they're hints used to pick which local-midnight the date gets
     //    bucketed into, not trusted as the date itself — see resolvePlayedAtDate().)
-    const { initials, score, mode, timezone, playedAt, country } = request.data;
+    const { initials, score, mode, timezone, playedAt, country, roundToken } = request.data;
 
     // 3. Validate the data
     // The literal ace-every-hole minimum is 18 (1 stroke × 18 holes), but that's
@@ -117,6 +149,26 @@ exports.submitScore = onCall(async (request) => {
     }
 
     const uid = request.auth.uid;
+
+    // 3b. Verify a round session actually exists for this player/mode, was
+    // issued long enough ago to be a real round, and hasn't already been
+    // spent — see the ROUND SESSIONS block above for why this exists. Checked
+    // before the leaderboard transaction so a rejected submission never
+    // touches the leaderboard at all.
+    if (typeof roundToken !== 'string' || !roundToken) {
+        throw new HttpsError('failed-precondition', 'No round session found — play a full round before submitting.');
+    }
+    const roundRef = getDatabase().ref(`roundSessions/${roundToken}`);
+    const roundSnap = await roundRef.once('value');
+    const roundData = roundSnap.val();
+    if (!roundData || roundData.uid !== uid || roundData.mode !== mode) {
+        throw new HttpsError('failed-precondition', 'Invalid round session.');
+    }
+    if (Date.now() - roundData.startedAt < MIN_ROUND_DURATION_MS) {
+        throw new HttpsError('failed-precondition', 'Round submitted too quickly to be genuine.');
+    }
+    await roundRef.remove(); // Single-use — can't be replayed for a second submission.
+
     const cleanInitials = initials.toUpperCase();
     // Fall back to UTC for anything malformed/missing rather than rejecting the
     // submission outright — worst case someone's daily just buckets by UTC that round.
