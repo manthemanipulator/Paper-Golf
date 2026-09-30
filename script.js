@@ -1983,7 +1983,15 @@ canvas.addEventListener('pointerdown', (e) => {
     
     let closestTarget = null, minDistance = Infinity, magneticRadius = TILE_SIZE * 1.5; 
 
-    for (let t of clickableTargets) { 
+    for (let t of clickableTargets) {
+        // t.blocked marks a target whose path is obstructed (e.g. a tree in
+        // the way without starting from a Fairway) — it's rendered as a red
+        // ring specifically to warn it's not a legal shot, but nothing here
+        // was actually stopping it from being selected anyway. Reported on
+        // Discord: tapping a blocked ring let you "shoot over trees" for
+        // real, bypassing the one thing that ring is supposed to prevent.
+        if (t.blocked) continue;
+
         let targetCenterX = t.x * TILE_SIZE + TILE_SIZE / 2;
         let targetCenterY = t.y * TILE_SIZE + TILE_SIZE / 2;
         let dist = Math.hypot(clickX - targetCenterX, clickY - targetCenterY);
